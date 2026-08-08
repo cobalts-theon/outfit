@@ -514,24 +514,204 @@ Never crash the whole Home screen because one optional metric is missing.
 
 ## 18. Provider strategy
 
-The initial academic/project scope references:
+The initial MVP provider strategy is:
 
-- OpenWeatherMap
-- AirVisual
+- Open-Meteo Forecast API for current weather, hourly/daily forecast fields,
+  UV support, and daily astronomy;
+- Open-Meteo Air Quality API for AQI and pollutant concentrations;
+- no AirVisual integration for the current MVP;
+- no severe-weather alert provider yet.
 
-Before production integration, verify which provider is authoritative for each capability.
-
-Possible split:
+The provider boundary is:
 
 ```text
-Weather provider
+TanStack Query (future integration)
+→ native Fetch
+→ Open-Meteo JSON
+→ provider-specific runtime parser/DTO
+→ Open-Meteo adapter
+→ normalized project domain
+→ application feature/UI
+```
+
+Request construction, DTOs, parsing, WMO mapping, and adaptation live under:
+
+```text
+src/services/weather/providers/open-meteo/
+```
+
+Provider response shapes and names such as `weather_code`, `temperature_2m`,
+and `european_aqi` must not cross that boundary.
+
+### Forecast request contract
+
+Planned location requests use:
+
+- `timezone=auto`;
+- `timeformat=unixtime` so adapters can emit unambiguous ISO `Z` timestamps;
+- `temperature_unit=celsius`;
+- `wind_speed_unit=ms`;
+- `precipitation_unit=mm`.
+
+Selected current variables:
+
+```text
+temperature_2m, relative_humidity_2m, apparent_temperature, is_day,
+precipitation, rain, showers, snowfall, weather_code, cloud_cover,
+pressure_msl, surface_pressure, wind_speed_10m, wind_direction_10m,
+wind_gusts_10m
+```
+
+Selected hourly variables:
+
+```text
+temperature_2m, apparent_temperature,
+precipitation_probability, precipitation, rain, showers, snowfall,
+weather_code, wind_speed_10m, wind_direction_10m, wind_gusts_10m,
+uv_index, is_day
+```
+
+Relative humidity, cloud cover, and visibility are intentionally not requested
+for the Phase 3B.3 hourly domain because Home `Next` and the currently planned
+forecast contract do not consume them.
+
+Selected daily variables:
+
+```text
+weather_code, temperature_2m_max, temperature_2m_min,
+apparent_temperature_max, apparent_temperature_min, uv_index_max, sunrise,
+sunset, moonrise, moonset, moon_phase, precipitation_sum,
+precipitation_probability_max, wind_speed_10m_max, wind_gusts_10m_max,
+wind_direction_10m_dominant
+```
+
+### WMO mapping
+
+One centralized mapper converts Open-Meteo's documented WMO codes into the
+existing canonical `WeatherCondition`. It does not expand the domain to mirror
+the provider. Unsupported future codes map to `unknown`.
+
+Thunderstorm-with-hail codes keep thunderstorm as the primary condition while
+the independent precipitation adapter records hail. Freezing drizzle maps to
+the closest existing canonical freezing-precipitation condition. Snow grains
+and intensity variants similarly collapse into the existing stable vocabulary.
+
+### Air-quality request contract
+
+Both current and hourly Air Quality requests select:
+
+```text
+pm2_5, pm10, carbon_monoxide, nitrogen_dioxide, sulphur_dioxide, ozone,
+european_aqi, us_aqi, uv_index
+```
+
+The adapter must be called with either `european_aqi` or `us_aqi`. It stores the
+chosen raw index and exact scale in `AirQualityReference`. U.S. categories may
+map to the existing directly compatible category names. European category
+labels are not forced into the U.S.-shaped canonical vocabulary; the numeric
+index and `european_aqi` scale remain authoritative.
+
+Pollutant concentrations remain in µg/m³. UV remains an independent
+`UVReference`, never an AQI field.
+
+### Astronomy
+
+Open-Meteo supplies `sunrise`, `sunset`, `moonrise`, `moonset`, and
+`moon_phase` in daily forecast data. The adapter selects the row corresponding
+to the current observation's local date and maps it into `SunData`/`MoonData`.
+
+`moon_phase` is a fraction of the lunar cycle. It maps to the existing
+eight-phase model. It is not moon illumination, so `illumination` remains
+absent unless a future authoritative field supplies it.
+
+### Unsupported capability
+
+The selected Open-Meteo endpoints do not provide an authoritative severe-alert
+feed for `WeatherAlert`. The adapter therefore leaves `alerts` unavailable
+rather than reporting a known-empty array. A separate authoritative alert
+provider requires a later decision.
+
+No live query, GPS flow, or React component is connected in Phase 2B.
+
+The academic scope's earlier OpenWeatherMap/AirVisual references remain project
+history, not the current MVP integration choice.
+
+The split remains:
+
+```text
+Open-Meteo Forecast API
 → current/hourly/daily/wind/precipitation
 
-Air-quality provider
+Open-Meteo Air Quality API
 → AQI/pollutants
 ```
 
-If a single provider later supplies all required fields reliably, adapters make migration possible.
+### Phase 3B.2 live current composition
+
+The first live application slice now uses narrower provider requests than the
+future full-forecast request contract:
+
+- Forecast `current`: the established 15 current-condition variables;
+- Forecast `daily`: `sunrise`, `sunset`, `moonrise`, `moonset`, and
+  `moon_phase` only;
+- Air Quality `current`: PM2.5, PM10, CO, NO2, SO2, ozone, European AQI, U.S.
+  AQI, and UV;
+- no hourly arrays are requested by this slice.
+
+The application runs Forecast and Air Quality independently and concurrently.
+Forecast is required to construct `CurrentWeather`. Air Quality is optional
+enrichment: fetch, parse, or adapter failure removes AQI/UV rather than
+inventing values, preserves valid weather, and returns an explicit partial
+result issue. A valid environmental response that omits AQI or UV also remains
+partial. `alerts` stays `undefined` because no authoritative alert request was
+made.
+
+Phase 3B.2 uses `us_aqi` as an explicit, configurable application-level default
+for this live slice so the existing presentation can show an index and its
+compatible category. This is not the final product AQI-standard decision;
+`AirQualityReference.scale` remains authoritative and the final choice remains
+open.
+
+### Phase 3B.3 normalized hourly composition
+
+The live Forecast request now combines the existing current variables, the 13
+selected hourly variables above, and the five current-day astronomy fields.
+This is one Forecast HTTP request; `CurrentWeather` and `HourlyForecast` remain
+separate normalized domain models. The independent Air Quality current request
+still runs concurrently.
+
+```text
+Open-Meteo hourly JSON arrays
+→ runtime-parsed Open-Meteo hourly DTO
+→ Open-Meteo hourly adapter
+→ HourlyForecast { location, entries[] }
+→ application live-weather result
+→ Home near-term presentation subset
+```
+
+Each normalized hourly entry contains:
+
+- `forecastAt`: absolute ISO 8601 timestamp with `Z`;
+- canonical `WeatherCondition` via the single WMO mapper;
+- independent `DaylightState` from `is_day`;
+- Celsius temperature and optional apparent temperature;
+- optional normalized `Precipitation`, including probability converted from
+  provider percent to the domain's `0..1` ratio;
+- optional normalized `Wind` and `UVReference`.
+
+The collection preserves the IANA timezone returned for `timezone=auto` so UI
+labels can cross local day boundaries without interpreting ambiguous local
+datetime strings. Hourly timestamps must be strictly chronological. Every
+present provider array must match the `time` array length. Missing optional
+arrays or null values stay unavailable; required timestamp, temperature,
+weather-code, or daylight values invalidate the hourly collection.
+
+Hourly failure is secondary to valid current weather. A malformed hourly array,
+array-length mismatch, or absent hourly block produces an explicit
+`hourly_forecast` issue and omits `HourlyForecast`; it does not erase a valid
+`CurrentWeather`. A failed Forecast HTTP request or malformed required current
+slice remains a complete query failure. UV may still come from a valid Forecast
+hour when Air Quality fails; AQI remains unavailable in that case.
 
 ---
 

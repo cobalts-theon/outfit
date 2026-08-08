@@ -60,12 +60,12 @@ The system should be:
 
 ## 3. Mobile technology direction
 
-- React Native
+- React Native 0.86 through Expo SDK 57
 - TypeScript
-- React Navigation
-- Query/cache library for remote/server state
+- Expo Router with its stable native Stack foundation
+- TanStack Query for remote/server state and cache ownership
 - Lightweight client state where needed
-- Supabase JS client
+- Typed Supabase JS client using the generated `Database` type
 - React Native safe-area support
 - Reanimated for appropriate native animation
 - Lottie only where animation adds real product value
@@ -81,7 +81,8 @@ Preferred direction:
 
 ```text
 src/
-├── app/
+├── app/                    # Expo Router route modules only
+├── application/
 │   ├── providers/
 │   └── bootstrap/
 │
@@ -101,6 +102,7 @@ src/
 │   └── settings/
 │
 ├── services/
+│   ├── query/
 │   ├── weather/
 │   │   ├── providers/
 │   │   ├── adapters/
@@ -112,6 +114,9 @@ src/
 ├── types/
 └── utils/
 ```
+
+Because Expo Router treats files under `src/app` as routes, bootstrap,
+provider, service, and feature modules must live outside that directory.
 
 Feature folders may contain:
 
@@ -159,6 +164,54 @@ interface WeatherProvider {
 ```
 
 The implementation can change without requiring screen rewrites.
+
+---
+
+### 5.1 Live current + hourly weather application boundary
+
+Phase 3B.2 introduced the application-owned orchestration/query layer under
+`src/features/weather/application/`; Phase 3B.3 extends the same boundary with
+normalized hourly forecast data:
+
+```text
+SelectedAppLocation.coordinates
+        ↓
+normalized live-query input (coordinates rounded to 3 decimals)
+        ↓
+TanStack Query live-weather key/cache
+        ↓
+Forecast current + hourly + daily astronomy ─┐ one Forecast request
+Air Quality current ─────────────────────────┤ concurrent provider requests
+                                             ↓
+Open-Meteo current/hourly/AQ parsers + adapters
+        ↓
+LiveCurrentWeatherResult { status, weather, hourlyForecast?, issues }
+        ↓
+Home domain presentation
+```
+
+The location capability remains provider-independent and never imports
+Open-Meteo. The application boundary selects the temporary live-slice AQI
+scale, maps provider/network failures into `LiveWeatherError`, and exposes only
+normalized `CurrentWeather`, optional normalized `HourlyForecast`, and
+project-owned partial-data issues. One Forecast HTTP response supplies both
+domain models without merging their types. The provider parses required
+current/daily fields independently from hourly arrays, so malformed or
+mismatched hourly data can become an hourly-only issue while valid current
+weather remains usable. A failure of the Forecast HTTP request or required
+current slice still fails the query. Air Quality remains optional enrichment.
+
+`HourlyForecast` is a separate project-owned ordered collection. Each entry has
+an absolute ISO `Z` forecast timestamp, canonical condition, independent
+daylight state, explicit Celsius temperature, and optional apparent
+temperature, precipitation, wind, and UV. The collection retains a normalized
+location with the provider IANA timezone for local labels. Home selects six
+near-term entries in its presentation layer; this display limit is not part of
+the forecast domain.
+
+The live query uses a ten-minute stale window, refetches stale data through
+the existing focus/reconnect runtime, performs no fixed polling, and retries
+only transient network/provider/rate-limit failures up to two times.
 
 ---
 
@@ -402,6 +455,8 @@ Minimum offline strategy:
 
 Prioritize:
 
+- environment validation;
+- shared foundation tokens and utilities;
 - weather normalization;
 - rule evaluation;
 - AQI/UV classification;

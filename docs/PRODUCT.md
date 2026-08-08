@@ -1,268 +1,209 @@
-# PRODUCT.md
+# Product
 
-## 1. Product name
+<!-- impeccable:product-schema 1 -->
+
+## Product Name
 
 **Hệ thống dự báo thời tiết và hỗ trợ sức khỏe người dùng**
 
-Working product description:
+This is the current working/provisional product name. A final brand name has
+not been selected.
 
-> A mobile weather and outdoor-assistance application that combines weather, air-quality, UV, location, and rule-based recommendations so users can quickly understand current conditions and decide what to wear and how to protect their health when going outside.
+Working description:
 
----
+> A weather and outdoor assistant that combines weather, air quality, UV,
+> location, and rule-based recommendations so people can quickly understand
+> current conditions, recognize environmental risk, and decide what to do or
+> wear before going outside.
 
-## 2. Problem
+## Platform
 
-Traditional weather applications often present many measurements but leave the user to interpret them.
+adaptive
 
-This product aims to answer four practical questions:
+The primary product surface is one React Native / Expo native application that
+adapts appropriately across Android and iOS. Expo web may remain available for
+development, testing, or secondary compatibility, but it is not the primary
+product surface.
 
-1. **What is the weather now?**
-2. **Is there an environmental risk?**
-3. **How will conditions change soon?**
-4. **What should I do or wear?**
+A separate ReactJS Web Admin is a secondary operational surface for managing
+recommendation rules. It is not part of the adaptive end-user mobile surface.
 
-The system transforms weather/environmental indicators, especially:
+## Users
 
-- temperature;
-- apparent temperature;
-- UV;
-- AQI;
-- precipitation;
-- wind;
-- humidity;
-- severe-weather alerts;
+Primary users are members of the general public checking local conditions
+before commuting, studying, exercising, travelling locally, or spending time
+outdoors.
 
-into understandable, actionable recommendations.
+They need to:
 
----
+- understand current weather without interpreting specialist data;
+- identify the most important environmental or weather-related risk;
+- compare near-term changes before deciding when or how to go outside;
+- receive practical health/outdoor and clothing guidance;
+- account for strong sun, poor air quality, heat, rain, wind, or rapidly
+  changing conditions.
 
-## 3. Target users
+The product must not assume meteorological expertise.
 
-Primary users:
+## Product Purpose
 
-- People checking local weather before commuting, studying, exercising, travelling locally, or going outdoors.
-- Users who want simple guidance rather than interpreting raw environmental measurements.
-- Users sensitive to strong sun, poor air quality, heat, rain, or rapidly changing weather.
+Traditional weather applications often present many measurements while leaving
+the user to interpret their practical meaning. This product exists to answer
+four questions within a few seconds:
 
-The application should remain useful to a general audience and must not assume specialist meteorological knowledge.
+1. What is the weather now?
+2. Is there an environmental risk?
+3. What will happen next?
+4. What should I do or wear?
 
----
+The product is successful when a user can open it and quickly understand the
+current conditions, the most important risk, the near-term forecast, and a
+useful action or recommendation.
 
-## 4. Product surfaces
+## Positioning
 
-### 4.1 Mobile app — primary
+The product is a general-audience weather and outdoor assistant that prioritizes
+interpretation and action rather than presenting a dashboard of undifferentiated
+measurements.
 
-Technology: React Native.
+Its differentiating mechanism is a rule-based recommendation layer that turns
+normalized weather and environmental conditions—including temperature,
+apparent temperature, UV, AQI, wind, precipitation, humidity, and alerts—into
+prioritized health/outdoor and clothing guidance.
 
-Primary responsibilities:
+The core product hierarchy is:
 
-- Read device location with user permission.
-- Show current weather.
-- Show hourly and daily forecasts.
-- Show AQI and pollutants where available.
-- Show UV.
-- Show wind and precipitation.
-- Show weather/environmental alerts.
-- Show health/outdoor recommendations.
-- Show clothing recommendations.
-- Manage saved locations and preferences.
-- Receive push notifications.
+```text
+Now → Risk → Next → Action
+```
 
-### 4.2 Web Admin — secondary
+The application should behave like:
 
-Technology: ReactJS.
+> It is 31°C, feels like 37°C, UV is very high, and the next two hours are dry.
+> Wear light clothing, use sun protection, and avoid prolonged direct sun around
+> midday.
 
-Primary responsibilities:
+It should not behave like:
 
-- Manage recommendation scenarios/rules.
-- Enable/disable rules.
-- Edit recommendation text/content.
-- Manage thresholds when the rule model allows it.
-- Inspect rule metadata and lifecycle.
-- Support controlled changes without requiring a new mobile release for every content/rule adjustment.
+> Here are 20 weather numbers.
 
-The Web Admin is not the first implementation priority unless required by the current milestone.
+## Operating Context
 
----
+### Open the app
 
-## 5. Core value proposition
+1. Obtain or recall the user's location.
+2. Load current weather and environmental conditions.
+3. Present temperature, main condition, primary risk, and the next-hours
+   preview immediately.
+4. Allow users to expand into forecasts and secondary details.
 
-The application should not behave like:
-
-> "Here are 20 weather numbers."
-
-It should behave like:
-
-> "It is 31°C, feels like 37°C, UV is very high, and the next two hours are dry. Wear light clothing, use sun protection, and avoid prolonged direct sun around midday."
-
-The application adds value through **interpretation and prioritization**.
-
----
-
-## 6. MVP
-
-### Must have
-
-- Current location permission and GPS.
-- Current weather.
-- Temperature and feels-like temperature.
-- Main weather condition.
-- Day/night-aware weather visual.
-- Hourly forecast.
-- Daily forecast.
-- Wind speed/direction; gust when available.
-- Humidity.
-- Precipitation probability/intensity where available.
-- UV.
-- AQI.
-- Basic weather alerts.
-- Health/outdoor recommendations.
-- Clothing recommendations.
-- Saved/default location behavior.
-- Loading, error, permission-denied, and offline-aware states.
-- Push-notification foundation/preferences.
-- Supabase-backed user/preferences/rules architecture where needed.
-
-### Should have
-
-- Sunrise and sunset.
-- Moon phase and illumination.
-- Moonrise/moonset when the selected provider supports it.
-- Visibility.
-- Pressure.
-- Dew point.
-- Pollutant breakdown such as PM2.5 and PM10.
-- Multiple saved locations.
-- Recommendation explanation/reason.
-- Alert history or recent important notifications.
-
-### Not required for initial MVP
-
-- Social features.
-- Chat/community.
-- Complex AI-generated medical advice.
-- Full climate-history analytics.
-- Arbitrary global meteorological research tools.
-- Hundreds of hand-authored weather-condition combinations.
-- Highly elaborate 3D weather scenes.
-
----
-
-## 7. Core user flows
-
-### Flow A — Open app
-
-1. App obtains or recalls location.
-2. Current weather loads.
-3. User immediately sees:
-   - temperature;
-   - main condition;
-   - primary risk;
-   - next-hours preview.
-4. User can expand for details.
-
-### Flow B — First location permission
+### First location permission
 
 1. Explain why location is useful.
-2. Request OS permission.
-3. If allowed: load local weather.
-4. If denied: provide manual location search/selection.
-5. Do not block the whole product permanently because GPS permission is denied.
+2. Request operating-system permission.
+3. If allowed, load local conditions from device coordinates.
+4. If denied or unavailable, offer manual location search and selection.
+5. Never permanently block the product because GPS permission is denied.
 
-### Flow C — Check risk
+### Check risk
 
-1. User sees a prioritized risk summary.
-2. The app explains the important indicator.
-3. The app provides an actionable recommendation.
-4. Severe conditions should direct attention to official alerts.
+1. Prioritize the most important active risk.
+2. Explain the relevant indicator in understandable language.
+3. Provide a practical action.
+4. For severe hazards, foreground official warnings and conservative guidance.
 
-### Flow D — Plan next hours
+### Plan the next hours
 
-1. User checks hourly forecast.
-2. User sees rain/temperature/weather transition.
-3. User can decide when to leave, carry rain protection, or change clothing.
+1. Compare hourly temperature, condition, wind, and precipitation changes.
+2. Identify meaningful transitions.
+3. Decide when to leave or whether to carry rain, sun, warmth, or wind
+   protection.
 
-### Flow E — Manage preferences
+### Manage preferences
 
-User can configure relevant preferences such as:
+Users may configure units, saved/default locations, notification categories,
+and quiet behavior when those features are implemented.
 
-- units;
-- default/saved locations;
-- notification categories;
-- notification quiet behavior if implemented.
+### Web Admin
 
----
+Authorized administrators manage recommendation scenarios/rules, including
+enabled state, thresholds supported by the current model, recommendation
+content, and lifecycle metadata. The Web Admin is secondary to the mobile
+product and must not delay the mobile core experience.
 
-## 8. Home screen information hierarchy
+## Capabilities and Constraints
 
-The Home screen should follow:
+### MVP capabilities
 
-### Level 1 — Now
+- current location permission and GPS;
+- manual-location fallback;
+- current weather, temperature, feels-like temperature, and condition;
+- day/night-aware weather representation;
+- hourly and daily forecasts;
+- wind speed, direction, and gust when available;
+- humidity and precipitation probability/intensity;
+- UV and AQI;
+- basic weather alerts;
+- health/outdoor and clothing recommendations;
+- saved/default location behavior;
+- loading, error, permission-denied, and offline-aware states;
+- push-notification foundation/preferences;
+- Supabase-backed authentication, user data, saved locations, and controlled
+  recommendation rules where required.
 
-- Location
-- Main weather visual
-- Temperature
-- Main condition
-- Feels like
+### Secondary capabilities
 
-### Level 2 — Risk
+- sunrise and sunset;
+- moon phase and illumination;
+- moonrise/moonset when provider data supports it;
+- visibility, pressure, and dew point;
+- pollutant detail such as PM2.5 and PM10;
+- multiple saved locations;
+- recommendation explanations and reasons;
+- recent important notification or alert history when justified.
 
-Examples:
+### Product and technical constraints
 
-- UV very high
-- AQI unhealthy
-- Heavy rain
-- Thunderstorm
-- Strong wind
-- Heat stress risk
+- Provider responses must be normalized before reaching business logic or UI.
+- UI and recommendations must not depend on provider-specific weather codes.
+- Weather condition, day/night, moon, wind, precipitation, UV, AQI, and alerts
+  remain independent dimensions rather than combinatorial condition enums.
+- Remote/server state and local client state must have separate ownership.
+- Mobile behavior must respect Android and iOS conventions, safe areas, system
+  navigation, touch targets, text scaling, reduced-motion settings, and
+  permission-denied paths.
+- Service-role secrets must never ship in the mobile client; RLS remains a
+  backend security boundary.
+- Weather responses are not persisted by default without a concrete product,
+  history, analytics, or licensing requirement.
+- The current recommendation-rule schema is not a finalized general-purpose
+  rule DSL and must not be redesigned without tested requirements.
+- Login requirements, weather provider selection, AQI standard, notification
+  delivery infrastructure, and rule-evaluation placement remain explicit open
+  decisions.
 
-Only the most important risks should dominate.
+### Health and safety boundary
 
-### Level 3 — Next few hours
+Recommendations provide general environmental wellness and outdoor-safety
+guidance only. The product does not diagnose disease, prescribe or provide
+medical treatment, replace professional medical advice, or infer medical
+conditions from weather data.
 
-Compact hourly timeline.
+Personal health profiles, if considered later, require separate privacy and
+safety review.
 
-### Level 4 — Action
+### Recommendation contract
 
-Examples:
-
-- Clothing recommendation
-- Sun protection
-- Rain protection
-- Outdoor activity caution
-
-### Level 5 — Secondary details
-
-- Humidity
-- Pressure
-- Visibility
-- Sunrise/sunset
-- Moon
-- Pollutants
-
-Do not give all data equal hierarchy.
-
----
-
-## 9. Recommendation principles
-
-Recommendations must be:
-
-- concise;
-- explainable;
-- tied to input conditions;
-- conservative for high-risk conditions;
-- understandable without meteorological expertise;
-- configurable through a Rule Engine where appropriate.
-
-Each recommendation should be able to carry:
+Recommendations should be concise, explainable, tied to measured conditions,
+conservative under high-risk conditions, and understandable without specialist
+knowledge. A recommendation may include:
 
 - title;
 - message;
 - category;
 - severity;
 - reason;
-- triggering measurements/rules;
+- triggering measurements or rules;
 - optional action.
 
 Example:
@@ -277,50 +218,93 @@ Example:
 }
 ```
 
----
+### Information hierarchy
 
-## 10. Health scope and safety
+The Home experience follows:
 
-The application provides **general environmental health/outdoor guidance**.
+1. **Now** — location, weather, temperature, condition, and feels-like value.
+2. **Risk** — the most important environmental or weather-related concern.
+3. **Next** — a compact near-term forecast for comparison.
+4. **Action** — practical clothing, sun, rain, wind, heat, or outdoor guidance.
+5. **Secondary details** — humidity, pressure, visibility, sunrise/sunset,
+   moon, and pollutants.
 
-It is not intended to:
+Not all measurements receive equal hierarchy.
 
-- diagnose disease;
-- prescribe treatment;
-- replace a doctor;
-- infer medical conditions from weather data.
+### Non-goals for the initial MVP
 
-If personal health profiles are introduced later, they require a separate privacy and safety review.
+- social or community features;
+- chat;
+- complex AI-generated medical advice;
+- climate-history analytics;
+- arbitrary global meteorological research tooling;
+- hundreds of hard-coded weather combinations;
+- highly elaborate 3D weather scenes;
+- an admin-heavy platform built before the mobile core experience.
 
----
+## Brand Commitments
 
-## 11. Success criteria
+- Keep **Hệ thống dự báo thời tiết và hỗ trợ sức khỏe người dùng** as the
+  working/provisional product name until a final brand name is approved.
+- No finalized logo or authoritative brand-identity assets exist yet.
+- The current visual direction is documented separately in `docs/DESIGN.md`.
+  It is a design commitment for current work, not evidence of validated user
+  preference.
+- Do not invent a final brand, official logo, proprietary visual assets, or
+  external claims during product or design work.
 
-The MVP is successful when a user can open the app and, within a few seconds, understand:
+## Evidence on Hand
 
-- current conditions;
-- the most important environmental risk;
-- near-term forecast;
-- a useful action/recommendation.
+Durable project evidence currently consists of:
 
-Engineering success also requires:
+- product requirements and flows in this file;
+- architecture decisions in `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`;
+- weather-domain rules in `docs/WEATHER.md`;
+- backend state and security decisions in `docs/DATABASE.md`;
+- implementation status in `docs/PROGRESS.md`;
+- a runnable Expo 57 / React Native project scaffold;
+- an existing Supabase schema, migrations, RLS verification, and generated
+  TypeScript database types.
 
-- reliable weather normalization;
-- responsive mobile UI;
-- robust permission/network handling;
-- secure Supabase use;
-- maintainable rules;
-- acceptable performance on common Android/iOS devices.
+Evidence that does **not** currently exist:
 
----
+- formal or validated user research;
+- approved research findings;
+- validated preference for the visual direction;
+- finalized logo or brand assets;
+- testimonials, case studies, adoption metrics, benchmarks, press, or other
+  external product proof;
+- approved external marketing or medical claims.
 
-## 12. Product non-goals
+Future work must not fabricate absent evidence.
 
-The product must not become:
+## Product Principles
 
-- a data-dump dashboard;
-- a generic AI-styled UI;
-- a medical-diagnosis app;
-- a weather-provider-specific frontend;
-- a system where every possible combination is hard-coded;
-- an admin-heavy platform before the mobile core experience works.
+1. **Interpret before displaying.** Convert measurements into clear meaning and
+   prioritized actions instead of presenting an undifferentiated data dump.
+2. **Now → Risk → Next → Action.** Preserve this hierarchy across the core
+   mobile experience.
+3. **Practical and conservative guidance.** Recommendations must be explainable,
+   useful outdoors, and safely bounded away from diagnosis or treatment.
+4. **Location is helpful, not coercive.** Use native location when permitted and
+   preserve a useful manual fallback when it is not.
+5. **Native trust on both platforms.** Maintain one coherent product while
+   respecting Android and iOS interaction, navigation, accessibility, and
+   system-behavior expectations.
+
+## Accessibility & Inclusion
+
+- Support Android and iOS system text scaling and avoid layouts that depend on
+  fixed text sizes.
+- Meet native touch-target expectations and protect interactive content with
+  safe-area and system-bar insets.
+- Communicate risk with text and hierarchy as well as color.
+- Provide meaningful accessibility labels and keep decorative content out of
+  screen-reader output.
+- Respect reduced-motion or remove-animation settings.
+- Avoid flashing, aggressive glitch effects, or motion that interferes with
+  reading weather and safety information.
+- Support long Vietnamese labels and recommendations without clipping while
+  keeping language understandable to non-specialists.
+- Keep the app useful when location permission, GPS, or network access is
+  unavailable.

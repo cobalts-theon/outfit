@@ -1,18 +1,29 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import type { ErrorBoundaryProps } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { useAppBootstrap } from '@/application/bootstrap/use-app-bootstrap';
+import { AppProviders } from '@/application/providers/app-providers';
+import { AppErrorFallback } from '@/components/ui/app-error-fallback';
+import { RootNavigator } from '@/navigation/root-navigator';
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <AppErrorFallback error={error} onRetry={retry} />
+    </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  const { isReady } = useAppBootstrap();
+
+  if (!isReady) {
+    return null;
+  }
+
+  return (
+    <AppProviders>
+      <RootNavigator />
+    </AppProviders>
   );
 }

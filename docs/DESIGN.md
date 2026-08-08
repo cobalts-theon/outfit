@@ -1,989 +1,166 @@
-# DESIGN.md
-
-## 1. Product Design Goal
-
-The application is a **weather and outdoor decision assistant** with a strong retro-futuristic visual identity.
-
-It should combine:
-
-- practical weather usability;
-- high information clarity;
-- atmospheric visual storytelling;
-- terminal / system-interface aesthetics;
-- dither and ASCII-inspired graphics;
-- monospace typography;
-- technical and data-driven presentation.
-
-The product must remain easy to use even when the visual language is experimental.
-
-The primary UX promise is:
-
-> Understand current conditions, identify environmental risk, see what happens next, and know what to do within a few seconds.
-
+---
+name: "Hệ thống dự báo thời tiết và hỗ trợ sức khỏe người dùng"
+description: "A practical adaptive weather assistant shaped as a restrained environmental field terminal."
 ---
 
-## 2. Core Visual Direction
+<!-- SEED: established with the user before implementation; re-run $impeccable document once there's code to capture the actual tokens and components. -->
 
-The application should follow a:
+# Design System: Atmospheric Field Terminal
 
-**retro-futuristic / terminal / dither / ASCII-inspired / technical interface aesthetic.**
+## Overview
 
-Primary visual influences include:
+### Creative North Star
 
-- terminal interfaces;
-- scientific monitoring systems;
-- system consoles;
-- encrypted protocol interfaces;
-- retro computer graphics;
-- dithering;
-- ASCII graphics;
-- raster/pixel texture;
-- monochrome technical displays;
-- sci-fi archive interfaces;
-- atmospheric interactive websites such as KPRverse.
+**The Atmospheric Field Terminal**
 
-KPRverse and similar references are **visual inspiration only**.
+The product should feel like a personal environmental instrument: immediate enough for a glance before going outdoors, atmospheric enough to make changing conditions tangible, and calm enough to support practical decisions. It borrows the discipline of field equipment, terminal readouts, scientific monitoring, and dithered raster graphics without becoming a literal hardware replica or a role-playing interface.
 
-Do not directly clone layouts, assets, branding, interactions, or unique compositions from any single reference.
+The primary product surface is one adaptive React Native / Expo application for Android and iOS. Expo web may support development, testing, or secondary compatibility, but it does not define the visual system.
 
-Instead extract principles such as:
+The interface must preserve the product hierarchy:
 
-- atmosphere;
-- information density;
-- typography;
-- technical labeling;
-- visual tension;
-- interface hierarchy;
-- motion language.
+**Now → Risk → Next → Action**
 
----
+Current conditions establish the scene. The most important environmental risk interrupts that scene clearly. Near-term change gives the user temporal context. Recommendations turn the reading into an understandable next action.
 
-## 3. Desired Personality
+### Visual World
 
-The interface should feel:
+- Near-black, graphite, and charcoal create a dry instrument-panel foundation rather than a glossy luxury surface.
+- Dithered atmospheric fields make weather, daylight, particulate density, and uncertainty feel physical.
+- Restrained ASCII marks, ruled lines, coordinates, timestamps, and system labels provide technical rhythm.
+- Composed weather imagery treats sky, celestial state, precipitation, wind, atmosphere, and alerts as independent dimensions.
+- Sparse technical accents indicate state, focus, or a meaningful data change; they are not decoration.
+- Motion is controlled, mechanical, and atmospheric: measured sweeps, stepped reveals, gentle drift, and precise state transitions.
 
-- technical;
-- mysterious;
-- precise;
-- atmospheric;
-- data-driven;
-- slightly futuristic;
-- intentionally designed;
-- restrained;
-- immersive;
-- distinctive.
+KPRverse-like and other experimental interfaces may inform atmosphere, typography, and craft. They are reference inspiration only. No screen, composition, branding device, proprietary asset, or distinctive interaction should be cloned.
 
-It should NOT feel:
+### Product Principles
 
-- generic;
-- corporate;
-- like a SaaS dashboard;
-- like a cryptocurrency dashboard;
-- soft/pastel by default;
-- excessively rounded;
-- full of generic cards;
-- like an AI-generated mobile template.
+1. **Usability is the instrument's purpose.** Atmosphere must strengthen comprehension, never compete with it.
+2. **Meaning precedes ornament.** Temperature, risk, timing, and action remain legible before texture or motion is considered.
+3. **Environmental dimensions stay independent.** Day/night, moon, wind, AQI, UV, precipitation, and alerts compose a scene; they do not collapse into combinatorial visual states.
+4. **Native behavior earns trust.** Platform navigation, safe areas, accessibility, permissions, text scaling, and touch behavior should feel correct on both Android and iOS.
+5. **Texture supports hierarchy.** Dither and ASCII create identity at the edges of attention, not in the path of essential reading.
 
----
+## Colors
 
-## 4. Product Usability Comes First
+### Foundation
 
-Visual experimentation must never damage essential weather usability.
+The palette is dark, restrained, and materially dry. Exact color values are **[to be resolved during implementation]** after contrast testing on real Android and iOS displays.
 
-For every major screen, users must quickly understand:
+- **Instrument Black** — primary application ground; near-black without crushing detail.
+- **Graphite Field** — broad atmospheric and secondary regions.
+- **Charcoal Surface** — grouped information and interactive zones.
+- **Signal White** — primary text and high-value readings.
+- **Muted Ink** — supporting labels, timestamps, units, and dividers.
+- **Technical Accent** — one restrained non-semantic accent for focus, selection, and live-system cues.
 
-1. What is happening now?
-2. Is anything dangerous or uncomfortable?
-3. What will happen soon?
-4. What should I do?
+### Semantic Color
 
-Never sacrifice:
+AQI, UV, warning, danger, success, and provider or official alert states retain their domain meaning. Their exact mapping and the selected AQI standard are **[to be resolved during implementation]** with the weather domain documentation. Semantic colors must not be recolored merely to harmonize with the identity palette.
 
-- readability;
-- contrast;
-- touch usability;
-- information hierarchy;
-- accessibility;
-- forecast comparability;
+Severity must never rely on color alone. Pair color with a label, symbol, placement, pattern, or explicit action.
 
-for visual effects.
+### Color Rules
 
-The visual style is an **atmospheric layer around a practical weather product**.
+- **Signal Budget:** use the technical accent only for interactive focus, live status, selected data, or a meaningful change.
+- **Meaning Before Mood:** semantic risk colors override decorative color preferences.
+- **Night Is Data, Not Theme:** nighttime weather changes the environmental scene; it does not silently switch the application theme.
+- Tonal transitions must be weather-driven or structurally useful. Avoid soft decorative gradients and generic AI-style color washes.
+- Dither may bridge tones or suggest particulate density, but it must not reduce text or chart contrast.
 
----
+## Typography
 
-## 5. Typography
+### Primary Identity Typeface
 
-### Primary Typeface
+**JetBrains Mono** is the primary identity and display typeface. Use it for major environmental readings, metric values, compact section labels, timestamps, coordinates, system status, and short technical phrases.
 
-Use **JetBrains Mono** as the primary visual type direction.
+A complementary body and native-control type strategy is **[to be resolved during implementation]**. Long Vietnamese guidance may use the platform system face when it improves reading comfort, text scaling, or native control trust.
 
-JetBrains Mono should be strongly represented in:
+### Type Roles
 
-- weather metrics;
-- temperatures;
-- timestamps;
-- coordinates;
-- navigation labels;
-- section labels;
-- system messages;
-- AQI values;
-- UV values;
-- wind values;
-- weather metadata;
-- technical annotations.
+- **Environmental Display** — current temperature and the single dominant reading; large, calm, and immediately scannable.
+- **Metric Value** — AQI, UV, precipitation, wind, and forecast values; tabular numerals where supported.
+- **Screen Title** — concise location or task context.
+- **System Label** — compact metadata and section identifiers; uppercase only when the text remains short.
+- **Body Guidance** — natural Vietnamese sentences for risks and recommendations.
+- **Annotation** — units, timestamps, source state, and secondary context.
 
-Examples:
+Exact font sizes, weights, tracking, and line heights are **[to be resolved during implementation]** through device testing and Dynamic Type validation.
 
-```text
-CURRENT CONDITIONS
-29°C
+### Typography Rules
 
-AQI // 042
-UV // 08
-WIND // 14 KM/H NE
+- **Numbers Lead:** value, unit, and label form one readable measurement, with the value visually dominant.
+- **Labels Do Not Shout:** technical uppercase is a navigational texture, not the default voice.
+- Preserve Vietnamese diacritics, comfortable line length, and natural wrapping at large accessibility sizes.
+- Avoid fake seven-segment, novelty pixel, or terminal fonts for body copy.
+- Do not compress warning or recommendation language to preserve a decorative layout.
 
-FORECAST // NEXT 06H
-```
+## Layout
 
-### Typography Roles
+### Structure
 
-Recommended semantic typography roles:
+The default structure is a ruled, single-column information feed with strong vertical sequencing. Use spacing, alignment, dividers, tonal fields, and deliberate density before introducing container chrome.
 
-```text
-displayTemperature
-displayMetric
+Global order follows **Now → Risk → Next → Action**. Secondary readings and deeper environmental detail follow only after the user can answer: What is happening? What matters? What changes soon? What should I do?
 
-screenLabel
-sectionLabel
-
-title
-body
-bodyStrong
-
-metricValue
-metricLabel
-
-caption
-metadata
-systemText
-```
-
-Temperature should remain one of the largest visual elements on the Home screen.
-
-Avoid giant marketing-style headings.
-
-### Long Text
-
-JetBrains Mono may be used throughout the product if readability remains strong.
-
-If long recommendation paragraphs become difficult to read, a secondary highly-readable sans-serif may be introduced later.
-
-If a secondary font is introduced:
-
-- JetBrains Mono remains the identity/display font;
-- the secondary font is only for longer explanatory text.
-
-This requires a new entry in `DECISIONS.md`.
-
----
-
-## 6. ASCII Language
-
-ASCII is a **visual motif**, not the primary method for rendering all information.
-
-Good uses:
-
-```text
-[ CURRENT CONDITIONS ]
-
-// ENVIRONMENT FEED
-
---------------------------------
-
-:: FORECAST STREAM ::
-
-[ AQI STATUS // GOOD ]
-
-> NEXT UPDATE 14:32
-```
-
-Decorative examples:
-
-```text
-+----------------------------+
-| ENVIRONMENT STATUS         |
-+----------------------------+
-```
-
-or:
-
-```text
-[ WEATHER // LOCAL NODE ]
-
-:::::: DATA STREAM ::::::
-```
-
-ASCII should be used selectively.
-
-Do NOT fill every screen with decorative characters.
-
-Decorative ASCII must be hidden from screen readers when it carries no semantic meaning.
-
----
-
-## 7. Dither Language
-
-Dithering is one of the main visual signatures of the application.
-
-Possible uses:
-
-- weather hero backgrounds;
-- sun/moon textures;
-- cloud shading;
-- precipitation atmosphere;
-- gradients converted into dither patterns;
-- loading graphics;
-- splash/onboarding;
-- empty states;
-- atmospheric separators.
-
-Dither must NOT reduce legibility of:
-
-- temperature;
-- AQI;
-- UV;
-- warnings;
-- forecast values;
-- recommendations.
-
-Rule:
-
-> Texture supports information. Texture never competes with information.
-
----
-
-## 8. Weather Scene System
-
-The current-weather hero should be treated as a composed scene rather than one static icon.
-
-Conceptually:
-
-```text
-Weather Scene
-│
-├── Sky
-│   ├── dawn
-│   ├── day
-│   ├── sunset
-│   ├── twilight
-│   └── night
-│
-├── Celestial
-│   ├── sun
-│   ├── moon
-│   ├── moon phase
-│   └── stars
-│
-├── Atmosphere
-│   ├── clouds
-│   ├── fog
-│   ├── haze
-│   └── dust
-│
-├── Precipitation
-│   ├── drizzle
-│   ├── rain
-│   ├── snow
-│   └── hail
-│
-└── Effects
-    ├── lightning
-    └── wind
-```
-
-The scene may use:
-
-- dither layers;
-- subtle animation;
-- simple geometric forms;
-- weather icons;
-- raster-like masks;
-- monochrome textures.
-
-Avoid extremely heavy animation.
-
----
-
-## 9. Weather Icon System
-
-Main weather conditions should use the normalized weather model defined in `WEATHER.md`.
-
-Current preferred direction:
-
-**Meteocons**
-
-Use approximately:
-
-```text
-30–35 semantic conditions
-+
-day/night variants
-+
-8 moon phases
-```
-
-Do not import the entire icon library into runtime bundles unless required.
-
-Use:
-
-- richer weather visual for current-weather hero;
-- static/lightweight SVG for hourly forecast;
-- static/lightweight SVG for daily forecast.
-
-General application icons should use one separate consistent UI icon family.
-
----
-
-## 10. Color Philosophy
-
-The application should primarily use a restrained palette.
-
-Base direction:
-
-```text
-near black
-graphite
-charcoal
-off-white
-muted grey
-```
-
-Potential technical accents:
-
-```text
-acid green
-muted cyan
-amber
-cold blue
-```
-
-Accent usage should remain restrained.
-
-The app should not become a fully neon cyberpunk interface.
-
----
-
-## 11. Semantic Colors
-
-Weather/environmental data has semantic meaning.
-
-Semantic color always overrides brand aesthetics where needed.
-
-Examples:
-
-```text
-AQI
-UV
-weather warning
-danger
-severe alert
-success
-```
-
-Do NOT force every state into the same terminal-green palette.
-
-AQI colors must follow the AQI standard selected for the project.
-
-UV colors must consistently communicate severity.
-
-Alert colors must remain recognizable.
-
----
-
-## 12. Surface System
-
-Prefer structured layouts and restrained panels.
-
-Use:
-
-- borders;
-- separators;
-- spacing;
-- alignment;
-- hierarchy;
-
-before using cards.
-
-Possible component appearance:
-
-```text
-+------------------------------+
-| UV EXPOSURE                  |
-|                              |
-| 08 // VERY HIGH              |
-|                              |
-| Avoid prolonged exposure.    |
-+------------------------------+
-```
-
-But not every section needs a box.
-
----
-
-## 13. Avoid Card-Heavy UI
-
-Do not build Home as:
-
-```text
-Card
-Card
-Card
-Card
-Card
-Card
-```
-
-Avoid:
-
-- nested cards;
-- excessive floating containers;
-- excessive shadows;
-- glossy panels;
-- glassmorphism everywhere;
-- huge rounded corners.
-
-Prefer:
-
-```text
-strong hierarchy
-+
-spacing
-+
-borders
-+
-typography
-+
-controlled surfaces
-```
-
----
-
-## 14. Radius
-
-Use restrained corner radii.
-
-The interface may include:
-
-- rectangular panels;
-- slightly rounded controls;
-- clipped/angular decorative elements.
-
-Avoid turning every component into a large rounded pill.
-
----
-
-## 15. Home Screen Hierarchy
-
-The Home screen follows:
-
-```text
-NOW
- ↓
-RISK
- ↓
-NEXT
- ↓
-ACTION
-```
-
-Recommended structure:
-
-```text
-[ LOCATION // LOCAL NODE ]
-
-CURRENT WEATHER HERO
-
-29°
-PARTLY CLOUDY
-FEELS LIKE 32°
-
---------------------------------
-
-[ PRIMARY ADVISORY ]
-
-UV // 08
-VERY HIGH
-
-Avoid prolonged direct sunlight.
-
---------------------------------
-
-[ ENVIRONMENT ]
-
-AQI       UV       WIND
-042       08       14 KM/H
-
---------------------------------
-
-[ FORECAST // NEXT 06H ]
-
-20:00  21:00  22:00  23:00
- 28°    27°    27°    26°
-
---------------------------------
-
-[ FIELD RECOMMENDATION ]
-
-> LIGHT BREATHABLE CLOTHING
-> USE SUN PROTECTION
-> STAY HYDRATED
-```
-
-The exact wording may be localized naturally into Vietnamese.
-
-Do not force English terminal wording into all user-facing content if Vietnamese is clearer.
-
----
-
-## 16. Current Weather Hero
-
-The hero should contain:
-
-- location context;
-- weather scene;
-- temperature;
-- condition;
-- feels-like value.
-
-Optional subtle technical metadata may appear.
-
-Do not put every environmental metric inside the hero.
-
-Hero visual complexity must not overwhelm the temperature.
-
----
-
-## 17. Weather Risk
-
-Important risks include:
-
-- extreme UV;
-- unhealthy AQI;
-- thunderstorms;
-- heavy rain;
-- high heat;
-- strong wind;
-- severe weather alerts.
-
-When risk is active it should become visually prominent.
-
-Use severity through:
-
-- position;
-- typography;
-- borders;
-- semantic color;
-- concise language.
-
-Do not rely only on color.
-
----
-
-## 18. Metrics
-
-Possible compact environmental metrics:
-
-```text
-AQI
-UV
-Wind
-Humidity
-Visibility
-Pressure
-```
-
-Examples:
-
-```text
-AQI // 042
-GOOD
-```
-
-```text
-WIND // 14 KM/H
-NE
-```
-
-Icons may support these values but should not replace clear labels.
-
----
-
-## 19. Hourly Forecast
-
-Prioritize:
-
-- time;
-- weather icon;
-- temperature;
-- precipitation chance when relevant.
-
-Example:
-
-```text
-20:00   21:00   22:00   23:00
- 🌤       ☁       ☾☁       ☾
- 28°      27°      27°      26°
-```
-
-The current hour should be visually identifiable.
-
-Day/night icon transitions must be correct.
-
-Avoid complex animated icons in every row.
-
----
-
-## 20. Daily Forecast
-
-Prioritize:
-
-- date/day;
-- condition;
-- min/max temperature;
-- rain probability where useful.
-
-Additional data belongs on detailed forecast screens.
-
----
-
-## 21. Moon and Night Design
-
-Night weather scenes should support the eight moon phases defined in `WEATHER.md`.
-
-Moon visuals may include:
-
-- dithered moon surface;
-- crescent shapes;
-- subtle halo;
-- limited stars.
-
-Example:
-
-```text
-[ NIGHT CONDITIONS ]
-
-       ░░████░░
-     ░████████░
-       ██████
-
-MOON // WAXING GIBBOUS
-ILLUMINATION // 73%
-```
-
-Moon phase is environmental data and visual atmosphere.
-
-Do not create separate domain weather conditions for moon/weather combinations.
-
----
-
-## 22. Recommendations
-
-Recommendations should answer:
-
-```text
-WHAT?
-WHY?
-WHAT SHOULD I DO?
-```
-
-Example:
-
-```text
-[ UV EXPOSURE ]
-
-STATUS // VERY HIGH
-INDEX  // 09
-
-Direct sun exposure is intense.
-
-> USE SUN PROTECTION
-> LIMIT PROLONGED MIDDAY EXPOSURE
-```
-
-Long paragraphs should not dominate Home.
-
----
-
-## 23. Clothing Recommendations
-
-Clothing guidance should remain practical.
-
-Possible outputs:
-
-```text
-LIGHT CLOTHING
-RAIN PROTECTION
-SUN PROTECTION
-WARM LAYER
-WIND-RESISTANT LAYER
-```
-
-Do not position clothing recommendations as fashion advice.
-
----
-
-## 24. Loading States
-
-Loading states are a good place for stronger system-interface aesthetics.
-
-Examples:
-
-```text
-// INITIALIZING WEATHER FEED
-
-LOCATION ........ OK
-WEATHER API ..... CONNECTING
-AIR QUALITY ..... WAITING
-```
-
-or:
-
-```text
-[ ENVIRONMENT LINK ]
-
-FETCHING CONDITIONS...
-```
-
-Do not create artificial long loading sequences.
-
-Animation must reflect real loading state.
-
----
-
-## 25. Error States
-
-Error copy should remain useful.
-
-Example:
-
-```text
-[ CONNECTION ERROR ]
-
-Weather data could not be retrieved.
-
-> RETRY
-```
-
-Avoid cryptic terminal language when users need a clear recovery action.
-
----
-
-## 26. Permission States
-
-Location permission screens may use the technical visual language, but must clearly explain:
-
-- why location is requested;
-- what happens if permission is denied;
-- that manual location selection remains available.
-
-Never trap users behind GPS permission.
-
----
-
-## 27. Motion
-
-Motion should feel:
-
-- controlled;
-- mechanical;
-- atmospheric;
-- deliberate.
-
-Good examples:
-
-- subtle dither movement;
-- slow cloud movement;
-- gentle rain;
-- small data-state transitions;
-- subtle cursor/system feedback.
-
-Avoid:
-
-- constant glitch effects;
-- aggressive screen shaking;
-- rapid flashing;
-- looping intense lightning;
-- animations on every metric.
-
-Respect reduced-motion preferences where practical.
-
----
-
-## 28. General UI Icons
-
-Use one consistent general-purpose icon family for:
-
-- navigation;
-- settings;
-- search;
-- location;
-- notifications;
-- back;
-- menu.
-
-Do not mix many unrelated icon libraries.
-
-Weather icons and general UI icons are separate systems.
-
----
-
-## 29. Dark Mode vs Weather Night
-
-These are different concepts.
-
-```text
-APP THEME:
-light / dark
-
-WEATHER TIME:
-day / night
-```
-
-Do not automatically make the entire application dark solely because current weather is nighttime.
-
-Weather hero atmosphere may reflect night while app surfaces respect user theme preference.
-
----
-
-## 30. Accessibility
-
-Minimum requirements:
-
-- sufficient contrast;
-- readable weather values;
-- semantic labels;
-- touch targets appropriate for mobile;
-- do not rely only on color;
-- meaningful accessibility labels;
-- avoid flashing/glitch effects;
-- support reduced motion where practical;
-- support common system font scaling.
-
-Decorative ASCII should not pollute screen-reader output.
-
----
-
-## 31. Small Screen Requirement
-
-Always review screens on a smaller Android viewport.
-
-Check:
-
-- clipped text;
-- long Vietnamese labels;
-- temperature sizing;
-- forecast width;
-- recommendation wrapping;
-- safe areas;
-- touch targets.
-
-A layout is not complete because it looks good on one emulator.
-
----
-
-## 32. UI Research Workflow
-
-Before implementing a significant new screen:
-
-1. Read this file.
-2. Read `PRODUCT.md`.
-3. Read relevant feature documentation.
-4. Study multiple relevant UI references if tools are available.
-5. Analyze:
-   - hierarchy;
-   - typography;
-   - information density;
-   - interaction;
-   - spacing.
-6. Extract patterns.
-7. Do not clone one reference.
-8. Adapt findings to this product's visual language.
-
-Reference research may include:
-
-- weather apps;
-- environmental monitoring interfaces;
-- health/outdoor apps;
-- editorial interfaces;
-- experimental digital experiences;
-- terminal-inspired interfaces.
-
----
-
-## 33. Visual Review Workflow
-
-A substantial UI implementation is not complete after writing code.
-
-Required workflow where tooling permits:
-
-```text
-implement
- ↓
-run app
- ↓
-open emulator/device
- ↓
-capture screen
- ↓
-visual critique
- ↓
-fix
- ↓
-capture again
-```
-
-Critique:
-
-- hierarchy;
-- alignment;
-- spacing;
-- typography;
-- contrast;
-- clipping;
-- information density;
-- consistency;
-- visual identity;
-- small-screen usability.
-
-Use Impeccable when appropriate.
-
----
-
-## 34. Anti-Generic Checklist
-
-Before accepting a screen, ask:
-
-- Does this look like our product?
-- Does it express the terminal/dither identity?
-- Is JetBrains Mono being used intentionally?
-- Is there too much card UI?
-- Are radii too soft/generic?
-- Are gradients being used without reason?
-- Could this screen belong to any random weather app?
-- Is the information hierarchy still clear?
-- Has visual experimentation hurt readability?
-
-If the screen looks polished but generic, it is not finished.
-
----
-
-## 35. Final Design Principle
-
-The application should feel like:
-
-> a sophisticated environmental monitoring interface transformed into a practical personal weather companion.
-
-Not:
-
-> a generic weather dashboard with a terminal font placed on top.
+Exact spacing units, breakpoints, and density tiers are **[to be resolved during implementation]**.
+
+### Alignment and Density
+
+- Establish a consistent measurement grid for labels, values, units, timestamps, and dividers.
+- Allow atmospheric artwork to bleed or layer behind content only when a protected reading zone preserves contrast.
+- Prefer a few strong regions over a mosaic of equal cards.
+- Use horizontal scrolling only for naturally sequential data such as hourly time steps, with clear position and accessible alternatives.
+- Dense technical detail belongs in progressive disclosure, not the first glance.
+
+### Adaptive Native Behavior
+
+- Respect iOS safe areas, edge-swipe navigation expectations, Dynamic Type, and a minimum 44-point touch target.
+- Respect Android edge-to-edge insets, system and predictive back behavior, font scaling, and a minimum 48 dp touch target.
+- Treat small Android screens and long Vietnamese text as baseline cases, not later exceptions.
+- On wider layouts, adapt information relationships instead of stretching a phone column indefinitely.
+- Keyboard, permission, loading, offline, and error states must preserve the same hierarchy as the successful state.
+
+## Elevation & Depth
+
+The system is flat by default. Depth comes primarily from tonal separation, ruled borders, dither density, atmospheric layering, and controlled occlusion inside weather imagery.
+
+- Use borders and contrast before shadows.
+- Reserve elevation for transient or platform-native layers such as sheets, menus, and critical overlays.
+- Use native material behavior where it improves platform comprehension; do not apply glass treatment across the interface.
+- Any glow must communicate an active signal or severe state and remain restrained enough to preserve text clarity.
+- Exact border, shadow, and overlay values are **[to be resolved during implementation]**.
+
+## Shapes
+
+- Favor rectangular and gently clipped geometry with crisp alignment.
+- Use small, restrained corner radii only where they improve grouping, touch affordance, or native consistency.
+- Preserve native control shape and behavior when a custom shape would reduce familiarity or accessibility.
+- Atmospheric weather forms may be organic and dithered; interface chrome remains geometric and disciplined.
+- Avoid excessive rounded cards, oversized pills, ornamental notches, and decorative cyberpunk framing.
+- Exact radii, stroke weights, and clipping language are **[to be resolved during implementation]**.
+
+## Do's and Don'ts
+
+### Do
+
+- Make current conditions, the primary risk, near-term change, and recommended action understandable in that order.
+- Use dither, ASCII, noise, coordinates, and system labels as restrained supporting motifs.
+- Keep semantic AQI, UV, warning, and danger colors meaningful and accessible.
+- Compose day/night, moon, wind, precipitation, AQI, UV, and alerts as independent dimensions.
+- Use native Android and iOS navigation, permissions, feedback, and accessibility patterns.
+- Test long Vietnamese text, screen readers, text scaling, reduced motion, color contrast, and small screens.
+- Keep motion measured, purposeful, interruptible, and replaceable with a clear reduced-motion state.
+- Give severe hazards and official alerts conservative, unmistakable treatment.
+
+### Don't
+
+- Do not clone KPRverse, an oscilloscope, an early desktop GUI, or any single visual reference.
+- Do not regress into a generic SaaS dashboard or a grid of interchangeable cards.
+- Do not use glassmorphism everywhere, pastel weather-app styling, generic AI gradients, or excessive neon cyberpunk.
+- Do not bury the primary temperature, risk, or action under decorative data density.
+- Do not let dither, ASCII, noise, animation, or atmospheric imagery impair reading or touch.
+- Do not rely on color alone for status or severity.
+- Do not force terminal language into Vietnamese copy when plain language is clearer.
+- Do not equate nighttime weather with dark mode or combine independent weather dimensions into provider-specific visual enums.
