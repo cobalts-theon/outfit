@@ -27,8 +27,8 @@ describe('live CurrentWeather query identity', () => {
     expect(options.enabled).toBe(false);
     expect(options.queryKey).toEqual([
       'weather',
-      'current-hourly',
-      'v2',
+      'current-hourly-daily',
+      'v3',
       'unavailable',
     ]);
     expect(options.staleTime).toBe(LIVE_CURRENT_WEATHER_STALE_TIME_MS);

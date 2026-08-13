@@ -89,7 +89,7 @@ describe('Open-Meteo request boundary', () => {
     expect(airQualityUrl.searchParams.has('hourly')).toBe(false);
   });
 
-  it('builds one live Forecast request for current, hourly, and current-day astronomy', () => {
+  it('builds one live Forecast request for current, hourly, and full daily data', () => {
     const url = new URL(buildOpenMeteoLiveWeatherForecastUrl(coordinates));
 
     expect(url.searchParams.get('current')?.split(',')).toEqual(
@@ -98,9 +98,7 @@ describe('Open-Meteo request boundary', () => {
     expect(url.searchParams.get('hourly')?.split(',')).toEqual(
       OPEN_METEO_HOURLY_VARIABLES,
     );
-    expect(url.searchParams.get('daily')?.split(',')).toEqual(
-      OPEN_METEO_CURRENT_WEATHER_DAILY_VARIABLES,
-    );
+    expect(url.searchParams.get('daily')?.split(',')).toEqual(OPEN_METEO_DAILY_VARIABLES);
     expect(url.searchParams.get('timezone')).toBe('auto');
     expect(url.searchParams.get('timeformat')).toBe('unixtime');
   });
@@ -159,6 +157,23 @@ describe('Open-Meteo request boundary', () => {
     expect(parsed.hourlyIssue).toEqual({ code: 'malformed_response' });
   });
 
+  it('isolates malformed daily JSON while retaining valid current and hourly DTOs', () => {
+    const malformedDaily = {
+      ...openMeteoForecastFixture,
+      daily: {
+        ...openMeteoForecastFixture.daily,
+        temperature_2m_max: ['31.2'],
+      },
+    };
+
+    const parsed = parseOpenMeteoLiveForecastResponse(malformedDaily);
+
+    expect(parsed.forecast.current.temperature_2m).toBe(29.6);
+    expect(parsed.forecast.hourly?.time).toHaveLength(2);
+    expect(parsed.forecast.daily).toBeUndefined();
+    expect(parsed.dailyIssue).toEqual({ code: 'malformed_response' });
+  });
+
   it('uses an injected Fetch-compatible transport and never needs the network in tests', async () => {
     let requestedUrl: string | undefined;
     const fetchImplementation = jest.fn<OpenMeteoFetch>(async (input) => {
@@ -190,7 +205,9 @@ describe('Open-Meteo request boundary', () => {
 
     expect(fetchImplementation).toHaveBeenCalledTimes(1);
     expect(result.forecast.hourly?.time).toHaveLength(2);
+    expect(result.forecast.daily?.time).toHaveLength(1);
     expect(result.hourlyIssue).toBeUndefined();
+    expect(result.dailyIssue).toBeUndefined();
   });
 
   it('rejects non-success HTTP responses before parsing', async () => {

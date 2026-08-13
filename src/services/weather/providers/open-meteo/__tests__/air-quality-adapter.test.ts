@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { adaptOpenMeteoAirQuality } from '@/services/weather/providers/open-meteo/air-quality-adapter';
+import {
+  adaptOpenMeteoAirQuality,
+  uvIndexCategory,
+} from '@/services/weather/providers/open-meteo/air-quality-adapter';
 import type { OpenMeteoAirQualityResponseDto } from '@/services/weather/providers/open-meteo/air-quality-dto';
 import { openMeteoAirQualityFixture } from '@/services/weather/providers/open-meteo/fixtures/open-meteo-fixtures';
 
@@ -41,11 +44,21 @@ describe('Open-Meteo air-quality adapter', () => {
     });
   });
 
-  it('keeps UV separate from AQI', () => {
+  it('keeps UV separate from AQI and normalizes its WHO exposure category', () => {
     const snapshot = adaptOpenMeteoAirQuality(openMeteoAirQualityFixture, 'us_aqi');
 
-    expect(snapshot.uv).toEqual({ index: 5.4 });
+    expect(snapshot.uv).toEqual({ index: 5.4, category: 'moderate' });
     expect(snapshot.airQuality).not.toHaveProperty('uv');
+  });
+
+  it('maps the WHO UV exposure-band boundaries', () => {
+    expect([
+      uvIndexCategory(2.9),
+      uvIndexCategory(3),
+      uvIndexCategory(6),
+      uvIndexCategory(8),
+      uvIndexCategory(11),
+    ]).toEqual(['low', 'moderate', 'high', 'very_high', 'extreme']);
   });
 
   it('omits missing optional AQI, pollutant, and UV data', () => {

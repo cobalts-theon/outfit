@@ -81,6 +81,7 @@ describe('live CurrentWeather orchestration', () => {
       uv: { index: 5.4 },
     });
     expect(result.hourlyForecast?.entries).toHaveLength(2);
+    expect(result.dailyForecast?.entries).toHaveLength(1);
   });
 
   it('keeps valid weather when the optional Air Quality request fails', async () => {
@@ -200,6 +201,28 @@ describe('live CurrentWeather orchestration', () => {
     expect(result.issues).toMatchObject([
       { source: 'hourly_forecast', code: 'malformed_response' },
     ]);
+  });
+
+  it('keeps current and hourly data when only the daily slice is malformed', async () => {
+    const result = await loadLiveCurrentWeather(
+      createLiveCurrentWeatherInput(selectedLocation),
+      {
+        dependencies: dependencies(async () => ({
+          forecast: { ...openMeteoForecastFixture, daily: undefined },
+          dailyIssue: { code: 'malformed_response' },
+        })),
+      },
+    );
+
+    expect(result.status).toBe('partial');
+    expect(result.weather.temperature.valueCelsius).toBe(29.6);
+    expect(result.hourlyForecast?.entries).toHaveLength(2);
+    expect(result.dailyForecast).toBeUndefined();
+    expect(result.issues).toContainEqual({
+      source: 'daily_forecast',
+      code: 'malformed_response',
+      message: 'Chuỗi dự báo theo ngày nhận được không đúng định dạng mong đợi.',
+    });
   });
 
   it('preserves unavailable optional values and never invents environmental zeroes', async () => {

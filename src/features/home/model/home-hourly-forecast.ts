@@ -63,7 +63,7 @@ export function createHomeHourlyForecastPreview(
     }));
 
   return {
-    summary: `Dự báo trực tiếp theo giờ tại múi giờ ${forecast.location.timeZone}.`,
+    summary: `Diễn biến vài giờ tới theo giờ địa phương · ${forecast.location.timeZone}`,
     items,
   };
 }

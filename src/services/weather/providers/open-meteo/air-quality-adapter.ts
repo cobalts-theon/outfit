@@ -2,6 +2,7 @@ import type {
   AirQualityCategory,
   AirQualityReference,
   PollutantConcentrations,
+  UVCategory,
   UVReference,
 } from '@/features/weather/domain/current-weather';
 import type { OpenMeteoAirQualityResponseDto } from '@/services/weather/providers/open-meteo/air-quality-dto';
@@ -52,6 +53,14 @@ function usAqiCategory(index: number): AirQualityCategory {
   return 'hazardous';
 }
 
+export function uvIndexCategory(index: number): UVCategory {
+  if (index < 3) return 'low';
+  if (index < 6) return 'moderate';
+  if (index < 8) return 'high';
+  if (index < 11) return 'very_high';
+  return 'extreme';
+}
+
 function mapPollutants(
   response: OpenMeteoAirQualityResponseDto,
 ): PollutantConcentrations | undefined {
@@ -98,7 +107,10 @@ export function adaptOpenMeteoAirQuality(
           ...(scale === 'us_aqi' ? { category: usAqiCategory(index) } : {}),
           ...(pollutants === undefined ? {} : { pollutants }),
         };
-  const uv = uvIndex === undefined ? undefined : { index: uvIndex };
+  const uv =
+    uvIndex === undefined
+      ? undefined
+      : { index: uvIndex, category: uvIndexCategory(uvIndex) };
 
   return {
     ...(airQuality === undefined ? {} : { airQuality }),

@@ -47,6 +47,7 @@ describe('Open-Meteo current forecast adapter', () => {
       },
       humidityPercent: 78,
       pressureHectopascals: 1004.2,
+      visibilityMeters: 7200,
       cloudCoverPercent: 86,
       wind: {
         speedMetersPerSecond: 4.2,
@@ -59,7 +60,7 @@ describe('Open-Meteo current forecast adapter', () => {
         amountMillimeters: 2.4,
         intensity: 'light',
       },
-      uv: { index: 5.4, maxToday: 8.1 },
+      uv: { index: 5.4, category: 'moderate', maxToday: 8.1 },
       airQuality: {
         index: 118,
         scale: 'us_aqi',
@@ -123,6 +124,7 @@ describe('Open-Meteo current forecast adapter', () => {
     expect(mapOpenMeteoWindDirection(22.5)).toBe('NE');
     expect(mapOpenMeteoWindDirection(180)).toBe('S');
     expect(mapOpenMeteoWindDirection(359)).toBe('N');
+    expect(mapOpenMeteoWindDirection(360)).toBe('N');
   });
 
   it('maps the documented moon-cycle fraction without inventing illumination', () => {
@@ -158,6 +160,7 @@ describe('Open-Meteo current forecast adapter', () => {
     expect(weather.condition).toBe('partly_cloudy');
     expect(weather.precipitation).toBeUndefined();
     expect(weather.pressureHectopascals).toBeUndefined();
+    expect(weather.visibilityMeters).toBeUndefined();
     expect(weather.cloudCoverPercent).toBeUndefined();
     expect(weather.uv).toBeUndefined();
     expect(weather.sun).toBeUndefined();

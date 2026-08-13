@@ -160,6 +160,50 @@ export function LocationCapabilityStrip() {
   const { state, requestPermission, retry, refreshPermission } = useLocationCapability();
   const presentation = getPresentation(state);
 
+  if (state.status === 'ready') {
+    const { latitude, longitude } = state.selectedLocation.coordinates;
+    const accuracy = state.position.accuracyMeters;
+    const sourceLabel =
+      state.position.source === 'last_known' ? 'VỊ TRÍ GẦN NHẤT' : 'VỊ TRÍ HIỆN TẠI';
+    const coordinateLabel = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    const detail =
+      accuracy === undefined
+        ? coordinateLabel
+        : `${coordinateLabel} · ±${Math.round(accuracy)} m`;
+
+    return (
+      <View
+        accessibilityLabel={`${sourceLabel}. ${detail}`}
+        accessibilityLiveRegion="polite"
+        style={styles.readyContainer}
+        testID="location-capability-ready"
+      >
+        <View style={styles.readyCopy}>
+          <View style={styles.labelRow}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[
+                styles.signal,
+                {
+                  backgroundColor:
+                    state.position.source === 'last_known'
+                      ? homeVisualTokens.warning
+                      : homeVisualTokens.calm,
+                },
+              ]}
+            />
+            <Text style={styles.label}>{sourceLabel}</Text>
+          </View>
+          <Text numberOfLines={1} style={styles.readyDetail}>
+            {detail}
+          </Text>
+        </View>
+        <LocationAction label="CẬP NHẬT" onPress={() => void retry()} secondary />
+      </View>
+    );
+  }
+
   const runPrimaryAction = () => {
     switch (presentation.primaryAction) {
       case 'request':
@@ -238,6 +282,30 @@ const styles = StyleSheet.create({
     backgroundColor: homeVisualTokens.fieldDeep,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+  },
+  readyContainer: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: homeVisualTokens.fieldDeep,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  readyCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xxs,
+  },
+  readyDetail: {
+    color: colors.textMuted,
+    fontFamily: typography.identity,
+    fontSize: 11,
+    lineHeight: 17,
+    fontVariant: ['tabular-nums'],
   },
   labelRow: {
     minHeight: 20,

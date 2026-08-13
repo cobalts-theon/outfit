@@ -26,6 +26,7 @@ export interface OpenMeteoForecastCurrentDto {
   readonly showers?: NullableNumber;
   readonly snowfall?: NullableNumber;
   readonly cloud_cover?: NullableNumber;
+  readonly visibility?: NullableNumber;
   readonly pressure_msl?: NullableNumber;
   readonly surface_pressure?: NullableNumber;
   readonly wind_direction_10m?: NullableNumber;
@@ -92,6 +93,8 @@ export interface OpenMeteoLiveForecastDto {
   readonly forecast: OpenMeteoForecastResponseDto;
   /** Provider-owned parse signal; raw provider errors never cross into React. */
   readonly hourlyIssue?: { readonly code: 'malformed_response' };
+  /** Daily parsing degrades independently from required current conditions. */
+  readonly dailyIssue?: { readonly code: 'malformed_response' };
 }
 
 function parseCurrent(record: JsonRecord): OpenMeteoForecastCurrentDto {
@@ -117,6 +120,7 @@ function parseCurrent(record: JsonRecord): OpenMeteoForecastCurrentDto {
     showers: readOptionalNumber(record, 'showers', 'current.showers'),
     snowfall: readOptionalNumber(record, 'snowfall', 'current.snowfall'),
     cloud_cover: readOptionalNumber(record, 'cloud_cover', 'current.cloud_cover'),
+    visibility: readOptionalNumber(record, 'visibility', 'current.visibility'),
     pressure_msl: readOptionalNumber(record, 'pressure_msl', 'current.pressure_msl'),
     surface_pressure: readOptionalNumber(
       record,
@@ -244,9 +248,10 @@ function parseForecastResponseRecord(
   response: JsonRecord,
   hourly: OpenMeteoForecastHourlyDto | undefined,
   hourlyUnits: Readonly<Record<string, string>> | undefined,
+  daily: OpenMeteoForecastDailyDto | undefined,
+  dailyUnits: Readonly<Record<string, string>> | undefined,
 ): OpenMeteoForecastResponseDto {
   const current = readRecord(response.current, 'current');
-  const daily = readOptionalRecord(response, 'daily');
 
   return {
     latitude: readNumber(response, 'latitude'),
@@ -260,19 +265,22 @@ function parseForecastResponseRecord(
     current_units: readUnitMap(response, 'current_units'),
     hourly,
     hourly_units: hourlyUnits,
-    daily: daily === undefined ? undefined : parseDaily(daily),
-    daily_units: readUnitMap(response, 'daily_units'),
+    daily,
+    daily_units: dailyUnits,
   };
 }
 
 export function parseOpenMeteoForecastResponse(value: unknown): OpenMeteoForecastResponseDto {
   const response = readRecord(value, 'response');
   const hourly = readOptionalRecord(response, 'hourly');
+  const daily = readOptionalRecord(response, 'daily');
 
   return parseForecastResponseRecord(
     response,
     hourly === undefined ? undefined : parseHourly(hourly),
     readUnitMap(response, 'hourly_units'),
+    daily === undefined ? undefined : parseDaily(daily),
+    readUnitMap(response, 'daily_units'),
   );
 }
 
@@ -285,6 +293,9 @@ export function parseOpenMeteoLiveForecastResponse(value: unknown): OpenMeteoLiv
   let hourly: OpenMeteoForecastHourlyDto | undefined;
   let hourlyUnits: Readonly<Record<string, string>> | undefined;
   let hourlyIssue: OpenMeteoLiveForecastDto['hourlyIssue'];
+  let daily: OpenMeteoForecastDailyDto | undefined;
+  let dailyUnits: Readonly<Record<string, string>> | undefined;
+  let dailyIssue: OpenMeteoLiveForecastDto['dailyIssue'];
 
   try {
     const hourlyRecord = readOptionalRecord(response, 'hourly');
@@ -295,8 +306,24 @@ export function parseOpenMeteoLiveForecastResponse(value: unknown): OpenMeteoLiv
     hourlyIssue = { code: 'malformed_response' };
   }
 
+  try {
+    const dailyRecord = readOptionalRecord(response, 'daily');
+    daily = dailyRecord === undefined ? undefined : parseDaily(dailyRecord);
+    dailyUnits = readUnitMap(response, 'daily_units');
+  } catch (error) {
+    if (!(error instanceof OpenMeteoResponseError)) throw error;
+    dailyIssue = { code: 'malformed_response' };
+  }
+
   return {
-    forecast: parseForecastResponseRecord(response, hourly, hourlyUnits),
+    forecast: parseForecastResponseRecord(
+      response,
+      hourly,
+      hourlyUnits,
+      daily,
+      dailyUnits,
+    ),
     ...(hourlyIssue === undefined ? {} : { hourlyIssue }),
+    ...(dailyIssue === undefined ? {} : { dailyIssue }),
   };
 }

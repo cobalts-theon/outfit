@@ -15,12 +15,15 @@ import type { CurrentWeather } from '@/features/weather/domain/current-weather';
 import { EnvironmentMetrics } from '@/features/home/components/environment-metrics';
 import { ForecastPreview } from '@/features/home/components/forecast-preview';
 import { LiveWeatherStatusStrip } from '@/features/home/components/live-weather-status-strip';
-import { RecommendationPreview } from '@/features/home/components/recommendation-preview';
+import {
+  LiveRecommendationPanel,
+  RecommendationPreview,
+} from '@/features/home/components/recommendation-preview';
 import { RiskAdvisory } from '@/features/home/components/risk-advisory';
 import { WeatherHero } from '@/features/home/components/weather-hero';
 import { LocationCapabilityStrip } from '@/features/locations/components/location-capability-strip';
 import { useLocationCapability } from '@/features/locations/application/location-capability-provider';
-import { createLiveObservationRisk } from '@/features/home/model/home-live-presentation';
+import { createLiveRecommendationPresentation } from '@/features/home/model/home-live-presentation';
 import {
   createHomeHourlyForecastPreview,
   createUnavailableHomeForecastPreview,
@@ -56,8 +59,14 @@ export function HomePrototypeScreen() {
   const isLive = liveResult !== undefined;
   const fixturePresentation = isLive ? HOME_PROTOTYPE_SCENARIOS[0] : scenario;
   const weather: CurrentWeather = liveResult?.weather ?? scenario.weather;
+  const liveRecommendationPresentation =
+    liveResult === undefined
+      ? undefined
+      : createLiveRecommendationPresentation(liveResult);
   const risk =
-    liveResult === undefined ? fixturePresentation.risk : createLiveObservationRisk(liveResult);
+    liveRecommendationPresentation === undefined
+      ? fixturePresentation.risk
+      : liveRecommendationPresentation.risk;
   const forecast =
     liveResult === undefined
       ? fixturePresentation.forecast
@@ -120,14 +129,14 @@ export function HomePrototypeScreen() {
               <View
                 accessibilityLabel={`Hiện tại dùng dữ liệu live; Dự báo kế tiếp ${
                   forecastSource === 'live' ? 'dùng dữ liệu live' : 'chưa khả dụng'
-                }; Hành động vẫn dùng fixture`}
-                style={styles.sourceBadge}
+                }; Hành động dùng Rule Engine`}
+                style={styles.sourceReadout}
               >
-                <Text style={styles.sourceBadgePrimary}>NOW // LIVE</Text>
-                <Text style={styles.sourceBadgeSecondary}>
+                <Text style={styles.sourceReadoutPrimary}>TRỰC TIẾP</Text>
+                <Text style={styles.sourceReadoutSecondary}>
                   {forecastSource === 'live'
-                    ? 'NEXT // LIVE · ACTION // FIXTURE'
-                    : 'NEXT // UNAVAILABLE · ACTION // FIXTURE'}
+                    ? 'HIỆN TẠI + TIẾP THEO'
+                    : 'HIỆN TẠI · TIẾP THEO —'}
                 </Text>
               </View>
             ) : (
@@ -165,24 +174,34 @@ export function HomePrototypeScreen() {
             reflow={largeTextReflow}
             weather={weather}
           />
-          <RiskAdvisory risk={risk} />
-          <ForecastPreview forecast={forecast} source={forecastSource} />
-          <RecommendationPreview recommendation={fixturePresentation.recommendation} />
-          <EnvironmentMetrics weather={weather} />
+          <EnvironmentMetrics source={isLive ? 'live' : 'fixture'} weather={weather} />
+          <RiskAdvisory compact={isLive} risk={risk} />
+          <ForecastPreview
+            forecast={forecast}
+            forecastRouteAvailable={liveResult !== undefined}
+            source={forecastSource}
+          />
+          {liveRecommendationPresentation === undefined ? (
+            <RecommendationPreview recommendation={fixturePresentation.recommendation} />
+          ) : (
+            <LiveRecommendationPanel
+              evaluation={liveRecommendationPresentation.evaluation}
+            />
+          )}
 
           <View style={styles.footer}>
             <Text style={styles.footerPrimary}>
               {isLive
                 ? forecastSource === 'live'
-                  ? 'NOW + ENVIRONMENT + NEXT // LIVE · ACTION // FIXTURE'
-                  : 'NOW + ENVIRONMENT // LIVE · NEXT // UNAVAILABLE · ACTION // FIXTURE'
+                  ? 'HIỆN TẠI + MÔI TRƯỜNG + TIẾP THEO + HÀNH ĐỘNG // TRỰC TIẾP'
+                  : 'HIỆN TẠI + MÔI TRƯỜNG + HÀNH ĐỘNG // TRỰC TIẾP · TIẾP THEO // CHƯA KHẢ DỤNG'
                 : 'HOME PROTOTYPE // OFFLINE FIXTURES'}
             </Text>
             <Text style={styles.footerSecondary}>
               {isLive
                 ? forecastSource === 'live'
-                  ? 'Chuỗi theo giờ là dữ liệu live; Hành động vẫn là nội dung bố cục mẫu, chưa được tạo bởi rule engine.'
-                  : 'Chuỗi theo giờ không khả dụng; Hành động vẫn là nội dung bố cục mẫu, chưa được tạo bởi rule engine.'
+                  ? 'Điều kiện, chuỗi theo giờ và Rule Engine dùng dữ liệu đã chuẩn hóa; gợi ý là thông tin sức khỏe và an toàn chung.'
+                  : 'Điều kiện hiện tại và Rule Engine dùng dữ liệu đang có; chuỗi theo giờ chưa khả dụng và không được suy diễn.'
                 : 'Chạm bộ chọn mẫu ở đầu màn hình để kiểm tra các trạng thái.'}
             </Text>
           </View>
@@ -215,7 +234,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    minHeight: 78,
+    minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -237,8 +256,8 @@ const styles = StyleSheet.create({
   location: {
     color: colors.text,
     fontFamily: typography.identitySemibold,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 24,
   },
   freshnessRow: {
     flexDirection: 'row',
@@ -274,25 +293,21 @@ const styles = StyleSheet.create({
     borderColor: homeVisualTokens.technical,
     backgroundColor: homeVisualTokens.fieldRaised,
   },
-  sourceBadge: {
-    minWidth: 132,
+  sourceReadout: {
+    minWidth: 142,
     minHeight: minimumTouchTarget,
     justifyContent: 'center',
     alignItems: 'flex-end',
-    borderWidth: 1,
-    borderColor: homeVisualTokens.technical,
-    borderRadius: 2,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xxs,
-    backgroundColor: homeVisualTokens.field,
+    gap: spacing.xxs,
   },
-  sourceBadgePrimary: {
+  sourceReadoutPrimary: {
     color: homeVisualTokens.technical,
     fontFamily: typography.identitySemibold,
     fontSize: 10,
     lineHeight: 15,
+    letterSpacing: 0.8,
   },
-  sourceBadgeSecondary: {
+  sourceReadoutSecondary: {
     color: colors.textMuted,
     fontFamily: typography.identity,
     fontSize: 8,

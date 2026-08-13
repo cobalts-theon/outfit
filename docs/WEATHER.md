@@ -558,7 +558,7 @@ Selected current variables:
 ```text
 temperature_2m, relative_humidity_2m, apparent_temperature, is_day,
 precipitation, rain, showers, snowfall, weather_code, cloud_cover,
-pressure_msl, surface_pressure, wind_speed_10m, wind_direction_10m,
+visibility, pressure_msl, surface_pressure, wind_speed_10m, wind_direction_10m,
 wind_gusts_10m
 ```
 
@@ -712,6 +712,43 @@ array-length mismatch, or absent hourly block produces an explicit
 `CurrentWeather`. A failed Forecast HTTP request or malformed required current
 slice remains a complete query failure. UV may still come from a valid Forecast
 hour when Air Quality fails; AQI remains unavailable in that case.
+
+### Phase 4 normalized daily and detailed forecast composition
+
+Phase 4 keeps the same one-request Forecast transport and adds a distinct
+`DailyForecast` domain model. The live query contract is versioned as `v3` so
+older cached current/hourly-only results cannot be mistaken for the extended
+shape.
+
+```text
+Open-Meteo daily JSON arrays
+→ independently parsed daily DTO
+→ Open-Meteo daily adapter
+→ DailyForecast { location, entries[] }
+→ Forecast seven-day presentation
+```
+
+Every normalized daily entry requires a provider local-date timestamp,
+canonical condition, and minimum/maximum Celsius values. Precipitation maximum
+probability is converted to the domain `0..1` ratio; precipitation sum remains
+millimeters. UV maximum, sunrise/sunset, moonrise/moonset, and moon phase are
+optional and omitted when unavailable. Moon illumination is never inferred
+from the cycle fraction.
+
+Daily parsing and adaptation degrade independently from current and hourly
+data. Invalid daily chronology, units, lengths, or required values produce a
+`daily_forecast` issue and omit only `DailyForecast`. Likewise, an hourly-only
+failure does not remove valid current or daily values. UI presentation never
+fills timestamp gaps or missing readings with generated values.
+
+Open-Meteo may encode due north as either `0` or the equivalent boundary value
+`360`. The provider adapter accepts `0..360`, normalizes `360` to the domain's
+canonical `0`, and continues to reject values outside that provider range.
+
+The detailed Forecast route consumes only normalized data. It shows 24 relevant
+hourly entries, seven daily entries, current visibility and sea-level/surface
+pressure where present, and the current day's authoritative astronomy values.
+Home retains its six-entry `Now + Next` presentation subset.
 
 ---
 

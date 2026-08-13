@@ -46,7 +46,8 @@
           "locationWhenInUsePermission": "Cho phép ứng dụng sử dụng vị trí khi bạn đang dùng ứng dụng để hiển thị điều kiện thời tiết tại khu vực của bạn."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

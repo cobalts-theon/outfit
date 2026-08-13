@@ -13,6 +13,7 @@ export const OPEN_METEO_CURRENT_VARIABLES = [
   'snowfall',
   'weather_code',
   'cloud_cover',
+  'visibility',
   'pressure_msl',
   'surface_pressure',
   'wind_speed_10m',
@@ -137,7 +138,7 @@ export function buildOpenMeteoCurrentWeatherForecastUrl(
   });
 }
 
-/** One Forecast API request for the live CurrentWeather and HourlyForecast slices. */
+/** One Forecast API request for live current, hourly, and daily forecast slices. */
 export function buildOpenMeteoLiveWeatherForecastUrl(
   coordinates: OpenMeteoRequestCoordinates,
 ) {
@@ -148,7 +149,7 @@ export function buildOpenMeteoLiveWeatherForecastUrl(
     longitude: coordinates.longitude,
     current: OPEN_METEO_CURRENT_VARIABLES.join(','),
     hourly: OPEN_METEO_HOURLY_VARIABLES.join(','),
-    daily: OPEN_METEO_CURRENT_WEATHER_DAILY_VARIABLES.join(','),
+    daily: OPEN_METEO_DAILY_VARIABLES.join(','),
     timezone: 'auto',
     timeformat: 'unixtime',
     temperature_unit: 'celsius',

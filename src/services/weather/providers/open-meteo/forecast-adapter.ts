@@ -12,7 +12,10 @@ import {
   type WindDirection,
 } from '@/features/weather/domain/current-weather';
 import { assertValidCurrentWeather } from '@/features/weather/domain/validate-current-weather';
-import type { OpenMeteoEnvironmentalSnapshot } from '@/services/weather/providers/open-meteo/air-quality-adapter';
+import {
+  type OpenMeteoEnvironmentalSnapshot,
+  uvIndexCategory,
+} from '@/services/weather/providers/open-meteo/air-quality-adapter';
 import { OpenMeteoResponseError } from '@/services/weather/providers/open-meteo/errors';
 import type {
   OpenMeteoForecastCurrentDto,
@@ -52,6 +55,7 @@ function assertNormalizedForecastUnits(response: OpenMeteoForecastResponseDto) {
   assertUnit(response.current_units, 'showers', 'mm');
   assertUnit(response.current_units, 'snowfall', 'cm');
   assertUnit(response.current_units, 'cloud_cover', '%');
+  assertUnit(response.current_units, 'visibility', 'm');
   assertUnit(response.current_units, 'pressure_msl', 'hPa');
   assertUnit(response.current_units, 'surface_pressure', 'hPa');
   assertUnit(response.current_units, 'wind_speed_10m', 'm/s');
@@ -131,8 +135,18 @@ export function mapOpenMeteoDaylight(
 }
 
 export function mapOpenMeteoWindDirection(degrees: number): WindDirection {
-  requireRange('wind.directionDegrees', degrees, 0, 359.999);
-  return windDirections[Math.floor((degrees + 22.5) / 45) % windDirections.length];
+  const normalizedDegrees = normalizeOpenMeteoWindDirection(
+    degrees,
+    'wind.directionDegrees',
+  );
+  return windDirections[
+    Math.floor((normalizedDegrees + 22.5) / 45) % windDirections.length
+  ];
+}
+
+function normalizeOpenMeteoWindDirection(degrees: number, path: string) {
+  const providerDegrees = requireRange(path, degrees, 0, 360);
+  return providerDegrees === 360 ? 0 : providerDegrees;
 }
 
 export function mapOpenMeteoWind(
@@ -150,7 +164,10 @@ export function mapOpenMeteoWind(
   const degrees =
     values.directionDegrees === null || values.directionDegrees === undefined
       ? undefined
-      : requireRange(`${path}.wind_direction_10m`, values.directionDegrees, 0, 359.999);
+      : normalizeOpenMeteoWindDirection(
+          values.directionDegrees,
+          `${path}.wind_direction_10m`,
+        );
 
   if (gust !== undefined && gust < speed) {
     throw new OpenMeteoResponseError(
@@ -342,6 +359,7 @@ function mapUv(
 
   return {
     index,
+    category: environmental?.uv?.category ?? uvIndexCategory(index),
     ...(validMax === undefined ? {} : { maxToday: Math.max(index, validMax) }),
   };
 }
@@ -367,6 +385,10 @@ export function adaptOpenMeteoCurrentWeather(
   const uv = mapUv(response, dailyIndex, environmental);
   const pressure = current.pressure_msl ?? current.surface_pressure ?? undefined;
   const cloudCover = current.cloud_cover ?? undefined;
+  const visibility =
+    current.visibility === null || current.visibility === undefined
+      ? undefined
+      : requireNonNegative('current.visibility', current.visibility);
 
   const weather: CurrentWeather = {
     observedAt: epochSecondsToIso('current.time', current.time),
@@ -385,6 +407,7 @@ export function adaptOpenMeteoCurrentWeather(
     },
     humidityPercent: current.relative_humidity_2m,
     ...(pressure === undefined ? {} : { pressureHectopascals: pressure }),
+    ...(visibility === undefined ? {} : { visibilityMeters: visibility }),
     ...(cloudCover === undefined ? {} : { cloudCoverPercent: cloudCover }),
     wind: mapCurrentWind(current),
     ...(precipitation === undefined ? {} : { precipitation }),

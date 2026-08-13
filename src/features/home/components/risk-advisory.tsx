@@ -7,6 +7,7 @@ import { SystemLabel } from './home-primitives';
 
 interface RiskAdvisoryProps {
   readonly risk: HomeRiskPreview;
+  readonly compact?: boolean;
 }
 
 const toneColors: Record<HomeRiskTone, { signal: string; surface: string }> = {
@@ -20,13 +21,17 @@ const toneColors: Record<HomeRiskTone, { signal: string; surface: string }> = {
   },
 };
 
-export function RiskAdvisory({ risk }: RiskAdvisoryProps) {
+export function RiskAdvisory({ risk, compact = false }: RiskAdvisoryProps) {
   const tone = toneColors[risk.tone];
 
   return (
     <View
       accessibilityLabel={`${risk.levelLabel}. ${risk.title}. ${risk.reason}. Hành động: ${risk.immediateAction}`}
-      style={[styles.container, { backgroundColor: tone.surface }]}
+      style={[
+        styles.container,
+        compact && styles.containerCompact,
+        { backgroundColor: tone.surface },
+      ]}
       testID="risk-advisory"
     >
       <SystemLabel index="01" label="RỦI RO" value={risk.levelLabel} />
@@ -34,7 +39,11 @@ export function RiskAdvisory({ risk }: RiskAdvisoryProps) {
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[styles.signal, { backgroundColor: tone.signal }]}
+          style={[
+            styles.signal,
+            compact && styles.signalCompact,
+            { backgroundColor: tone.signal },
+          ]}
         />
         <View style={styles.copy}>
           <Text accessibilityRole="header" style={styles.title}>
@@ -44,7 +53,9 @@ export function RiskAdvisory({ risk }: RiskAdvisoryProps) {
         </View>
       </View>
       <View style={styles.actionRow}>
-        <Text style={[styles.actionLabel, { color: tone.signal }]}>LÀM NGAY</Text>
+        <Text style={[styles.actionLabel, { color: tone.signal }]}>
+          {compact ? 'LƯU Ý' : 'LÀM NGAY'}
+        </Text>
         <Text style={styles.action}>{risk.immediateAction}</Text>
       </View>
     </View>
@@ -64,6 +75,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     overflow: 'hidden',
   },
+  containerCompact: {
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   signalRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -72,6 +87,10 @@ const styles = StyleSheet.create({
   signal: {
     width: 6,
     minHeight: 72,
+  },
+  signalCompact: {
+    width: 4,
+    minHeight: 54,
   },
   copy: {
     flex: 1,

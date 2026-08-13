@@ -42,7 +42,20 @@ export function RootNavigator() {
           headerShown: false,
           contentStyle: { backgroundColor: theme.colors.background },
         }}
-      />
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen
+          name="forecast"
+          options={{
+            headerShown: true,
+            title: 'Dự báo',
+            headerBackTitle: 'Home',
+            headerStyle: { backgroundColor: theme.colors.surface },
+            headerTintColor: theme.colors.text,
+            headerShadowVisible: false,
+          }}
+        />
+      </Stack>
     </ThemeProvider>
   );
 }

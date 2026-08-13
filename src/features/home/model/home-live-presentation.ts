@@ -1,39 +1,84 @@
-import type { HomeRiskPreview } from '@/features/home/model/home-prototype';
+import type {
+  HomeRiskPreview,
+  HomeRiskTone,
+} from '@/features/home/model/home-prototype';
+import {
+  evaluateRecommendations,
+} from '@/features/recommendations/domain/recommendation-engine';
+import type {
+  RecommendationEvaluation,
+  RecommendationSeverity,
+} from '@/features/recommendations/domain/recommendation';
 import type { LiveCurrentWeatherResult } from '@/features/weather/application/live-current-weather';
 
-export function createLiveObservationRisk(
-  result: LiveCurrentWeatherResult,
+const riskTone: Record<RecommendationSeverity, HomeRiskTone> = {
+  info: 'calm',
+  attention: 'attention',
+  warning: 'warning',
+  danger: 'danger',
+};
+
+const riskLevel: Record<RecommendationSeverity, string> = {
+  info: 'THÔNG TIN',
+  attention: 'LƯU Ý',
+  warning: 'CẢNH BÁO',
+  danger: 'NGUY HIỂM',
+};
+
+export interface HomeLiveRecommendationPresentation {
+  readonly evaluation: RecommendationEvaluation;
+  readonly risk: HomeRiskPreview;
+}
+
+export function createRecommendationRisk(
+  evaluation: RecommendationEvaluation,
 ): HomeRiskPreview {
-  const environmentalIssues = result.issues.filter(
-    (issue) => issue.source === 'air_quality',
+  const primaryRisk = evaluation.recommendations.find(
+    (recommendation) => recommendation.severity !== 'info',
   );
 
-  if (environmentalIssues.length > 0) {
+  if (primaryRisk !== undefined) {
     return {
-      tone: 'unavailable',
-      levelLabel: 'DỮ LIỆU MỘT PHẦN',
-      title: 'Chưa đủ dữ liệu để đánh giá rủi ro',
-      reason: `Thời tiết hiện tại đã cập nhật, nhưng ${environmentalIssues
-        .map((issue) => issue.message.toLocaleLowerCase('vi-VN'))
-        .join(' ')}`,
-      immediateAction:
-        'Có thể đọc điều kiện thời tiết đang có; không xem AQI hoặc UV bị trống là trạng thái an toàn.',
+      tone: riskTone[primaryRisk.severity],
+      levelLabel: riskLevel[primaryRisk.severity],
+      title: primaryRisk.title,
+      reason: primaryRisk.reason,
+      immediateAction: primaryRisk.action,
     };
   }
 
-  const { airQuality, uv } = result.weather;
-  const aqiReading =
-    airQuality === undefined
-      ? 'AQI không khả dụng'
-      : `AQI ${Math.round(airQuality.index)} (${airQuality.scale ?? 'không rõ thang'})`;
-  const uvReading = uv === undefined ? 'UV không khả dụng' : `UV ${uv.index.toFixed(1)}`;
+  if (evaluation.status !== 'ready') {
+    return {
+      tone: 'unavailable',
+      levelLabel: 'DỮ LIỆU MỘT PHẦN',
+      title: 'Chưa thể loại trừ rủi ro môi trường',
+      reason:
+        'Một số đầu vào của Rule Engine chưa khả dụng; dữ liệu trống không được xem là trạng thái an toàn.',
+      immediateAction:
+        'Dùng các gợi ý được hỗ trợ bởi số đo hiện có và kiểm tra lại khi dữ liệu đầy đủ hơn.',
+    };
+  }
 
   return {
-    tone: 'unavailable',
-    levelLabel: 'CHỈ SỐ TRỰC TIẾP',
-    title: 'Chưa bật đánh giá rủi ro tự động',
-    reason: `${aqiReading}; ${uvReading}. Đây là số đo trực tiếp, chưa phải kết luận từ rule engine.`,
+    tone: 'calm',
+    levelLabel: 'ỔN ĐỊNH',
+    title: 'Chưa có rủi ro nổi bật',
+    reason: 'Các quy tắc ban đầu không phát hiện điều kiện cần ưu tiên từ dữ liệu hiện có.',
     immediateAction:
-      'Chỉ dùng các số đo hiện tại để tham khảo; khuyến nghị live sẽ được nối ở giai đoạn rule engine.',
+      'Có thể tiếp tục kế hoạch và kiểm tra lại khi thời tiết hoặc chỉ số môi trường thay đổi.',
+  };
+}
+
+export function createLiveRecommendationPresentation(
+  result: LiveCurrentWeatherResult,
+): HomeLiveRecommendationPresentation {
+  const evaluation = evaluateRecommendations({
+    currentWeather: result.weather,
+    hourlyForecast: result.hourlyForecast,
+  });
+
+  return {
+    evaluation,
+    risk: createRecommendationRisk(evaluation),
   };
 }

@@ -11,6 +11,7 @@ import { RuledSection, SystemLabel } from './home-primitives';
 
 interface EnvironmentMetricsProps {
   readonly weather: CurrentWeather;
+  readonly source: 'live' | 'fixture';
 }
 
 interface MetricProps {
@@ -20,6 +21,12 @@ interface MetricProps {
   readonly unavailable?: boolean;
   readonly last?: boolean;
   readonly stacked?: boolean;
+}
+
+function getAirQualityScaleLabel(scale: string) {
+  if (scale === 'us_aqi') return 'US AQI';
+  if (scale === 'european_aqi') return 'EU AQI';
+  return scale.replaceAll('_', ' ').toUpperCase();
 }
 
 function Metric({
@@ -57,7 +64,7 @@ function Metric({
   );
 }
 
-export function EnvironmentMetrics({ weather }: EnvironmentMetricsProps) {
+export function EnvironmentMetrics({ source, weather }: EnvironmentMetricsProps) {
   const { width, fontScale } = useWindowDimensions();
   const airQuality = weather.airQuality;
   const uv = weather.uv;
@@ -67,33 +74,43 @@ export function EnvironmentMetrics({ weather }: EnvironmentMetricsProps) {
 
   return (
     <RuledSection accessibilityLabel="Các chỉ số môi trường" testID="environment-metrics">
-      <SystemLabel index="04" label="MÔI TRƯỜNG" value="CHỌN LỌC" />
+      <SystemLabel
+        index="00.B"
+        label="CHỈ SỐ HIỆN TẠI"
+        value={source === 'live' ? 'TRỰC TIẾP' : 'BẢN MẪU'}
+      />
       <View style={[styles.metrics, stacked && styles.metricsStacked]}>
         <Metric
-          detail={airQuality === undefined ? 'Chưa có dữ liệu' : getAirQualityLabel(airQuality.category)}
+          detail={airQuality === undefined ? 'Chưa có' : getAirQualityLabel(airQuality.category)}
           label="AQI"
           unavailable={airQuality === undefined}
           value={airQuality === undefined ? '—' : String(Math.round(airQuality.index))}
           stacked={stacked}
         />
         <Metric
-          detail={uv === undefined ? 'Chưa có dữ liệu' : getUvLabel(uv.category)}
+          detail={uv === undefined ? 'Chưa có' : getUvLabel(uv.category)}
           label="UV"
           unavailable={uv === undefined}
           value={uv === undefined ? '—' : uv.index.toFixed(1)}
           stacked={stacked}
         />
         <Metric
-          detail={`km/h${windDirection} · Gió mặt đất`}
+          detail={`km/h${windDirection}`}
           label="GIÓ"
-          last
           stacked={stacked}
           value={String(windSpeedKilometersPerHour)}
+        />
+        <Metric
+          detail="Độ ẩm tương đối"
+          label="ĐỘ ẨM"
+          last
+          stacked={stacked}
+          value={`${Math.round(weather.humidityPercent)}%`}
         />
       </View>
       {airQuality?.scale === undefined ? null : (
         <Text style={styles.scaleNote}>
-          AQI // THANG {airQuality.scale.replaceAll('_', ' ').toUpperCase()}
+          UV // WHO UVI · AQI // {getAirQualityScaleLabel(airQuality.scale)}
         </Text>
       )}
     </RuledSection>
@@ -116,7 +133,7 @@ const styles = StyleSheet.create({
   metric: {
     flex: 1,
     minWidth: 0,
-    minHeight: 106,
+    minHeight: 96,
     justifyContent: 'space-between',
     borderRightWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
@@ -145,7 +162,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   metricLabelStacked: {
-    width: 34,
+    width: 54,
   },
   metricValue: {
     color: colors.text,

@@ -1,4 +1,12 @@
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { Link } from 'expo-router';
 
 import type { HomeForecastPreview } from '@/features/home/model/home-prototype';
 import { getConditionLabel } from '@/features/home/model/home-prototype';
@@ -8,6 +16,7 @@ import { RuledSection, SystemLabel } from './home-primitives';
 
 interface ForecastPreviewProps {
   readonly forecast: HomeForecastPreview;
+  readonly forecastRouteAvailable: boolean;
   readonly source: 'live' | 'fixture' | 'unavailable';
 }
 
@@ -17,7 +26,11 @@ const sourceLabels = {
   unavailable: 'CHƯA KHẢ DỤNG',
 } as const;
 
-export function ForecastPreview({ forecast, source }: ForecastPreviewProps) {
+export function ForecastPreview({
+  forecast,
+  forecastRouteAvailable,
+  source,
+}: ForecastPreviewProps) {
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale >= 1.35;
 
@@ -79,6 +92,21 @@ export function ForecastPreview({ forecast, source }: ForecastPreviewProps) {
           })}
         </ScrollView>
       )}
+      {forecastRouteAvailable ? (
+        <Link asChild href="/forecast">
+          <Pressable
+            accessibilityHint="Mở dự báo chi tiết theo giờ và theo ngày"
+            accessibilityRole="button"
+            android_ripple={{ color: homeVisualTokens.grid }}
+            style={({ pressed }) => [
+              styles.forecastLink,
+              pressed && styles.forecastLinkPressed,
+            ]}
+          >
+            <Text style={styles.forecastLinkText}>XEM DỰ BÁO ĐẦY ĐỦ →</Text>
+          </Pressable>
+        </Link>
+      ) : null}
     </RuledSection>
   );
 }
@@ -98,11 +126,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   item: {
-    width: 112,
-    minHeight: 174,
+    width: 104,
+    minHeight: 156,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     paddingHorizontal: spacing.sm,
@@ -110,7 +138,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   itemLargeText: {
-    width: 152,
+    width: 144,
   },
   itemCurrent: {
     backgroundColor: homeVisualTokens.fieldRaised,
@@ -130,12 +158,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.identitySemibold,
   },
   conditionMark: {
-    width: 44,
-    height: 18,
+    width: 40,
+    height: 14,
     justifyContent: 'center',
   },
   conditionLine: {
-    width: 44,
+    width: 40,
     height: 2,
     backgroundColor: homeVisualTokens.attention,
   },
@@ -190,5 +218,23 @@ const styles = StyleSheet.create({
     fontFamily: typography.body,
     fontSize: 14,
     lineHeight: 21,
+  },
+  forecastLink: {
+    minHeight: 48,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: homeVisualTokens.technical,
+    marginTop: spacing.sm,
+  },
+  forecastLinkPressed: {
+    backgroundColor: homeVisualTokens.fieldRaised,
+  },
+  forecastLinkText: {
+    color: homeVisualTokens.technical,
+    fontFamily: typography.identitySemibold,
+    fontSize: 10,
+    lineHeight: 16,
+    letterSpacing: 0.6,
   },
 });

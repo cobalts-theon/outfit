@@ -12,8 +12,8 @@ import {
 export const LIVE_CURRENT_WEATHER_STALE_TIME_MS = 10 * 60 * 1000;
 
 export const liveCurrentWeatherKeys = {
-  // v2 reflects the query result contract now containing normalized hourly data.
-  all: ['weather', 'current-hourly', 'v2'] as const,
+  // v3 reflects the shared result contract containing current, hourly, and daily data.
+  all: ['weather', 'current-hourly-daily', 'v3'] as const,
   unavailable: () => [...liveCurrentWeatherKeys.all, 'unavailable'] as const,
   location: (selectedLocation: SelectedAppLocation) => {
     const input = createLiveCurrentWeatherInput(selectedLocation);

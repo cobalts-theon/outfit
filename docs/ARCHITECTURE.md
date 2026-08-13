@@ -167,11 +167,11 @@ The implementation can change without requiring screen rewrites.
 
 ---
 
-### 5.1 Live current + hourly weather application boundary
+### 5.1 Live current + hourly + daily weather application boundary
 
 Phase 3B.2 introduced the application-owned orchestration/query layer under
-`src/features/weather/application/`; Phase 3B.3 extends the same boundary with
-normalized hourly forecast data:
+`src/features/weather/application/`; Phases 3B.3 and 4 extend the same boundary
+with normalized hourly and daily forecast data:
 
 ```text
 SelectedAppLocation.coordinates
@@ -183,22 +183,22 @@ TanStack Query live-weather key/cache
 Forecast current + hourly + daily astronomy ─┐ one Forecast request
 Air Quality current ─────────────────────────┤ concurrent provider requests
                                              ↓
-Open-Meteo current/hourly/AQ parsers + adapters
+Open-Meteo current/hourly/daily/AQ parsers + adapters
         ↓
-LiveCurrentWeatherResult { status, weather, hourlyForecast?, issues }
+LiveCurrentWeatherResult { status, weather, hourlyForecast?, dailyForecast?, issues }
         ↓
-Home domain presentation
+Home preview/recommendations + Forecast presentation
 ```
 
 The location capability remains provider-independent and never imports
 Open-Meteo. The application boundary selects the temporary live-slice AQI
 scale, maps provider/network failures into `LiveWeatherError`, and exposes only
-normalized `CurrentWeather`, optional normalized `HourlyForecast`, and
-project-owned partial-data issues. One Forecast HTTP response supplies both
-domain models without merging their types. The provider parses required
-current/daily fields independently from hourly arrays, so malformed or
-mismatched hourly data can become an hourly-only issue while valid current
-weather remains usable. A failure of the Forecast HTTP request or required
+normalized `CurrentWeather`, optional normalized `HourlyForecast`, optional
+normalized `DailyForecast`, and project-owned partial-data issues. One Forecast
+HTTP response supplies all three domain models without merging their types.
+The provider parses current, hourly, and daily slices independently, so a
+malformed optional collection becomes a collection-specific issue while valid
+slices remain usable. A failure of the Forecast HTTP request or required
 current slice still fails the query. Air Quality remains optional enrichment.
 
 `HourlyForecast` is a separate project-owned ordered collection. Each entry has
@@ -208,6 +208,13 @@ temperature, precipitation, wind, and UV. The collection retains a normalized
 location with the provider IANA timezone for local labels. Home selects six
 near-term entries in its presentation layer; this display limit is not part of
 the forecast domain.
+
+`DailyForecast` is a separate ordered collection keyed by local forecast date.
+Every entry requires a canonical condition and minimum/maximum Celsius values;
+precipitation probability/amount, UV maximum, sunrise/sunset, and moon-cycle
+data remain optional. Forecast presentation selects seven daily entries and
+keeps visibility, pressure, and astronomy below primary temperature and
+precipitation information.
 
 The live query uses a ten-minute stale window, refetches stale data through
 the existing focus/reconnect runtime, performs no fixed polling, and retries

@@ -1,6 +1,7 @@
 import type { CurrentWeather } from '@/features/weather/domain/current-weather';
 import type { AppCoordinates, SelectedAppLocation } from '@/features/locations/domain/location';
 import type { HourlyForecast } from '@/features/forecast/domain/hourly-forecast';
+import type { DailyForecast } from '@/features/forecast/domain/daily-forecast';
 import {
   adaptOpenMeteoAirQuality,
   type OpenMeteoAqiScale,
@@ -15,6 +16,7 @@ import { OpenMeteoHttpError, OpenMeteoResponseError } from '@/services/weather/p
 import { adaptOpenMeteoCurrentWeather } from '@/services/weather/providers/open-meteo/forecast-adapter';
 import type { OpenMeteoLiveForecastDto } from '@/services/weather/providers/open-meteo/forecast-dto';
 import { adaptOpenMeteoHourlyForecast } from '@/services/weather/providers/open-meteo/hourly-forecast-adapter';
+import { adaptOpenMeteoDailyForecast } from '@/services/weather/providers/open-meteo/daily-forecast-adapter';
 
 export const LIVE_CURRENT_WEATHER_AQI_SCALE = 'us_aqi' as const satisfies OpenMeteoAqiScale;
 export const WEATHER_QUERY_COORDINATE_DECIMALS = 3;
@@ -39,12 +41,18 @@ export type LiveWeatherIssueCode =
   | LiveWeatherErrorCode
   | 'air_quality_unavailable'
   | 'uv_unavailable'
-  | 'hourly_forecast_unavailable';
+  | 'hourly_forecast_unavailable'
+  | 'daily_forecast_unavailable';
 
 export class LiveWeatherError extends Error {
   constructor(
     readonly code: LiveWeatherErrorCode,
-    readonly source: 'forecast' | 'hourly_forecast' | 'air_quality' | 'application',
+    readonly source:
+      | 'forecast'
+      | 'hourly_forecast'
+      | 'daily_forecast'
+      | 'air_quality'
+      | 'application',
     message: string,
   ) {
     super(message);
@@ -53,7 +61,7 @@ export class LiveWeatherError extends Error {
 }
 
 export interface LiveWeatherDataIssue {
-  readonly source: 'air_quality' | 'hourly_forecast';
+  readonly source: 'air_quality' | 'hourly_forecast' | 'daily_forecast';
   readonly code: LiveWeatherIssueCode;
   readonly message: string;
 }
@@ -62,6 +70,7 @@ export interface LiveCurrentWeatherResult {
   readonly status: 'complete' | 'partial';
   readonly weather: CurrentWeather;
   readonly hourlyForecast?: HourlyForecast;
+  readonly dailyForecast?: DailyForecast;
   readonly issues: readonly LiveWeatherDataIssue[];
 }
 
@@ -132,7 +141,7 @@ export function createLiveCurrentWeatherInput(
 
 function safeError(
   error: unknown,
-  source: 'forecast' | 'hourly_forecast' | 'air_quality',
+  source: 'forecast' | 'hourly_forecast' | 'daily_forecast' | 'air_quality',
 ): LiveWeatherError {
   if (error instanceof LiveWeatherError) return error;
 
@@ -213,6 +222,8 @@ export async function loadLiveCurrentWeather(
   const issues: LiveWeatherDataIssue[] = [];
   let environmental: OpenMeteoEnvironmentalSnapshot | undefined;
   let hourlyForecast: HourlyForecast | undefined;
+  let dailyForecast: DailyForecast | undefined;
+  let dailyUsableForCurrent = true;
   const forecast = forecastResult.value.forecast;
 
   if (forecastResult.value.hourlyIssue !== undefined) {
@@ -237,6 +248,31 @@ export async function loadLiveCurrentWeather(
     }
   }
 
+  if (forecastResult.value.dailyIssue !== undefined) {
+    dailyUsableForCurrent = false;
+    issues.push({
+      source: 'daily_forecast',
+      code: 'malformed_response',
+      message: 'Chuỗi dự báo theo ngày nhận được không đúng định dạng mong đợi.',
+    });
+  } else if (forecast.daily === undefined) {
+    dailyUsableForCurrent = false;
+    issues.push({
+      source: 'daily_forecast',
+      code: 'daily_forecast_unavailable',
+      message: 'Nguồn thời tiết không cung cấp chuỗi dự báo theo ngày.',
+    });
+  } else {
+    try {
+      dailyForecast = adaptOpenMeteoDailyForecast(forecast, {
+        name: input.locationName,
+      });
+    } catch (error) {
+      dailyUsableForCurrent = false;
+      issues.push(issueFromError(safeError(error, 'daily_forecast'), 'daily_forecast'));
+    }
+  }
+
   if (airQualityResult.status === 'fulfilled') {
     try {
       environmental = adaptOpenMeteoAirQuality(airQualityResult.value, input.aqiScale);
@@ -252,7 +288,9 @@ export async function loadLiveCurrentWeather(
   let weather: CurrentWeather;
   try {
     weather = adaptOpenMeteoCurrentWeather(
-      forecast,
+      dailyUsableForCurrent
+        ? forecast
+        : { ...forecast, daily: undefined, daily_units: undefined },
       { name: input.locationName },
       environmental,
     );
@@ -282,6 +320,7 @@ export async function loadLiveCurrentWeather(
     status: issues.length === 0 ? 'complete' : 'partial',
     weather,
     ...(hourlyForecast === undefined ? {} : { hourlyForecast }),
+    ...(dailyForecast === undefined ? {} : { dailyForecast }),
     issues,
   };
 }

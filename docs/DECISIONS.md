@@ -535,17 +535,103 @@ to mock forecast values during a live session.
 
 ---
 
+## ADR-020 — Deterministic client-side recommendations over normalized data
+
+**Status:** Accepted for the initial product version
+
+**Decision:** Evaluate the initial recommendation set locally and
+synchronously from project-owned normalized `CurrentWeather` and optional
+`HourlyForecast` values. Keep provider DTO parsing, React presentation, and
+rule evaluation as separate boundaries. The engine returns structured groups,
+severity, action identity, explanation, triggers, missing-input dimensions,
+and evaluation status rather than presentation-specific component output.
+
+Use U.S. AQI as the single explicitly labeled product scale for this version.
+Use normalized UV categories and weather conditions rather than provider codes.
+Order matches by severity and explicit rule priority, deduplicate matches that
+lead to the same action while preserving their reasons and triggers, and limit
+the Home Action surface to the three highest-priority results. Missing inputs
+remain unavailable and are never inferred as zero or safe.
+
+The initial rule definitions remain source-controlled application logic. Do
+not reinterpret the existing Supabase `recommendation_rules` rows as executable
+input until a validated rule format and administration workflow are designed.
+
+**Reason:**
+
+The initial engine must be deterministic, testable at exact category
+boundaries, usable offline with cached normalized weather, and independent of
+the current provider. Structured results let Risk and Action share one
+evaluation without scattering health or clothing strings across components.
+
+**Consequences:**
+
+- Home can provide weather-alert, general-wellness, outdoor-activity, and
+  clothing guidance from available live normalized inputs without AI/LLM
+  generation or medical diagnosis.
+- U.S. AQI category behavior is stable and explicit for the current product;
+  supporting another AQI scale later requires a deliberate product/domain
+  extension rather than an unlabeled substitution.
+- Rule changes currently require an application release. Persistence, remote
+  rule editing, versioning, validation, and Web Admin integration remain future
+  work.
+- An authoritative severe-weather alert provider remains unresolved; the
+  engine can consume normalized alerts when they exist but does not fabricate
+  them from Forecast API data.
+
+---
+
+## ADR-021 — Extend the shared live Forecast contract with an independent daily domain
+
+**Status:** Accepted for Phase 4
+
+**Decision:** Keep one Open-Meteo Forecast request and extend it to the selected
+daily forecast variables plus current visibility. Adapt the response into three
+separate project-owned models: required `CurrentWeather`, optional
+`HourlyForecast`, and optional `DailyForecast`. Parse and adapt hourly and daily
+collections independently so either optional collection may become a scoped
+partial-data issue without removing valid current weather or the other
+collection.
+
+Version the TanStack Query contract as `v3`. The Forecast route consumes the
+same cached live result as Home and uses native Stack navigation; it does not
+create a second provider query or persist duplicate server state.
+
+Daily entries require local forecast date, normalized condition, and minimum
+and maximum temperature. Precipitation, UV maximum, sun, and moon dimensions
+remain optional. Open-Meteo's moon-cycle fraction maps to normalized phase only,
+never inferred illumination. Provider wind direction `360` is normalized to
+the domain-equivalent north value `0` before domain validation.
+
+**Reason:** Current, hourly, and daily data share coordinates, timezone, units,
+freshness, and endpoint. A shared transport avoids duplicate network/cache
+ownership, while separate models and failure boundaries preserve truthful
+partial data and keep provider arrays out of React and rule evaluation.
+
+**Consequences:**
+
+- Home and Forecast read one authoritative live query result and refresh
+  together for a changed normalized location identity.
+- A malformed daily collection does not erase current/hourly data; a malformed
+  hourly collection does not erase current/daily data.
+- The Forecast route can show 24 hourly and seven daily entries without making
+  those presentation limits part of the domain.
+- Visibility, pressure, and astronomy remain secondary optional details.
+- Severe-weather alerts, authentication, persistence, and remote rule storage
+  remain outside this decision.
+
+---
+
 # Decisions still open
 
 Create new ADR entries when these are resolved:
 
-- Final AQI standard/classification
 - Final UV standard mapping
 - Authoritative severe-weather alert provider
 - Client state library
 - Detailed navigation structure after the initial Home route
 - Authentication requirement for MVP
 - Push notification provider/infrastructure
-- Rule-engine storage/execution format
+- Remote rule storage, validation, versioning, and administration format
 - General-purpose icon library
 - Analytics/crash reporting

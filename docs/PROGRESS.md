@@ -2,13 +2,14 @@
 
 ## Current milestone
 
-**Phase 3B.2 — Live Current Weather + Air Quality complete**
+**Phase 3B.3 — Normalized Hourly Forecast + Live Home Next complete**
 
 Normalized selected coordinates now drive a TanStack Query application boundary
-that composes live Open-Meteo current weather, astronomy, AQI, pollutants, and
-UV into `CurrentWeather`. Home uses live `Now` and environment data after a
-successful query; normalized hourly `Next`, the real recommendation engine,
-manual search, reverse geocoding, and saved locations remain deferred.
+that composes one Open-Meteo Forecast response into separate `CurrentWeather`
+and `HourlyForecast` domain models while enriching current conditions with AQI,
+pollutants, and UV. Home uses live `Now`, environment, and `Next` data after a
+successful query; the real recommendation engine, manual search, reverse
+geocoding, and saved locations remain deferred.
 
 ---
 
@@ -160,11 +161,12 @@ manual search, reverse geocoding, and saved locations remain deferred.
   - independent source-level Impeccable finish review reached `ship` after
     correcting decision-path order, independent scene cues, bottom insets,
     and compact/large-text reflow.
-- Native screenshot review remains an environment limitation: no Android
-  emulator, connected Android device, or local browser engine was available.
-  Source-level visual critique and independent Impeccable finish review were
-  used as the available fallback; a real-device capture remains required before
-  treating the visual language as production-validated.
+- Android native screenshot review completed on the connected compact WayDroid
+  surface (Android 13, 576x1024 at 180 dpi). The live Home hierarchy, safe-area
+  handling, Vietnamese wrapping, current-weather hero, horizontal hourly rows,
+  and fixture boundary for Action rendered without clipping or a blocking
+  visual defect. Physical Android hardware and iOS visual review remain
+  separate platform-validation tasks.
 - Phase 3B.1 Location Capability implemented without changing Supabase, the
   Open-Meteo boundary, the weather domain, or the Home composition:
   - Expo SDK 57-compatible `expo-location` with a foreground-only config-plugin
@@ -221,6 +223,47 @@ manual search, reverse geocoding, and saved locations remain deferred.
   - fixed-coordinate TP.HCM live smoke through minimal Open-Meteo responses,
     DTO parsing, existing adapters, and application `CurrentWeather`
     composition.
+- Phase 3B.3 normalized hourly integration implemented without changing
+  Supabase, the location state machine, or recommendation-engine scope:
+  - one live Forecast request shared by separate normalized current and hourly
+    domain adapters;
+  - ordered absolute hourly timestamps with provider IANA timezone context;
+  - canonical condition, independent daylight, Celsius temperature, optional
+    apparent temperature, precipitation, wind, and UV per hourly entry;
+  - independently degradable hourly parsing/adaptation that preserves valid
+    current weather and reports an explicit partial-data issue;
+  - six-entry near-term Home presentation selected above the domain layer;
+  - Home `Next` uses live hourly data when available and never falls back to a
+    fixture during a live partial result.
+- Phase 3B.3 automated verification passed before native testing:
+  - 138/138 Jest tests across 17 suites;
+  - strict TypeScript check;
+  - Expo SDK 57 public configuration resolution;
+  - dependency compatibility against the local SDK 57 bundled map;
+  - successful Android production bundle;
+  - successful Expo/Metro development-server boot.
+- Phase 3B.3 Android native verification passed on ADB device
+  `192.168.240.112:5555` (`WayDroid x86_64 Device`, Android 13, Expo Go 57.0.3):
+  - Expo Go opened the SDK 57 project and Metro delivered the Android bundle;
+  - Android displayed the native foreground-location dialog and granted
+    while-in-use fine/coarse permission;
+  - the location-disabled state kept Home usable with fixture data and exposed
+    a retry action;
+  - a temporary Android GPS test provider supplied TP.HCM and Hanoi fixes; the
+    WayDroid/Google location stack resolved them through the bounded
+    last-known fallback, then the application exposed normalized
+    `SelectedAppLocation` coordinates;
+  - TP.HCM produced live Open-Meteo current weather, AQI/UV, and a normalized
+    six-entry hourly `Next` sequence in `Asia/Ho_Chi_Minh`;
+  - changing the test fix to Hanoi changed the rounded query coordinates and
+    produced a distinct live current observation, proving location-driven
+    query refresh;
+  - a live hourly-malformed response exercised the partial-data UI: valid
+    current/AQI/UV stayed visible while `Next` became explicitly unavailable;
+  - native Home captures are stored under `artifacts/native-verification/`,
+    including `gps-after-accuracy-choice.png`, `home-live-next-tphcm.png`, and
+    `location-disabled-result.png`;
+  - no implementation defect was found and no source fix was required.
 
 ### Documentation created / updated
 
@@ -237,45 +280,34 @@ manual search, reverse geocoding, and saved locations remain deferred.
 
 ## In progress
 
-No feature implementation is currently in progress. Phase 3B.2 is complete;
-native GPS-to-weather behavior and visual states still require device review.
+No feature implementation is currently in progress. Phase 3B.3 and its Android
+native smoke test are complete. Remaining work is platform/edge-case
+verification, not another Phase 3B.3 implementation pass.
 
 ---
 
 ## Next recommended tasks
 
-### 1. Validate Phase 3A on real Android and iOS surfaces
+### 1. Complete the native platform matrix
 
-Capture the normal, severe-risk, night, and partial-data states on a compact
-Android device and an iOS device when tooling is available. Verify Dynamic Type,
-TalkBack/VoiceOver order, contrast, horizontal forecast scrolling, and the first
-viewport before promoting prototype tokens to production defaults.
+Repeat the verified location-to-live-weather flow on physical Android hardware
+with real GNSS and on iOS. Cover approximate-only permission, user denial,
+blocked permission/settings recovery, TalkBack/VoiceOver order, large text,
+and the remaining severe-risk/night visual states.
 
-### 2. Verify location on Android and iOS
+### 2. Verify cache and network edge states natively
 
-Exercise first request, allow, approximate/precise permission, deny, blocked
-permission, disabled services, timeout, last-known fallback, settings recovery,
-and retry on physical devices or configured emulators.
+Exercise stale-cache display, offline-paused loading, background-refresh error,
+and complete Forecast failure on a controllable native network. The live
+partial-data path has already been observed on Android.
 
-### 3. Introduce the normalized hourly forecast domain
-
-Target:
-
-```text
-Open-Meteo hourly DTO
-→ provider-independent hourly forecast adapter/domain
-→ Home `Next`
-```
-
-Do not expose raw hourly arrays to Home.
-
-### 4. Connect the real recommendation engine
+### 3. Connect the real recommendation engine
 
 Use normalized current and future hourly-domain inputs. Do not turn the Phase
-3B.2 observation-only risk notice into permanent recommendation logic. Start
+3B observation-only risk notice into permanent recommendation logic. Start
 with a small number of explainable rules.
 
-### 5. Continue the visual review loop
+### 4. Continue the visual review loop
 
 For the Home screen:
 
@@ -323,9 +355,10 @@ Validate:
 
 ### Phase 2 — Weather core
 
-- [x] Location permission (device verification pending)
+- [x] Location permission (Android WayDroid smoke passed; iOS/physical coverage pending)
 - [ ] Manual-location fallback
-- [x] GPS acquisition capability (device verification pending)
+- [x] GPS acquisition capability (Android test-provider/fallback smoke passed;
+  physical GNSS and iOS coverage pending)
 - [x] Weather provider interface
 - [x] Provider adapter
 - [x] Current weather domain model
@@ -341,7 +374,7 @@ Validate:
 - [x] Wind
 - [x] AQI
 - [x] UV
-- [x] Hourly preview (UI-only fixture contract)
+- [x] Hourly preview (live normalized `HourlyForecast` after query success)
 - [x] Loading/error/offline-aware current-weather states
 
 ### Phase 4 — Forecast
@@ -437,26 +470,20 @@ Validate:
 
 ## Blockers
 
-- Native visual capture is unavailable in the current environment because no
-  Android emulator, connected device, or browser engine is installed.
-- Physical foreground-permission, GPS acquisition, GPS-to-weather query,
-  offline/cache transition, and live Home presentation behavior are unverified
-  for the same reason; automated location/provider tests use mocks.
+- No blocker remains for the Phase 3B.3 Android smoke test.
+- Still unverified: physical-hardware GNSS returning a `current` rather than
+  `last_known` fix; approximate-only, explicit deny/blocked, and settings-return
+  permission paths; iOS behavior; TalkBack/VoiceOver and large-text passes; and
+  stale/offline/background-refresh/complete-error transitions on a controllable
+  native network.
 
 ---
 
 ## Next concrete action
 
-Verify Phase 3A visuals and Phase 3B.1/3B.2 location-to-weather states on a
-compact Android device. After that validation, the next authorized integration
-can introduce the provider-independent hourly forecast domain:
-
-```text
-Open-Meteo hourly DTO
-→ Hourly adapter/domain
-→ TanStack Query composition
-→ Home Next presentation
-```
+Complete the remaining physical Android/iOS and native cache/error matrix above.
+Do not repeat the Phase 3B.3 implementation or advance to another product phase
+without explicit authorization.
 
 ---
 

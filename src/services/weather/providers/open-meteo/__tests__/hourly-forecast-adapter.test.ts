@@ -119,6 +119,26 @@ describe('Open-Meteo hourly forecast adapter', () => {
     expect(forecast.entries[1].wind).toBeUndefined();
   });
 
+  it('normalizes the provider north-boundary value of 360 degrees to domain zero', () => {
+    const forecast = adaptOpenMeteoHourlyForecast(
+      responseWith(
+        minimalHourly({
+          wind_speed_10m: [3, null],
+          wind_direction_10m: [360, null],
+          wind_gusts_10m: [7, null],
+        }),
+      ),
+      location,
+    );
+
+    expect(forecast.entries[0].wind).toEqual({
+      speedMetersPerSecond: 3,
+      gustMetersPerSecond: 7,
+      directionDegrees: 0,
+      direction: 'N',
+    });
+  });
+
   it('preserves missing optional values as unavailable', () => {
     const forecast = adaptOpenMeteoHourlyForecast(
       responseWith(minimalHourly()),
@@ -186,5 +206,21 @@ describe('Open-Meteo hourly forecast adapter', () => {
       }).format(new Date(entry.forecastAt)),
     );
     expect(localDates).toEqual(['06/08/2026', '07/08/2026']);
+  });
+
+  it('preserves a truthful chronological gap instead of fabricating a missing hour', () => {
+    const forecast = adaptOpenMeteoHourlyForecast(
+      responseWith(
+        minimalHourly({
+          time: [1785996000, 1786003200],
+        }),
+      ),
+      location,
+    );
+
+    expect(forecast.entries.map((entry) => entry.forecastAt)).toEqual([
+      '2026-08-06T06:00:00.000Z',
+      '2026-08-06T08:00:00.000Z',
+    ]);
   });
 });
