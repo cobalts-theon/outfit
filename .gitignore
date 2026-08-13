@@ -35,6 +35,18 @@ yarn-error.*
 .env.*
 !.env.example
 
+# local AI agent configuration
+/.agent/skills/
+/.agents/skills/
+/.claude/
+/.codex/
+/.gemini/
+/.impeccable/
+/claude.md
+/CLAUDE.md
+/agents.md
+/AGENTS.md
+
 # typescript
 *.tsbuildinfo
 
