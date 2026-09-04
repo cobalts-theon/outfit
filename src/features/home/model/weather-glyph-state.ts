@@ -1,109 +1,67 @@
-import type {
-  CurrentWeather,
-  MoonPhase,
-} from '@/features/weather/domain/current-weather';
 import type { WeatherCondition } from '@/features/weather/domain/weather-condition';
 
-const cloudyConditions: ReadonlySet<WeatherCondition> = new Set([
-  'mostly_clear',
-  'partly_cloudy',
-  'mostly_cloudy',
-  'cloudy',
-  'overcast',
-  'drizzle',
-  'light_rain',
-  'rain',
-  'heavy_rain',
-  'showers',
-  'heavy_showers',
-  'freezing_rain',
-  'thunderstorm',
-  'thunderstorm_rain',
-  'severe_thunderstorm',
-  'hail',
-  'sleet',
-  'light_snow',
-  'snow',
-  'heavy_snow',
-  'snow_showers',
-  'blizzard',
-  'tropical_storm',
-  'hurricane',
-  'tornado',
-]);
+export type WeatherIconKey =
+  | 'sunny'
+  | 'night'
+  | 'partly_cloudy_day'
+  | 'partly_cloudy_night'
+  | 'cloudy'
+  | 'rain_light'
+  | 'rain'
+  | 'rain_heavy'
+  | 'thunder'
+  | 'snow_light'
+  | 'snow'
+  | 'snow_heavy';
 
-const lowVisibilityConditions: ReadonlySet<WeatherCondition> = new Set([
-  'mist',
-  'fog',
-  'haze',
-  'smoke',
-  'dust',
-  'sandstorm',
-]);
-
-const stormConditions: ReadonlySet<WeatherCondition> = new Set([
-  'thunderstorm',
-  'thunderstorm_rain',
-  'severe_thunderstorm',
-  'tropical_storm',
-  'hurricane',
-  'tornado',
-]);
-
-const airQualityParticleCounts: Record<
-  NonNullable<NonNullable<CurrentWeather['airQuality']>['category']>,
-  number
-> = {
-  good: 2,
-  moderate: 5,
-  unhealthy_for_sensitive_groups: 8,
-  unhealthy: 12,
-  very_unhealthy: 16,
-  hazardous: 18,
-  unknown: 4,
-};
-
-export interface WeatherGlyphState {
-  readonly hasCloud: boolean;
-  readonly hasAtmosphere: boolean;
-  readonly hasStorm: boolean;
-  readonly hasPrecipitation: boolean;
-  readonly moonPhase: MoonPhase | undefined;
-  readonly hasVisibleMoon: boolean;
-  readonly moonIsFull: boolean;
-  readonly moonIsNew: boolean;
-  readonly moonIsQuarter: boolean;
-  readonly moonIsWaxing: boolean;
-  readonly particleCount: number;
-  readonly hasElevatedAqi: boolean;
-  readonly windRotation: string;
-  readonly windOpacity: number;
-}
-
-export function getWeatherGlyphState(weather: CurrentWeather): WeatherGlyphState {
-  const moonPhase = weather.moon?.phase;
-  const aqiCategory = weather.airQuality?.category;
-
-  return {
-    hasCloud: cloudyConditions.has(weather.condition),
-    hasAtmosphere: lowVisibilityConditions.has(weather.condition),
-    hasStorm: stormConditions.has(weather.condition),
-    hasPrecipitation:
-      weather.precipitation !== undefined && weather.precipitation.type !== 'none',
-    moonPhase,
-    hasVisibleMoon: !weather.daylight.isDay && moonPhase !== undefined,
-    moonIsFull: moonPhase === 'full',
-    moonIsNew: moonPhase === 'new',
-    moonIsQuarter: moonPhase === 'first_quarter' || moonPhase === 'last_quarter',
-    moonIsWaxing:
-      moonPhase === 'waxing_crescent' ||
-      moonPhase === 'first_quarter' ||
-      moonPhase === 'waxing_gibbous',
-    particleCount:
-      aqiCategory === undefined ? 0 : (airQualityParticleCounts[aqiCategory] ?? 4),
-    hasElevatedAqi:
-      aqiCategory !== undefined && !['good', 'moderate', 'unknown'].includes(aqiCategory),
-    windRotation: `${weather.wind.directionDegrees ?? 0}deg`,
-    windOpacity: Math.min(0.88, 0.28 + weather.wind.speedMetersPerSecond / 30),
-  };
+export function getWeatherIconKey(
+  condition: WeatherCondition,
+  isDay: boolean,
+): WeatherIconKey {
+  switch (condition) {
+    case 'clear':
+      return isDay ? 'sunny' : 'night';
+    case 'mostly_clear':
+    case 'partly_cloudy':
+      return isDay ? 'partly_cloudy_day' : 'partly_cloudy_night';
+    case 'mostly_cloudy':
+    case 'cloudy':
+    case 'overcast':
+    case 'mist':
+    case 'fog':
+    case 'haze':
+    case 'smoke':
+    case 'dust':
+      return 'cloudy';
+    case 'drizzle':
+    case 'light_rain':
+      return 'rain_light';
+    case 'rain':
+    case 'showers':
+    case 'freezing_rain':
+      return 'rain';
+    case 'heavy_rain':
+    case 'heavy_showers':
+      return 'rain_heavy';
+    case 'thunderstorm':
+    case 'thunderstorm_rain':
+    case 'severe_thunderstorm':
+    case 'hail':
+    case 'sandstorm':
+    case 'tropical_storm':
+    case 'hurricane':
+    case 'tornado':
+      return 'thunder';
+    case 'sleet':
+    case 'light_snow':
+      return 'snow_light';
+    case 'snow':
+    case 'snow_showers':
+      return 'snow';
+    case 'heavy_snow':
+    case 'blizzard':
+      return 'snow_heavy';
+    case 'unknown':
+      return 'cloudy';
+  }
 }

@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "weather",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFDF5",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -29,15 +30,26 @@
         "expo-font",
         {
           "fonts": [
+            "./node_modules/@expo-google-fonts/archivo/900Black/Archivo_900Black.ttf",
+            "./node_modules/@expo-google-fonts/bebas-neue/400Regular/BebasNeue_400Regular.ttf",
             "./node_modules/@expo-google-fonts/jetbrains-mono/400Regular/JetBrainsMono_400Regular.ttf",
-            "./node_modules/@expo-google-fonts/jetbrains-mono/600SemiBold/JetBrainsMono_600SemiBold.ttf"
+            "./node_modules/@expo-google-fonts/jetbrains-mono/700Bold/JetBrainsMono_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/syne/400Regular/Syne_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/syne/800ExtraBold/Syne_800ExtraBold.ttf"
           ]
         }
       ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0A0C0D"
+          "backgroundColor": "#FFFDF5"
+        }
+      ],
+      [
+        "expo-status-bar",
+        {
+          "hidden": false,
+          "style": "dark"
         }
       ],
       [
@@ -47,7 +59,23 @@
         }
       ],
       "expo-sqlite",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cho phép ứng dụng truy cập thư viện ảnh để bạn chọn ảnh đại diện.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#1769FF",
+          "defaultChannel": "weather-actions"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

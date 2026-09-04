@@ -6,6 +6,7 @@ import {
   stateFromLocationPermission,
   type DevicePosition,
 } from '@/features/locations/domain/location';
+import { createManualSelectedLocation } from '@/features/locations/domain/manual-location';
 
 describe('normalized location domain', () => {
   it('accepts valid geographic boundaries', () => {
@@ -57,6 +58,7 @@ describe('normalized location domain', () => {
       coordinates: { latitude: 10.7769, longitude: 106.7009 },
       observedAt: '2026-08-06T08:00:00.000Z',
       accuracyMeters: 20,
+      placeName: 'Quận 1 · Thành phố Hồ Chí Minh',
       source: 'current',
     } as const satisfies DevicePosition;
 
@@ -66,7 +68,30 @@ describe('normalized location domain', () => {
       coordinates: position.coordinates,
       source: 'device',
       accuracyMeters: 20,
+      label: 'Quận 1 · Thành phố Hồ Chí Minh',
     });
     expect(selected.selectedAt).not.toBe(position.observedAt);
+  });
+
+  it('creates a manual location without requiring a device position', () => {
+    const selected = createManualSelectedLocation({
+      label: 'Đà Lạt · Lâm Đồng · Việt Nam',
+      coordinates: { latitude: 11.9404, longitude: 108.4583 },
+    });
+
+    expect(selected).toMatchObject({
+      source: 'manual',
+      label: 'Đà Lạt · Lâm Đồng · Việt Nam',
+      coordinates: { latitude: 11.9404, longitude: 108.4583 },
+    });
+  });
+
+  it('rejects invalid manual locations before they reach application state', () => {
+    expect(() =>
+      createManualSelectedLocation({
+        label: '   ',
+        coordinates: { latitude: 91, longitude: 108.4583 },
+      }),
+    ).toThrow('Địa điểm thủ công không hợp lệ.');
   });
 });

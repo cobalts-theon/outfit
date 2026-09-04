@@ -10,9 +10,10 @@ import { Link } from 'expo-router';
 
 import type { HomeForecastPreview } from '@/features/home/model/home-prototype';
 import { getConditionLabel } from '@/features/home/model/home-prototype';
-import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
+import { appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme/tokens';
 
 import { RuledSection, SystemLabel } from './home-primitives';
+import { WeatherConditionIcon } from './weather-glyph';
 
 interface ForecastPreviewProps {
   readonly forecast: HomeForecastPreview;
@@ -41,7 +42,7 @@ export function ForecastPreview({
 
       {forecast.items.length === 0 ? (
         <View accessibilityLabel="Không có chuỗi dự báo" style={styles.emptyState}>
-          <Text style={styles.emptyMark}>--:--</Text>
+          <Text style={styles.emptyMark}>CHƯA CÓ</Text>
           <Text style={styles.emptyCopy}>Chuỗi theo giờ chưa khả dụng.</Text>
         </View>
       ) : (
@@ -79,10 +80,13 @@ export function ForecastPreview({
                 <View
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
-                  style={styles.conditionMark}
+                  style={styles.iconWrap}
                 >
-                  <View style={[styles.conditionLine, !item.isDay && styles.conditionLineNight]} />
-                  <View style={styles.conditionDot} />
+                  <WeatherConditionIcon
+                    condition={item.condition}
+                    isDay={item.isDay}
+                    size={60}
+                  />
                 </View>
                 <Text style={styles.temperature}>{Math.round(item.temperatureCelsius)}°</Text>
                 <Text style={styles.condition}>{condition}</Text>
@@ -98,12 +102,13 @@ export function ForecastPreview({
             accessibilityHint="Mở dự báo chi tiết theo giờ và theo ngày"
             accessibilityRole="button"
             android_ripple={{ color: homeVisualTokens.grid }}
-            style={({ pressed }) => [
-              styles.forecastLink,
-              pressed && styles.forecastLinkPressed,
-            ]}
+            style={styles.forecastLinkHit}
           >
-            <Text style={styles.forecastLinkText}>XEM DỰ BÁO ĐẦY ĐỦ →</Text>
+            {({ pressed }) => (
+              <View style={[styles.forecastLink, pressed && styles.forecastLinkPressed]}>
+                <Text style={styles.forecastLinkText}>XEM DỰ BÁO ĐẦY ĐỦ</Text>
+              </View>
+            )}
           </Pressable>
         </Link>
       ) : null}
@@ -111,7 +116,7 @@ export function ForecastPreview({
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
   summary: {
@@ -123,65 +128,53 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   sequence: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   item: {
-    width: 104,
-    minHeight: 156,
-    borderRightWidth: StyleSheet.hairlineWidth,
+    width: 116,
+    minHeight: 198,
+    borderRightWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     gap: spacing.xs,
   },
   itemLargeText: {
-    width: 144,
+    width: 152,
   },
   itemCurrent: {
     backgroundColor: homeVisualTokens.fieldRaised,
-    borderTopWidth: 2,
-    borderTopColor: homeVisualTokens.technical,
-    paddingTop: 10,
+    borderTopWidth: 0,
+    paddingTop: spacing.sm,
   },
   time: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identity,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.5,
   },
   timeCurrent: {
-    color: homeVisualTokens.technical,
+    color: homeVisualTokens.ink,
     fontFamily: typography.identitySemibold,
   },
-  conditionMark: {
-    width: 40,
-    height: 14,
+  iconWrap: {
+    width: 70,
+    height: 70,
+    alignItems: 'center',
     justifyContent: 'center',
-  },
-  conditionLine: {
-    width: 40,
-    height: 2,
-    backgroundColor: homeVisualTokens.attention,
-  },
-  conditionLineNight: {
-    backgroundColor: homeVisualTokens.technicalMuted,
-  },
-  conditionDot: {
-    position: 'absolute',
-    right: 8,
-    width: 7,
-    height: 7,
-    backgroundColor: colors.text,
   },
   temperature: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 25,
-    lineHeight: 31,
+    fontFamily: typography.temperature,
+    fontSize: 30,
+    lineHeight: 32,
     fontVariant: ['tabular-nums'],
   },
   condition: {
@@ -193,7 +186,7 @@ const styles = StyleSheet.create({
   precipitation: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
   },
   emptyState: {
@@ -201,8 +194,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     marginTop: spacing.md,
     paddingHorizontal: spacing.sm,
@@ -219,22 +211,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-  forecastLink: {
-    minHeight: 48,
+  forecastLinkHit: {
     alignSelf: 'flex-start',
-    justifyContent: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: homeVisualTokens.technical,
     marginTop: spacing.sm,
   },
+  forecastLink: {
+    minHeight: 48,
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
+    paddingHorizontal: spacing.md,
+    backgroundColor: homeVisualTokens.sunflower,
+    boxShadow: neoShadows.control,
+  },
   forecastLinkPressed: {
-    backgroundColor: homeVisualTokens.fieldRaised,
+    boxShadow: neoShadows.controlPressed,
+    transform: [{ translateX: 3 }, { translateY: 3 }],
   },
   forecastLinkText: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 10,
-    lineHeight: 16,
-    letterSpacing: 0.6,
+    color: homeVisualTokens.ink,
+    fontFamily: typography.heading,
+    fontSize: 17,
+    lineHeight: 20,
+    letterSpacing: 0.3,
   },
 });

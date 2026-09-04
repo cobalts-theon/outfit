@@ -37,7 +37,7 @@ function hourlyForecast(probabilities: readonly number[] = [0, 0, 0]): HourlyFor
   return {
     location: baselineWeather.location,
     entries: probabilities.map((probability, index) => ({
-      forecastAt: new Date(Date.UTC(2026, 7, 6, 9 + index)).toISOString(),
+      forecastAt: new Date(Date.UTC(2026, 7, 6, 10 + index)).toISOString(),
       condition: probability >= 0.6 ? 'rain' : 'partly_cloudy',
       daylight: { phase: 'day', isDay: true },
       temperatureCelsius: 25,
@@ -76,12 +76,13 @@ describe('deterministic recommendation engine', () => {
     });
   });
 
-  it('returns a truthful no-recommendation state when all measured conditions are calm', () => {
+  it('turns a verified calm window into a positive outdoor recommendation', () => {
     const result = evaluate(baselineWeather);
 
     expect(result.status).toBe('ready');
-    expect(result.recommendations).toEqual([]);
-    expect(result.primary).toBeUndefined();
+    expect(action(result, 'outdoor-activity-window')?.severity).toBe('info');
+    expect(action(result, 'outdoor-activity-window')?.reason).toContain('ba giờ đầu');
+    expect(result.primary?.actionKey).toBe('outdoor-activity-window');
   });
 
   it('activates UV guidance at high, very-high, and extreme category boundaries only', () => {
@@ -95,11 +96,11 @@ describe('deterministic recommendation engine', () => {
         }),
       );
 
-    expect(action(uvResult(5.9, 'moderate'), 'sun-protection')).toBeUndefined();
-    expect(action(uvResult(6, 'high'), 'sun-protection')?.severity).toBe('attention');
-    expect(action(uvResult(8, 'very_high'), 'sun-protection')?.severity).toBe('warning');
-    expect(action(uvResult(11, 'extreme'), 'sun-protection')?.severity).toBe('danger');
-    expect(action(uvResult(8, 'very_high', false), 'sun-protection')).toBeUndefined();
+    expect(action(uvResult(5.9, 'moderate'), 'sun-heat-protection')).toBeUndefined();
+    expect(action(uvResult(6, 'high'), 'sun-heat-protection')?.severity).toBe('attention');
+    expect(action(uvResult(8, 'very_high'), 'sun-heat-protection')?.severity).toBe('warning');
+    expect(action(uvResult(11, 'extreme'), 'sun-heat-protection')?.severity).toBe('danger');
+    expect(action(uvResult(8, 'very_high', false), 'sun-heat-protection')).toBeUndefined();
   });
 
   it('maps only poor U.S. AQI categories into increasingly severe outdoor guidance', () => {
@@ -170,6 +171,54 @@ describe('deterministic recommendation engine', () => {
     expect(rain?.reason).toContain('ba giờ đầu');
   });
 
+  it('recommends bringing laundry under cover for current or near-term rain', () => {
+    const currentRain = evaluate(
+      weather({
+        condition: 'rain',
+        precipitation: { type: 'rain', probability: 0.8, intensity: 'moderate' },
+      }),
+      hourlyForecast([0.8, 0.7, 0.4]),
+    );
+    const nearTermRain = evaluate(baselineWeather, hourlyForecast([0.1, 0.7, 0.2]));
+
+    expect(action(currentRain, 'protect-laundry')?.title).toBe('Thu đồ đang phơi');
+    expect(action(currentRain, 'protect-laundry')?.action).toContain('thu vào chỗ có mái che ngay');
+    expect(action(nearTermRain, 'protect-laundry')?.title).toBe(
+      'Chuẩn bị thu đồ đang phơi',
+    );
+  });
+
+  it('does not recommend outdoor activity without a verified dry and clean-air window', () => {
+    const incompleteHourly = evaluateRecommendations({
+      currentWeather: baselineWeather,
+      hourlyForecast: hourlyForecast([0.1, 0.1]),
+    });
+    const moderateAir = evaluate(
+      weather({ airQuality: { index: 80, scale: 'us_aqi', category: 'moderate' } }),
+    );
+
+    expect(action(incompleteHourly, 'outdoor-activity-window')).toBeUndefined();
+    expect(action(moderateAir, 'outdoor-activity-window')).toBeUndefined();
+  });
+
+  it('ignores rain entries that are already in the past', () => {
+    const forecast = hourlyForecast([0.9, 0.1, 0.1, 0.1]);
+    const entries = [
+      {
+        ...forecast.entries[0],
+        forecastAt: '2026-08-06T09:00:00.000Z',
+        condition: 'rain' as const,
+        precipitation: { type: 'rain' as const, probability: 0.9 },
+      },
+      ...forecast.entries.slice(1),
+    ];
+    const result = evaluate(baselineWeather, { ...forecast, entries });
+
+    expect(action(result, 'rain-protection')).toBeUndefined();
+    expect(action(result, 'protect-laundry')).toBeUndefined();
+    expect(action(result, 'outdoor-activity-window')).toBeDefined();
+  });
+
   it('uses measured and feels-like temperature for heat and clothing boundaries', () => {
     const below = evaluate(
       weather({ temperature: { valueCelsius: 29, feelsLikeCelsius: 34.9 } }),
@@ -181,10 +230,32 @@ describe('deterministic recommendation engine', () => {
       weather({ temperature: { valueCelsius: 35, feelsLikeCelsius: 40 } }),
     );
 
-    expect(action(below, 'heat-hydration')).toBeUndefined();
-    expect(action(high, 'heat-hydration')?.severity).toBe('attention');
+    expect(action(below, 'sun-heat-protection')).toBeUndefined();
+    expect(action(high, 'sun-heat-protection')?.severity).toBe('attention');
     expect(action(high, 'light-clothing')).toBeDefined();
-    expect(action(veryHigh, 'heat-hydration')?.severity).toBe('warning');
+    expect(action(veryHigh, 'sun-heat-protection')?.severity).toBe('warning');
+  });
+
+  it('merges simultaneous UV and heat guidance into one actionable exposure item', () => {
+    const result = evaluate(
+      weather({
+        temperature: { valueCelsius: 35, feelsLikeCelsius: 40 },
+        uv: { index: 9, category: 'very_high' },
+      }),
+    );
+    const exposure = action(result, 'sun-heat-protection');
+
+    expect(
+      result.recommendations.filter(
+        (recommendation) => recommendation.actionKey === 'sun-heat-protection',
+      ),
+    ).toHaveLength(1);
+    expect(exposure?.matchedRuleIds).toEqual([
+      'high-uv-protection',
+      'high-temperature-wellness',
+    ]);
+    expect(exposure?.reason).toContain('UV hiện tại');
+    expect(exposure?.reason).toContain('Nhiệt độ là');
   });
 
   it('adds practical warmer-clothing guidance for cool and cold conditions', () => {
@@ -223,7 +294,7 @@ describe('deterministic recommendation engine', () => {
     expect(result.recommendations.map((item) => item.actionKey)).toEqual([
       'weather-shelter',
       'air-quality-exposure',
-      'sun-protection',
+      'sun-heat-protection',
     ]);
     expect(result.primary?.severity).toBe('danger');
   });
@@ -273,8 +344,7 @@ describe('deterministic recommendation engine', () => {
       'precipitation',
       'hourly_forecast',
     ]);
-    expect(action(result, 'heat-hydration')).toBeDefined();
+    expect(action(result, 'sun-heat-protection')).toBeDefined();
     expect(action(result, 'rain-protection')).toBeUndefined();
   });
 });
-

@@ -13,6 +13,10 @@ import {
   stateFromLocationPermission,
   type LocationCapabilityState,
 } from '@/features/locations/domain/location';
+import {
+  createManualSelectedLocation,
+  type ManualLocationSelection,
+} from '@/features/locations/domain/manual-location';
 import { expoLocationService } from '@/services/location/expo-location-service';
 
 interface LocationCapabilityContextValue {
@@ -20,6 +24,7 @@ interface LocationCapabilityContextValue {
   readonly requestPermission: () => Promise<void>;
   readonly retry: () => Promise<void>;
   readonly refreshPermission: () => Promise<void>;
+  readonly selectManualLocation: (selection: ManualLocationSelection) => void;
 }
 
 const LocationCapabilityContext = createContext<LocationCapabilityContextValue | null>(null);
@@ -41,12 +46,25 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     }
 
     if (result.ok) {
-      setState({
-        status: 'ready',
+      const readyState = {
+        status: 'ready' as const,
         position: result.position,
         selectedLocation: selectDevicePosition(result.position),
         fallbackReason: result.fallbackReason,
+      };
+      setState({
+        ...readyState,
       });
+
+      const placeName = await expoLocationService.resolvePlaceName(result.position.coordinates);
+      if (activeOperation.current === operationId && placeName !== undefined) {
+        const namedPosition = { ...result.position, placeName };
+        setState({
+          ...readyState,
+          position: namedPosition,
+          selectedLocation: selectDevicePosition(namedPosition),
+        });
+      }
       return;
     }
 
@@ -124,7 +142,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     }
 
     if (
-      state.status === 'ready' ||
+      (state.status === 'ready' && state.position !== undefined) ||
       state.status === 'services_unavailable' ||
       state.status === 'acquisition_error'
     ) {
@@ -137,6 +155,14 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     await refreshPermission();
   }, [acquireForOperation, refreshPermission, requestPermission, state]);
 
+  const selectManualLocation = useCallback((selection: ManualLocationSelection) => {
+    activeOperation.current += 1;
+    setState({
+      status: 'ready',
+      selectedLocation: createManualSelectedLocation(selection),
+    });
+  }, []);
+
   useEffect(() => {
     void refreshPermission();
 
@@ -147,7 +173,13 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
 
   return (
     <LocationCapabilityContext.Provider
-      value={{ state, requestPermission, retry, refreshPermission }}
+      value={{
+        state,
+        requestPermission,
+        retry,
+        refreshPermission,
+        selectManualLocation,
+      }}
     >
       {children}
     </LocationCapabilityContext.Provider>
@@ -163,4 +195,3 @@ export function useLocationCapability() {
 
   return value;
 }
-

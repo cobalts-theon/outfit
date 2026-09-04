@@ -13,6 +13,7 @@ import {
 const DEFAULT_CURRENT_POSITION_TIMEOUT_MS = 12_000;
 const DEFAULT_LAST_KNOWN_MAX_AGE_MS = 15 * 60 * 1_000;
 const DEFAULT_LAST_KNOWN_REQUIRED_ACCURACY_METERS = 5_000;
+const REVERSE_GEOCODE_TIMEOUT_MS = 2_500;
 
 export interface LocationAcquisitionOptions {
   readonly currentPositionTimeoutMs?: number;
@@ -102,6 +103,43 @@ export function normalizeExpoPosition(
   };
 }
 
+export function formatReverseGeocodedPlace(
+  address: Pick<
+    ExpoLocation.LocationGeocodedAddress,
+    'city' | 'country' | 'district' | 'name' | 'region'
+  >,
+): string | undefined {
+  const uniqueNames = (candidates: readonly (string | null)[]) => {
+    const names: string[] = [];
+
+    for (const candidate of candidates) {
+      const name = candidate?.trim();
+      if (
+        name &&
+        !names.some(
+          (existing) => existing.localeCompare(name, 'vi', { sensitivity: 'base' }) === 0,
+        )
+      ) {
+        names.push(name);
+      }
+      if (names.length === 2) break;
+    }
+
+    return names;
+  };
+
+  const administrativeNames = uniqueNames([address.district, address.city, address.region]);
+  if (administrativeNames.length > 0) return administrativeNames.join(' · ');
+
+  const placeName = address.name?.trim();
+  const fallbackNames = uniqueNames([
+    placeName && /\p{L}/u.test(placeName) ? placeName : null,
+    address.country,
+  ]);
+
+  return fallbackNames.length === 0 ? undefined : fallbackNames.join(' · ');
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -115,6 +153,20 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
     }
+  }
+}
+
+export async function resolveDevicePlaceName(
+  coordinates: DevicePosition['coordinates'],
+): Promise<string | undefined> {
+  try {
+    const addresses = await withTimeout(
+      ExpoLocation.reverseGeocodeAsync(coordinates),
+      REVERSE_GEOCODE_TIMEOUT_MS,
+    );
+    return addresses[0] && formatReverseGeocodedPlace(addresses[0]);
+  } catch {
+    return undefined;
   }
 }
 
@@ -237,4 +289,5 @@ export const expoLocationService = {
   checkPermission: checkForegroundLocationPermission,
   requestPermission: requestForegroundLocationPermission,
   acquirePosition: acquireDevicePosition,
+  resolvePlaceName: resolveDevicePlaceName,
 } as const;

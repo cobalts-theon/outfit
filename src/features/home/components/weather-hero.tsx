@@ -23,50 +23,72 @@ export function WeatherHero({ weather, compact = false, reflow = false }: Weathe
   const daylightLabel = getDaylightLabel(weather.daylight);
 
   return (
-    <View accessibilityLabel="Điều kiện hiện tại" style={styles.container} testID="weather-hero">
-      <SystemLabel index="00" label="HIỆN TẠI" value={daylightLabel.toUpperCase()} />
+    <View
+      accessibilityLabel="Điều kiện hiện tại"
+      style={styles.wrapper}
+      testID="weather-hero"
+    >
+      <View pointerEvents="none" style={styles.shadow} />
+      <View style={styles.container}>
+        <SystemLabel index="00" label="HIỆN TẠI" value={daylightLabel.toUpperCase()} />
 
-      <View
-        style={[
-          styles.heroRow,
-          compact && styles.heroRowCompact,
-          reflow && styles.heroRowReflow,
-        ]}
-      >
-        <View style={styles.reading}>
-          <Text
-            accessibilityLabel={`${temperature} độ C`}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            numberOfLines={1}
-            style={[styles.temperature, compact && styles.temperatureCompact]}
-          >
-            {temperature}
-            <Text style={styles.degree}>°</Text>
-          </Text>
-          <Text maxFontSizeMultiplier={1.6} style={styles.condition}>
-            {conditionLabel}
-          </Text>
-          <View style={styles.feelsRow}>
-            <Text style={styles.feelsLabel}>CẢM NHẬN</Text>
-            <Text accessibilityLabel={`Cảm nhận như ${feelsLike} độ C`} style={styles.feelsValue}>
-              {feelsLike}°C
+        <View
+          style={[
+            styles.heroRow,
+            compact && styles.heroRowCompact,
+            reflow && styles.heroRowReflow,
+          ]}
+        >
+          <View style={styles.reading}>
+            <Text
+              accessibilityLabel={`${temperature} độ C`}
+              adjustsFontSizeToFit
+              minimumFontScale={0.74}
+              numberOfLines={1}
+              style={[styles.temperature, compact && styles.temperatureCompact]}
+            >
+              {temperature}
+              <Text style={styles.degree}>°</Text>
             </Text>
+            <Text maxFontSizeMultiplier={1.6} style={styles.condition}>
+              {conditionLabel}
+            </Text>
+            <View style={styles.feelsRow}>
+              <Text style={styles.feelsLabel}>CẢM NHẬN</Text>
+              <Text accessibilityLabel={`Cảm nhận như ${feelsLike} độ C`} style={styles.feelsValue}>
+                {feelsLike}°C
+              </Text>
+            </View>
           </View>
+
+          <WeatherGlyph compact={compact} weather={weather} />
         </View>
-
-        <WeatherGlyph compact={compact} weather={weather} />
       </View>
-
     </View>
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: 'relative',
+    marginHorizontal: spacing.sm,
+    marginRight: spacing.sm + 7,
+    marginBottom: 7,
+  },
+  shadow: {
+    position: 'absolute',
+    top: 7,
+    right: -7,
+    bottom: -7,
+    left: 7,
+    backgroundColor: homeVisualTokens.ink,
+  },
   container: {
     position: 'relative',
+    borderWidth: 3,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
@@ -74,7 +96,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heroRow: {
-    minHeight: 196,
+    minHeight: 188,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -82,7 +104,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   heroRowCompact: {
-    minHeight: 170,
+    minHeight: 172,
     gap: spacing.xs,
   },
   heroRowReflow: {
@@ -96,27 +118,26 @@ const styles = StyleSheet.create({
   },
   temperature: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 82,
-    lineHeight: 92,
-    letterSpacing: -6,
+    fontFamily: typography.temperature,
+    fontSize: 88,
+    lineHeight: 90,
+    letterSpacing: 0,
     fontVariant: ['tabular-nums'],
   },
   temperatureCompact: {
-    fontSize: 68,
-    lineHeight: 78,
-    letterSpacing: -5,
+    fontSize: 78,
+    lineHeight: 80,
   },
   degree: {
     color: homeVisualTokens.technical,
-    fontSize: 44,
-    letterSpacing: -2,
+    fontSize: 38,
   },
   condition: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 16,
-    lineHeight: 22,
+    fontFamily: typography.display,
+    fontSize: 21,
+    lineHeight: 28,
+    textTransform: 'uppercase',
   },
   feelsRow: {
     flexDirection: 'row',
@@ -125,14 +146,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   feelsLabel: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identity,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.8,
   },
   feelsValue: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identitySemibold,
     fontSize: 14,
     lineHeight: 20,

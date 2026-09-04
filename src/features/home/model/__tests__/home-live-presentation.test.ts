@@ -31,6 +31,20 @@ const calmHourly = {
       temperatureCelsius: 25,
       precipitation: { type: 'none', probability: 0 },
     },
+    {
+      forecastAt: '2026-08-06T11:00:00.000Z',
+      condition: 'partly_cloudy',
+      daylight: { phase: 'day', isDay: true },
+      temperatureCelsius: 26,
+      precipitation: { type: 'none', probability: 0.1 },
+    },
+    {
+      forecastAt: '2026-08-06T12:00:00.000Z',
+      condition: 'partly_cloudy',
+      daylight: { phase: 'day', isDay: true },
+      temperatureCelsius: 27,
+      precipitation: { type: 'none', probability: 0.1 },
+    },
   ],
 } as const;
 
@@ -56,7 +70,7 @@ describe('Home live recommendation presentation boundary', () => {
     );
     expect(
       presentation.evaluation.recommendations.some(
-        (recommendation) => recommendation.actionKey === 'heat-hydration',
+        (recommendation) => recommendation.actionKey === 'sun-heat-protection',
       ),
     ).toBe(true);
     expect(presentation.risk.title).toContain('nóng');
@@ -84,7 +98,7 @@ describe('Home live recommendation presentation boundary', () => {
     expect(presentation.evaluation.primary?.actionKey).toBe('air-quality-exposure');
   });
 
-  it('shows a calm risk and empty Action state when complete inputs trigger no rules', () => {
+  it('shows a calm risk and a positive Action when the outdoor window is favorable', () => {
     const result: LiveCurrentWeatherResult = {
       status: 'complete',
       weather: calmWeather,
@@ -95,7 +109,7 @@ describe('Home live recommendation presentation boundary', () => {
     const presentation = createLiveRecommendationPresentation(result);
 
     expect(presentation.evaluation.status).toBe('ready');
-    expect(presentation.evaluation.recommendations).toEqual([]);
+    expect(presentation.evaluation.primary?.actionKey).toBe('outdoor-activity-window');
     expect(presentation.risk.tone).toBe('calm');
     expect(presentation.risk.title).toContain('Chưa có rủi ro nổi bật');
   });

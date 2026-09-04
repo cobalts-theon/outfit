@@ -1,5 +1,9 @@
+import { Archivo_900Black } from '@expo-google-fonts/archivo/900Black';
+import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400Regular';
-import { JetBrainsMono_600SemiBold } from '@expo-google-fonts/jetbrains-mono/600SemiBold';
+import { JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono/700Bold';
+import { Syne_400Regular } from '@expo-google-fonts/syne/400Regular';
+import { Syne_800ExtraBold } from '@expo-google-fonts/syne/800ExtraBold';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -13,8 +17,12 @@ export interface AppBootstrapState {
 
 export function useAppBootstrap(): AppBootstrapState {
   const [fontsLoaded, fontError] = useFonts({
+    ArchivoBlack: Archivo_900Black,
+    BebasNeue: BebasNeue_400Regular,
     JetBrainsMono: JetBrainsMono_400Regular,
-    JetBrainsMonoSemiBold: JetBrainsMono_600SemiBold,
+    JetBrainsMonoBold: JetBrainsMono_700Bold,
+    Syne: Syne_400Regular,
+    SyneExtraBold: Syne_800ExtraBold,
   });
   const isReady = fontsLoaded || fontError !== null;
 

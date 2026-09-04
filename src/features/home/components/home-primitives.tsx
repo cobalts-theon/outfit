@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, Text, View, type ViewProps } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
+import { appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme/tokens';
 
 interface SystemLabelProps {
   readonly index: string;
@@ -9,13 +9,17 @@ interface SystemLabelProps {
   readonly value?: string;
 }
 
-export function SystemLabel({ index, label, value }: SystemLabelProps) {
+export function SystemLabel({ label, value }: SystemLabelProps) {
   return (
     <View style={styles.systemLabelRow}>
-      <Text accessibilityRole="header" style={styles.systemLabel}>
-        {index} // {label}
-      </Text>
-      {value === undefined ? null : <Text style={styles.systemValue}>{value}</Text>}
+      <View style={styles.systemLabelGroup}>
+        <Text accessibilityRole="header" style={styles.systemLabel}>
+          {label}
+        </Text>
+      </View>
+      {value === undefined ? null : (
+        <Text style={styles.systemValue}>{value.replaceAll(' // ', ' · ')}</Text>
+      )}
     </View>
   );
 }
@@ -24,6 +28,7 @@ interface RuledSectionProps extends PropsWithChildren {
   readonly testID?: string;
   readonly accessibilityLabel?: string;
   readonly tone?: 'default' | 'deep';
+  readonly elevated?: boolean;
 }
 
 export function RuledSection({
@@ -31,11 +36,16 @@ export function RuledSection({
   testID,
   accessibilityLabel,
   tone = 'default',
+  elevated = false,
 }: RuledSectionProps) {
   return (
     <View
       accessibilityLabel={accessibilityLabel}
-      style={[styles.section, tone === 'deep' && styles.sectionDeep]}
+      style={[
+        styles.section,
+        tone === 'deep' && styles.sectionDeep,
+        elevated && styles.sectionElevated,
+      ]}
       testID={testID}
     >
       {children}
@@ -43,62 +53,40 @@ export function RuledSection({
   );
 }
 
-interface DitherLayerProps extends Pick<ViewProps, 'style'> {
-  readonly dense?: boolean;
-}
-
-const DITHER_DOTS = Array.from({ length: 42 }, (_, index) => index);
-
-export function DitherLayer({ dense = false, style }: DitherLayerProps) {
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      pointerEvents="none"
-      style={[styles.dither, style]}
-    >
-      {DITHER_DOTS.map((dot) => (
-        <View
-          key={dot}
-          style={[
-            styles.ditherDot,
-            dense && styles.ditherDotDense,
-            dot % 5 === 0 && styles.ditherDotFaint,
-          ]}
-        />
-      ))}
-    </View>
-  );
-}
-
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
   systemLabelRow: {
-    minHeight: 28,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
+  systemLabelGroup: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   systemLabel: {
     flexShrink: 1,
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 1,
+    color: homeVisualTokens.ink,
+    fontFamily: typography.heading,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: 0.4,
   },
   systemValue: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identity,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.7,
     textAlign: 'right',
   },
   section: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 3,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
@@ -106,24 +94,10 @@ const styles = StyleSheet.create({
   sectionDeep: {
     backgroundColor: homeVisualTokens.fieldDeep,
   },
-  dither: {
-    position: 'absolute',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    width: 92,
-    opacity: 0.58,
-  },
-  ditherDot: {
-    width: 2,
-    height: 2,
-    backgroundColor: homeVisualTokens.technicalMuted,
-  },
-  ditherDotDense: {
-    width: 3,
-    height: 3,
-  },
-  ditherDotFaint: {
-    opacity: 0.35,
+  sectionElevated: {
+    borderWidth: 3,
+    marginHorizontal: spacing.sm,
+    marginBottom: 6,
+    boxShadow: neoShadows.panel,
   },
 });

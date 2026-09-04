@@ -8,6 +8,7 @@ import {
 import {
   appThemes,
   homeVisualTokens,
+  neoShadows,
   spacing,
   touchTargets,
   typography,
@@ -102,7 +103,7 @@ export function LiveWeatherStatusStrip({ query }: LiveWeatherStatusStripProps) {
             style={styles.signal}
           />
         )}
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>{label.replaceAll(' // ', ' · ')}</Text>
       </View>
       <Text accessibilityRole="header" style={styles.title}>
         {title}
@@ -122,17 +123,20 @@ export function LiveWeatherStatusStrip({ query }: LiveWeatherStatusStripProps) {
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 const minimumTouchTarget = Platform.OS === 'ios' ? touchTargets.ios : touchTargets.android;
 
 const styles = StyleSheet.create({
   container: {
     gap: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
-    backgroundColor: homeVisualTokens.unavailableSurface,
+    backgroundColor: homeVisualTokens.warningSurface,
+    marginHorizontal: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   labelRow: {
     minHeight: 20,
@@ -141,27 +145,29 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   signal: {
-    width: 6,
-    height: 6,
-    backgroundColor: homeVisualTokens.unavailable,
+    width: 9,
+    height: 9,
+    borderWidth: 2,
+    borderColor: homeVisualTokens.ink,
+    backgroundColor: homeVisualTokens.warning,
   },
   label: {
     flex: 1,
-    color: homeVisualTokens.technical,
+    color: homeVisualTokens.ink,
     fontFamily: typography.identitySemibold,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.7,
   },
   title: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: typography.heading,
+    fontSize: 21,
+    lineHeight: 24,
   },
   detail: {
     maxWidth: 620,
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 13,
     lineHeight: 20,
@@ -170,20 +176,22 @@ const styles = StyleSheet.create({
     minHeight: minimumTouchTarget,
     alignSelf: 'flex-start',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: homeVisualTokens.technical,
-    borderRadius: 2,
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+    backgroundColor: homeVisualTokens.cobalt,
+    boxShadow: neoShadows.control,
   },
   actionPressed: {
-    backgroundColor: homeVisualTokens.fieldRaised,
+    boxShadow: neoShadows.controlPressed,
+    transform: [{ translateX: 3 }, { translateY: 3 }],
   },
   actionText: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 11,
-    lineHeight: 16,
+    color: colors.surface,
+    fontFamily: typography.heading,
+    fontSize: 16,
+    lineHeight: 19,
     letterSpacing: 0.6,
   },
 });

@@ -53,6 +53,7 @@ describe('live CurrentWeather orchestration', () => {
     expect(input).toMatchObject({
       coordinates: { latitude: 10.777, longitude: 106.701 },
       locationName: 'Vị trí hiện tại',
+      locationIdentity: 'device:10.777,106.701',
       aqiScale: LIVE_CURRENT_WEATHER_AQI_SCALE,
     });
 

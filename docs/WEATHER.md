@@ -190,9 +190,12 @@ Total practical weather visual assets should remain around **50–70**, not hund
 
 Current preferred direction:
 
-- **Meteocons** for main weather visuals.
-- Static SVG or equivalent for compact hourly/daily lists.
-- Lottie/animation only for selected hero/current-weather visuals.
+- Local **amCharts Weather Icons 1.0.0** assets for main weather visuals, with
+  bundled CC BY 4.0 license and attribution preserved.
+- Cached static SVGs with a hard black offset layer for compact hourly/daily lists.
+- One animated SVG surface, containing both color and offset-shadow layers, only
+  for selected hero/current-weather visuals; never mount WebViews per list row.
+- Reduced-motion mode uses the matching static asset in every context.
 - General app controls/icons should use the normal app icon system, not weather illustrations.
 
 ### Icon mapping
@@ -645,6 +648,20 @@ Open-Meteo Forecast API
 Open-Meteo Air Quality API
 → AQI/pollutants
 ```
+
+Manual location discovery uses Open-Meteo Geocoding as a separate provider
+boundary. Its raw place IDs, administrative fields, and response shape are
+adapted into project-owned `ManualLocationCandidate` values before application
+state or UI. Selecting a candidate changes only `SelectedAppLocation`; it does
+not mutate device GPS or persist movement history.
+
+On Android devices where foreground location permission is already granted,
+the application may use Expo Location's system forward geocoder first. This
+bounded native fallback exists because older Android networking stacks may not
+complete the dedicated Open-Meteo Geocoding host handshake even while Forecast
+and Air Quality remain reachable. It never requests permission on behalf of a
+manual search; without existing permission, Open-Meteo remains the remote path.
+Both providers normalize into the same `ManualLocationCandidate` contract.
 
 ### Phase 3B.2 live current composition
 

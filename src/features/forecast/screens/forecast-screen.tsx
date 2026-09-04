@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DailyForecastRow } from '@/features/forecast/components/daily-forecast-row';
 import { DetailedHourlyForecast } from '@/features/forecast/components/detailed-hourly-forecast';
 import { ForecastDetails } from '@/features/forecast/components/forecast-details';
+import { WeatherConditionIcon } from '@/features/home/components/weather-glyph';
 import type { DailyForecastItem } from '@/features/forecast/model/forecast-presentation';
 import {
   createDailyForecastItems,
@@ -31,6 +32,7 @@ import {
   appThemes,
   homeVisualTokens,
   layout,
+  neoShadows,
   spacing,
   touchTargets,
   typography,
@@ -64,7 +66,7 @@ function StatusState({
         ) : (
           <View style={styles.stateSignal} />
         )}
-        <Text style={styles.stateLabel}>DỰ BÁO // TRẠNG THÁI</Text>
+        <Text style={styles.stateLabel}>DỰ BÁO · TRẠNG THÁI</Text>
       </View>
       <Text accessibilityRole="header" style={styles.stateTitle}>
         {title}
@@ -122,10 +124,6 @@ export function ForecastScreen() {
       <SafeAreaView edges={['right', 'bottom', 'left']} style={styles.safeArea}>
         <View style={styles.frame}>
           <LocationCapabilityStrip />
-          <StatusState
-            detail="Bật dịch vụ vị trí và thử lại từ Home. Màn hình dự báo không dùng dữ liệu mẫu."
-            title="Chưa có vị trí cho dự báo trực tiếp"
-          />
         </View>
       </SafeAreaView>
     );
@@ -138,7 +136,7 @@ export function ForecastScreen() {
         ? query.error.message
         : paused
           ? 'Kết nối mạng chưa sẵn sàng. Yêu cầu sẽ tiếp tục khi kết nối trở lại.'
-          : 'Đang lấy dự báo theo tọa độ đã chọn.';
+          : 'Đang lấy dự báo cho địa điểm đã chọn.';
     return (
       <SafeAreaView edges={['right', 'bottom', 'left']} style={styles.safeArea}>
         <View style={styles.frame}>
@@ -164,7 +162,6 @@ export function ForecastScreen() {
     (issue) => issue.source === 'hourly_forecast' || issue.source === 'daily_forecast',
   );
   const currentPrecipitation = result.weather.precipitation;
-  const coordinateLabel = result.weather.location.coordinates;
   const observedTime = formatObservedTime(
     result.weather.observedAt,
     result.weather.location.timeZone,
@@ -176,12 +173,10 @@ export function ForecastScreen() {
         <View style={styles.briefingTopRow}>
           <View style={styles.briefingLocation}>
             <Text accessibilityRole="header" style={styles.locationName}>
-              {result.weather.location.name}
+              {selectedLocation.label ?? result.weather.location.name}
             </Text>
             <Text style={styles.coordinates}>
-              {coordinateLabel === undefined
-                ? result.weather.location.timeZone
-                : `${coordinateLabel.latitude.toFixed(4)}, ${coordinateLabel.longitude.toFixed(4)} · ${result.weather.location.timeZone}`}
+              {`${selectedLocation.source === 'device' ? 'VỊ TRÍ HIỆN TẠI' : 'VỊ TRÍ ĐÃ CHỌN'} · QUAN SÁT ${observedTime}`}
             </Text>
           </View>
           <Pressable
@@ -201,6 +196,14 @@ export function ForecastScreen() {
         </View>
 
         <View style={styles.currentReading}>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.currentIcon}>
+            <WeatherConditionIcon
+              animated
+              condition={result.weather.condition}
+              isDay={result.weather.daylight.isDay}
+              size={72}
+            />
+          </View>
           <Text
             accessibilityLabel={`${Math.round(result.weather.temperature.valueCelsius)} độ C`}
             style={styles.currentTemperature}
@@ -276,7 +279,7 @@ export function ForecastScreen() {
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 const minimumTouchTarget = Platform.OS === 'ios' ? touchTargets.ios : touchTargets.android;
 
 const styles = StyleSheet.create({
@@ -301,11 +304,13 @@ const styles = StyleSheet.create({
   },
   state: {
     gap: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     backgroundColor: homeVisualTokens.unavailableSurface,
+    margin: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
+    boxShadow: neoShadows.panel,
   },
   stateSignalRow: {
     minHeight: 20,
@@ -319,17 +324,17 @@ const styles = StyleSheet.create({
     backgroundColor: homeVisualTokens.unavailable,
   },
   stateLabel: {
-    color: homeVisualTokens.technical,
+    color: homeVisualTokens.ink,
     fontFamily: typography.identitySemibold,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.7,
   },
   stateTitle: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 16,
-    lineHeight: 23,
+    fontFamily: typography.heading,
+    fontSize: 20,
+    lineHeight: 26,
   },
   stateDetail: {
     maxWidth: 620,
@@ -342,24 +347,28 @@ const styles = StyleSheet.create({
     minHeight: minimumTouchTarget,
     alignSelf: 'flex-start',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: homeVisualTokens.technical,
-    borderRadius: 2,
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
     paddingHorizontal: spacing.md,
+    backgroundColor: homeVisualTokens.cobalt,
+    boxShadow: neoShadows.control,
   },
   partialState: {
     gap: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     backgroundColor: homeVisualTokens.unavailableSurface,
+    marginHorizontal: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   partialLabel: {
     color: homeVisualTokens.unavailable,
     fontFamily: typography.identitySemibold,
-    fontSize: 9,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 16,
     letterSpacing: 0.7,
   },
   partialCopy: {
@@ -370,14 +379,17 @@ const styles = StyleSheet.create({
   },
   briefing: {
     gap: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
-    backgroundColor: homeVisualTokens.field,
+    backgroundColor: homeVisualTokens.fieldRaised,
+    margin: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
+    boxShadow: neoShadows.panel,
   },
   briefingTopRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.md,
   },
@@ -388,47 +400,61 @@ const styles = StyleSheet.create({
   },
   locationName: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 18,
-    lineHeight: 26,
+    fontFamily: typography.display,
+    fontSize: 22,
+    lineHeight: 28,
+    textTransform: 'uppercase',
   },
   coordinates: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identity,
-    fontSize: 9,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 17,
   },
   refreshAction: {
     minHeight: minimumTouchTarget,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 2,
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
     paddingHorizontal: spacing.sm,
+    backgroundColor: homeVisualTokens.cobalt,
+    boxShadow: neoShadows.control,
   },
   refreshActionDisabled: {
     opacity: 0.55,
   },
   actionPressed: {
-    backgroundColor: homeVisualTokens.fieldRaised,
+    boxShadow: neoShadows.controlPressed,
+    transform: [{ translateX: 3 }, { translateY: 3 }],
   },
   actionText: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 10,
-    lineHeight: 16,
+    color: colors.surface,
+    fontFamily: typography.heading,
+    fontSize: 16,
+    lineHeight: 19,
     letterSpacing: 0.5,
   },
   currentReading: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.lg,
   },
+  currentIcon: {
+    width: 92,
+    height: 92,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
+    backgroundColor: colors.surface,
+    boxShadow: neoShadows.control,
+  },
   currentTemperature: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 54,
-    lineHeight: 62,
+    fontFamily: typography.temperature,
+    fontSize: 72,
+    lineHeight: 74,
     fontVariant: ['tabular-nums'],
   },
   currentNarrative: {
@@ -438,9 +464,10 @@ const styles = StyleSheet.create({
   },
   currentCondition: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 16,
-    lineHeight: 23,
+    fontFamily: typography.heading,
+    fontSize: 20,
+    lineHeight: 26,
+    textTransform: 'uppercase',
   },
   currentMeta: {
     color: colors.textMuted,
@@ -462,17 +489,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   dailyTitle: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 12,
-    lineHeight: 18,
+    color: homeVisualTokens.ink,
+    fontFamily: typography.display,
+    fontSize: 20,
+    lineHeight: 26,
     letterSpacing: 1,
   },
   dailyStatus: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 9,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 17,
     letterSpacing: 0.7,
   },
   dailySummary: {

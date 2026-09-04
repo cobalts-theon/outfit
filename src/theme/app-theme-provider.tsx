@@ -1,28 +1,22 @@
 import { createContext, type PropsWithChildren, use } from 'react';
-import { useColorScheme } from 'react-native';
 
-import { appThemes, type AppColorScheme, type AppTheme } from '@/theme/tokens';
+import { appThemes, type AppTheme } from '@/theme/tokens';
 
 interface AppThemeContextValue {
-  colorScheme: AppColorScheme;
+  colorScheme: 'light';
   theme: AppTheme;
 }
 
-const contextValues: Record<AppColorScheme, AppThemeContextValue> = {
-  light: { colorScheme: 'light', theme: appThemes.light },
-  dark: { colorScheme: 'dark', theme: appThemes.dark },
+const lightThemeContext: AppThemeContextValue = {
+  colorScheme: 'light',
+  theme: appThemes.light,
 };
 
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
 
 export function AppThemeProvider({ children }: PropsWithChildren) {
-  const detectedScheme = useColorScheme();
-  const colorScheme: AppColorScheme = detectedScheme === 'light' ? 'light' : 'dark';
-
   return (
-    <AppThemeContext.Provider value={contextValues[colorScheme]}>
-      {children}
-    </AppThemeContext.Provider>
+    <AppThemeContext.Provider value={lightThemeContext}>{children}</AppThemeContext.Provider>
   );
 }
 

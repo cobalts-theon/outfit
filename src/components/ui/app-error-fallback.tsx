@@ -1,20 +1,27 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { appThemes, radii, spacing, touchTargets, typography } from '@/theme/tokens';
+import {
+  appThemes,
+  homeVisualTokens,
+  neoShadows,
+  spacing,
+  touchTargets,
+  typography,
+} from '@/theme/tokens';
 
 interface AppErrorFallbackProps {
   error?: Error;
   onRetry: () => void;
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 export function AppErrorFallback({ error, onRetry }: AppErrorFallbackProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View accessibilityRole="alert" style={styles.content}>
-        <Text style={styles.label}>SYSTEM // RECOVERY</Text>
+        <Text style={styles.label}>PHỤC HỒI GIAO DIỆN</Text>
         <Text style={styles.title}>Ứng dụng gặp sự cố</Text>
         <Text style={styles.message}>
           Không thể hoàn tất thao tác. Hãy thử khởi động lại phần giao diện này.
@@ -41,6 +48,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.md,
     padding: spacing.lg,
+    backgroundColor: homeVisualTokens.dangerSurface,
+    borderWidth: 3,
+    borderColor: colors.border,
+    margin: spacing.md,
   },
   label: {
     color: colors.danger,
@@ -50,9 +61,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 24,
-    lineHeight: 32,
+    fontFamily: typography.display,
+    fontSize: 28,
+    lineHeight: 34,
   },
   message: {
     color: colors.textMuted,
@@ -72,17 +83,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: radii.control,
-    borderCurve: 'continuous',
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
+    backgroundColor: homeVisualTokens.cobalt,
+    boxShadow: neoShadows.control,
   },
   buttonPressed: {
-    opacity: 0.7,
+    boxShadow: neoShadows.controlPressed,
+    transform: [{ translateX: 3 }, { translateY: 3 }],
   },
   buttonLabel: {
-    color: colors.accent,
-    fontFamily: typography.identitySemibold,
-    fontSize: 14,
+    color: colors.surface,
+    fontFamily: typography.heading,
+    fontSize: 18,
   },
 });

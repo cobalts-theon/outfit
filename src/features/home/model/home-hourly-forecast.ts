@@ -63,7 +63,7 @@ export function createHomeHourlyForecastPreview(
     }));
 
   return {
-    summary: `Diễn biến vài giờ tới theo giờ địa phương · ${forecast.location.timeZone}`,
+    summary: 'Diễn biến vài giờ tới theo giờ địa phương.',
     items,
   };
 }

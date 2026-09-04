@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { HomeRiskPreview, HomeRiskTone } from '@/features/home/model/home-prototype';
-import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
+import { appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme/tokens';
 
 import { SystemLabel } from './home-primitives';
 
@@ -27,53 +27,55 @@ export function RiskAdvisory({ risk, compact = false }: RiskAdvisoryProps) {
   return (
     <View
       accessibilityLabel={`${risk.levelLabel}. ${risk.title}. ${risk.reason}. Hành động: ${risk.immediateAction}`}
-      style={[
-        styles.container,
-        compact && styles.containerCompact,
-        { backgroundColor: tone.surface },
-      ]}
+      style={styles.wrapper}
       testID="risk-advisory"
     >
-      <SystemLabel index="01" label="RỦI RO" value={risk.levelLabel} />
-      <View style={styles.signalRow}>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[
-            styles.signal,
-            compact && styles.signalCompact,
-            { backgroundColor: tone.signal },
-          ]}
-        />
-        <View style={styles.copy}>
-          <Text accessibilityRole="header" style={styles.title}>
-            {risk.title}
-          </Text>
-          <Text style={styles.reason}>{risk.reason}</Text>
+      <View
+        style={[
+          styles.container,
+          compact && styles.containerCompact,
+          { backgroundColor: tone.surface },
+        ]}
+      >
+        <SystemLabel index="01" label="VÌ SAO" value={risk.levelLabel} />
+        <View style={styles.signalRow}>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.signal, { backgroundColor: tone.signal }]}
+          />
+          <View style={styles.copy}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {risk.title}
+            </Text>
+            <Text style={styles.reason}>{risk.reason}</Text>
+          </View>
         </View>
-      </View>
-      <View style={styles.actionRow}>
-        <Text style={[styles.actionLabel, { color: tone.signal }]}>
-          {compact ? 'LƯU Ý' : 'LÀM NGAY'}
-        </Text>
-        <Text style={styles.action}>{risk.immediateAction}</Text>
+        <View style={styles.actionRow}>
+          <Text style={[styles.actionLabel, { color: homeVisualTokens.ink }]}>CẦN LƯU Ý</Text>
+          <Text style={styles.action}>{risk.immediateAction}</Text>
+        </View>
       </View>
     </View>
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: 'relative',
+    marginHorizontal: spacing.sm,
+  },
   container: {
     position: 'relative',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    borderWidth: 3,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.md,
     overflow: 'hidden',
+    boxShadow: neoShadows.panel,
   },
   containerCompact: {
     gap: spacing.sm,
@@ -81,16 +83,14 @@ const styles = StyleSheet.create({
   },
   signalRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     gap: spacing.md,
   },
   signal: {
-    width: 6,
-    minHeight: 72,
-  },
-  signalCompact: {
-    width: 4,
-    minHeight: 54,
+    width: 10,
+    height: 10,
+    borderWidth: 2,
+    borderColor: homeVisualTokens.ink,
   },
   copy: {
     flex: 1,
@@ -99,13 +99,14 @@ const styles = StyleSheet.create({
   title: {
     maxWidth: 540,
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 19,
+    fontFamily: typography.display,
+    fontSize: 21,
     lineHeight: 27,
+    textTransform: 'uppercase',
   },
   reason: {
     maxWidth: 600,
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 15,
     lineHeight: 22,
@@ -114,21 +115,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 2,
     borderColor: colors.border,
     paddingTop: spacing.sm,
   },
   actionLabel: {
-    width: 64,
-    fontFamily: typography.identitySemibold,
-    fontSize: 10,
-    lineHeight: 18,
+    width: 72,
+    fontFamily: typography.heading,
+    fontSize: 16,
+    lineHeight: 20,
     letterSpacing: 0.8,
   },
   action: {
     flex: 1,
     color: colors.text,
-    fontFamily: typography.body,
+    fontFamily: typography.headingSemibold,
     fontSize: 15,
     lineHeight: 22,
   },

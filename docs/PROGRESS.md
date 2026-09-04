@@ -2,20 +2,99 @@
 
 ## Current milestone
 
-**Phase 3B.3 — Normalized Hourly Forecast + Live Home Next complete**
+**Account profile images and device notifications implemented**
 
-Normalized selected coordinates now drive a TanStack Query application boundary
-that composes one Open-Meteo Forecast response into separate `CurrentWeather`
-and `HourlyForecast` domain models while enriching current conditions with AQI,
-pollutants, and UV. Home uses live `Now`, environment, and `Next` data after a
-successful query; the real recommendation engine, manual search, reverse
-geocoding, and saved locations remain deferred.
+The mobile application keeps its existing domain, provider, query, location,
+recommendation, and navigation behavior while Home now prioritizes customer
+guidance through `Now → Action → Why → Next`. The Rule Engine panel follows the
+weather hero immediately, its highest-priority `LÀM` row is surfaced first, and
+risk becomes the explanation layer. Detailed metrics, GPS controls, and source
+status sit below the decision path. The light-only square neo-brutalist system,
+role-based Archivo Black/JetBrains Mono/Bebas Neue typography, named place
+labels, large bounded weather artwork, and hard structural shadows remain. Home
+now adds a Syne masthead, hamburger drawer, account avatar, optional Supabase
+email/password auth, and remote place search. Guests can view a searched place;
+authenticated users can persist it through owner-scoped `saved_locations`.
+Redmi 7 Android review has passed; iOS review remains pending. The Home Action
+surface now uses concrete clothing/activity kits from the project-owned
+`assets/weather-cloths` SVG set, and opt-in Expo notifications schedule rain,
+environmental risk, and attention-level primary actions without duplicate
+alerts.
+
+Authenticated users can now choose, crop, replace, and remove a private profile
+image. The image is reflected in both the account sheet and masthead avatar,
+with initials retained as the loading, empty, and recoverable-error fallback.
 
 ---
 
 ## Project status
 
 ### Completed
+
+- Private account profile images:
+  - added the Expo SDK 57 system image picker with square editing and no camera
+    or microphone permission;
+  - validates common raster formats and a 5 MiB maximum before uploading the
+    React Native `ArrayBuffer`;
+  - added remote migration `20260902105227_add_private_profile_images_bucket`
+    with a private bucket and owner-UUID-folder Storage RLS;
+  - stores only the object path in `profiles.avatar_url`, serves one-hour signed
+    URLs, removes replaced images, and falls back to account initials;
+  - account-sheet choose/change/delete controls expose loading, success, file,
+    network, and Storage error states;
+  - the new helper tests and strict TypeScript pass; full regression and native
+    visual review are tracked below.
+
+- Action icon and device-notification pass:
+  - recommendation headings now compose one or two semantic SVGs for the
+    actual preparation kit: umbrella/shoes, hanger/cover, temperature-only
+    sun/heat protection, light clothing, cold/warm layer, or outdoor footwear;
+  - sun/heat/hydration actions no longer repeat a shirt icon; shirt artwork is
+    reserved for explicit light-clothing recommendations;
+  - clothing and daily-life artwork resolves from `assets/weather-cloths`,
+    while AQI and shelter retain their specialist symbols;
+  - compact labels explain each icon kit without relying on imagery alone;
+  - local notifications cover current/near-term rain, the highest warning or
+    danger risk, and one primary attention-level action, with stable signatures
+    preventing repeated scheduling after every weather refresh;
+  - tapping an app notification returns to Home, and Android uses a dedicated
+    high-priority channel plus a valid white 96×96 notification icon in
+    development/release builds;
+  - device scheduling is serialized across weather refreshes, failed native
+    replacements remain retryable, disabling waits for in-flight work before
+    cancellation, and permission state is rechecked when the app returns to
+    the foreground;
+  - Expo Go falls back to its host notification channel when project-owned
+    channel creation is unavailable instead of failing the opt-in flow;
+  - strict TypeScript, 200 tests across 26 suites, Expo SDK 57 public config,
+    Android production export, and physical Redmi 7 visual review passed;
+  - Redmi 7 confirmed the local notification was posted at high importance;
+    Android correctly suppressed it while Do Not Disturb was active, then
+    displayed it after Do Not Disturb was disabled, and tapping it returned to
+    Home.
+  - authenticated notification opt-in now upserts to the owner-scoped Supabase
+    `notification_preferences` table while device permission and native
+    schedules remain local; guests retain the existing local-only flow;
+  - remote migration `20260902102854_add_notification_preferences`, generated
+    TypeScript types, RLS/grants, retry-safe client repository, and repository
+    tests are committed with the mobile integration.
+
+- Manual place search hardening and daily-life recommendation expansion:
+  - same-query submissions now refetch instead of becoming a no-op;
+  - search dismisses the keyboard, exposes timeout/network/rate-limit/provider
+    states in Vietnamese, and uses a 20-second bounded remote timeout;
+  - Android devices with existing foreground permission use the bounded system
+    forward geocoder before Open-Meteo, fixing the reproduced Redmi 7 TLS stall
+    without prompting for additional permission;
+  - physical Redmi 7 verification passed from `Paris` search result through
+    normalized manual selection and a location-driven Home refresh;
+  - Rule Engine now recommends protecting outdoor laundry during current or
+    near-term rain and suggests light outdoor activity only during a verified
+    dry, comfortable, low-UV, good-US-AQI window;
+  - near-term rules now start at the first forecast timestamp at or after the
+    current observation instead of accidentally evaluating past hours;
+  - strict TypeScript, 183 tests across 22 suites, Impeccable detector, Android
+    production export, and physical Redmi 7 visual review passed.
 
 - Project topic defined: weather forecasting and user health support.
 - Mobile technology direction: React Native.
@@ -34,19 +113,75 @@ geocoding, and saved locations remain deferred.
   - Impeccable;
   - Supabase;
   - Supabase/Postgres best practices.
+- Optional authentication and remote saved-location flow completed:
+  - square sunflower masthead with hamburger left and account avatar right;
+  - neobrutalist drawer for Home, Forecast, Locations, and Account;
+  - Supabase email/password sign-up, sign-in, sign-out, Expo SQLite session
+    persistence, and native AppState token-refresh lifecycle;
+  - Open-Meteo Geocoding parser/adapter/query boundary for remote place search;
+  - manual `SelectedAppLocation` selection without changing device GPS;
+  - guest remote viewing plus authenticated list/save/delete against the
+    existing owner-scoped `saved_locations` schema;
+  - Syne Regular/ExtraBold restricted to ASCII chrome labels, preserving
+    Archivo/JetBrains Mono Vietnamese coverage and Bebas numeric display;
+  - strict TypeScript, 176 tests across 21 suites, Android production export,
+    and two-pass native Redmi 7 visual review.
 - Initial weather-condition/icon architecture defined:
   - normalized internal conditions;
   - day/night separation;
   - moon phases;
-  - Meteocons direction.
-- Visual identity selected:
-  - retro-futuristic;
-  - terminal/system-interface inspired;
-  - dither;
-  - ASCII motifs;
-  - technical/data-driven atmosphere.
-- JetBrains Mono selected as the initial primary typography direction.
-- Experimental digital interfaces such as KPRverse selected as reference category, not direct templates.
+  - local amCharts animated/static asset direction.
+- Visual identity replaced with **Weather Public Bulletin**:
+  - light-only warm-paper canvas;
+  - neobrutalist square geometry and thick black rules;
+  - structural offset shadows;
+  - cobalt, sunflower, mint, and coral/red accents;
+  - Vietnamese-capable Archivo Black for poster headings, JetBrains Mono
+    Regular/Bold for normal copy and technical labels, and Bebas Neue for
+    oversized numeric weather readings;
+  - no rounded surfaces or controls;
+  - one local animated amCharts SVG surface with synchronized black offset
+artwork per current-weather hero, plus cached static forecast-row artwork
+and reduced-motion fallbacks;
+  - consistent customer-facing depth tokens: 4px interactive control plates,
+    compressed pressed states, and 6px grouped panel/table plates while
+    individual data cells remain flat for scanability;
+  - simplified section and recommendation language without ASCII weather art.
+- Weather artwork performance pass completed:
+  - current-weather artwork reduced from two WebViews to one WebView containing
+    both foreground and black offset layers;
+  - repeated hourly/daily weather artwork moved to `expo-image`, eliminating
+    per-row WebViews while retaining the square neo-brutalist treatment;
+  - image sizing reserves the hard-shadow offset so artwork is not clipped.
+- Customer-facing location and hierarchy pass completed:
+  - one timeout-bounded reverse-geocode request after successful GPS
+    acquisition, with weather/GPS fallback preserved when naming fails;
+  - district/city labels replace raw coordinates and `Asia/Ho_Chi_Minh` on
+    Home, Forecast, and ready-location surfaces;
+  - larger current, hourly, and daily SVG artwork while repeated icons remain
+    static and cacheable;
+  - Action/recommendation content now has a complete square border and hard
+    black panel shadow.
+  - native Android capture confirmed the resolved “Đà Nẵng” label without the
+    geocoder's numeric street placemark, readable large SVGs, and a two-tier
+    daily row that does not vertically fragment the date.
+- Recommendation-first Home pass completed:
+  - the primary path is now `Now → Action → Why → Next`;
+  - the Rule Engine panel follows the current-weather hero instead of appearing
+    after GPS, metrics, and forecast surfaces;
+  - `LÀM` appears first, with one sunflower emphasis for the highest-priority
+    recommendation;
+  - the risk panel is reframed as the reason behind the guidance, while
+    environmental metrics and technical location/data status remain below the
+    decision path.
+- Typography/performance verification passed:
+  - TypeScript strict check;
+  - full 171-test repository suite;
+  - Android production export with Archivo Black, Bebas Neue, JetBrains Mono
+    Regular/Bold, and the local animated/static weather SVG assets;
+  - Impeccable typography detector with no findings;
+  - source audit confirms one WebView implementation path and zero WebViews in
+    repeated forecast artwork.
 - UI implementation workflow now requires visual review when rendering tools are available.
 - Existing remote Supabase schema captured as an MCP-derived idempotent
   baseline after the official CLI `db pull` workflow was found impractical in
@@ -81,9 +216,8 @@ geocoding, and saved locations remain deferred.
     session persistence;
   - validated `EXPO_PUBLIC_SUPABASE_URL` and publishable-key configuration,
     with secret-key rejection and a boot-safe unconfigured state;
-  - initial adaptive light/dark design tokens derived from the approved visual
-    direction;
-  - JetBrains Mono regular and semibold loading through Expo Font;
+  - light-only design tokens aligned with the current visual direction;
+  - Archivo regular/bold/black and Bebas Neue loading through Expo Font;
   - Jest/`jest-expo` test foundation.
 - Phase 1 verification passed:
   - TypeScript strict check;
@@ -264,6 +398,21 @@ geocoding, and saved locations remain deferred.
     including `gps-after-accuracy-choice.png`, `home-live-next-tphcm.png`, and
     `location-disabled-result.png`;
   - no implementation defect was found and no source fix was required.
+- Light neobrutalist redesign implemented without changing product logic
+  (historical ordering later superseded by ADR-026):
+  - app configuration, splash, status bar, navigation, and error fallback are
+    light-only;
+  - Home originally used `Now → Risk → Next → Action`, with location failure kept
+    compact and non-blocking after the primary decision path;
+  - Forecast uses the same visual language and a single truthful location
+    recovery state;
+  - generated concept imagery remains reference-only; weather artwork ships as
+    accessible native geometry composed from normalized domain dimensions;
+  - all reviewed user-facing metadata is at least 11 pt and recovery copy is
+    plain Vietnamese rather than internal English/error codes;
+  - strict TypeScript, 165 Jest tests across 20 suites, Android production
+    export, and native WayDroid visual review passed;
+  - Impeccable finish review reached `ship` after two focused correction passes.
 
 ### Documentation created / updated
 
@@ -280,9 +429,11 @@ geocoding, and saved locations remain deferred.
 
 ## In progress
 
-No feature implementation is currently in progress. Phase 3B.3 and its Android
-native smoke test are complete. Remaining work is platform/edge-case
-verification, not another Phase 3B.3 implementation pass.
+Profile-image regression and native visual verification are in progress.
+Authentication, remote locations, action icon kits, local recommendation notifications, the Weather
+Public Bulletin extension, and Android visual review are complete. Hosted
+email-confirmation/account testing, remote push infrastructure, and
+iOS/platform edge-case verification remain.
 
 ---
 
@@ -290,8 +441,8 @@ verification, not another Phase 3B.3 implementation pass.
 
 ### 1. Complete the native platform matrix
 
-Repeat the verified location-to-live-weather flow on physical Android hardware
-with real GNSS and on iOS. Cover approximate-only permission, user denial,
+Complete the verified location-to-live-weather flow on Android with real GNSS
+and perform the visual/behavior pass on iOS. Cover approximate-only permission, user denial,
 blocked permission/settings recovery, TalkBack/VoiceOver order, large text,
 and the remaining severe-risk/night visual states.
 
@@ -301,11 +452,13 @@ Exercise stale-cache display, offline-paused loading, background-refresh error,
 and complete Forecast failure on a controllable native network. The live
 partial-data path has already been observed on Android.
 
-### 3. Connect the real recommendation engine
+### 3. Broaden daily-life recommendations without weakening evidence
 
-Use normalized current and future hourly-domain inputs. Do not turn the Phase
-3B observation-only risk notice into permanent recommendation logic. Start
-with a small number of explainable rules.
+Add time-window-aware rules for commute timing, laundry drying windows,
+hydration, ventilation, exercise, umbrella/rainwear, and outfit layers. Keep
+each action explainable from normalized current/hourly inputs and resolve
+conflicts through priority. Extend the accepted clothing/activity SVG kit only
+when a new action has a concrete customer role.
 
 ### 4. Continue the visual review loop
 
@@ -321,17 +474,18 @@ research references
 → review again
 ```
 
-The Home screen is the first place to validate the dither/ASCII/terminal visual language.
+Home is the reference surface for the Weather Public Bulletin visual language.
 
 ### First UI validation goals
 
 Validate:
 
-- JetBrains Mono readability;
+- Archivo Vietnamese readability across guidance, data, navigation, and controls;
+- Archivo Black poster hierarchy and Bebas Neue numeric display fit;
 - large temperature display;
-- technical labels;
-- dither without text interference;
-- weather icon compatibility;
+- technical labels at a native-readable size;
+- square outlines and structural shadows without clipping;
+- bounded animated hero compatibility, static forecast icon caching, black offset synchronization, and reduced motion;
 - day/night scene;
 - AQI presentation;
 - UV presentation;
@@ -356,7 +510,7 @@ Validate:
 ### Phase 2 — Weather core
 
 - [x] Location permission (Android WayDroid smoke passed; iOS/physical coverage pending)
-- [ ] Manual-location fallback
+- [x] Manual-location fallback and remote search
 - [x] GPS acquisition capability (Android test-provider/fallback smoke passed;
   physical GNSS and iOS coverage pending)
 - [x] Weather provider interface
@@ -388,14 +542,17 @@ Validate:
 
 ### Phase 5 — Recommendations
 
-- [ ] Recommendation domain model
-- [ ] UV rules
-- [ ] AQI rules
-- [ ] Heat rules
-- [ ] Rain rules
-- [ ] Clothing rules
-- [ ] Prioritization
-- [ ] Explanation/reason display
+- [x] Recommendation domain model
+- [x] UV rules
+- [x] AQI rules
+- [x] Heat rules
+- [x] Rain and laundry-protection rules
+- [x] Clothing rules
+- [x] Positive outdoor-window rule
+- [x] Prioritization
+- [x] Explanation/reason display
+- [ ] Time-window planner and conflict-aware daily routine bundles
+- [ ] Consistent vector pictograms for clothing and daily-life actions
 
 ### Phase 6 — Supabase
 
@@ -403,7 +560,10 @@ Validate:
 - [x] Temporary admin authorization decision
 - [x] Profiles schema and auth trigger hardening
 - [x] Saved locations schema hardening
-- [ ] Notification preferences
+- [x] Mobile email/password authentication
+- [x] Mobile saved-location list/save/delete integration
+- [x] Private profile-image Storage and mobile editing
+- [x] Notification preferences
 - [x] Existing recommendation rules access hardening
 - [x] RLS tests
 - [x] Generated types
@@ -441,16 +601,11 @@ Validate:
 ## Known open questions
 
 - Which AQI standard will the UI normalize to?
-- Is login mandatory for MVP or optional?
-- What push notification infrastructure will be used?
+- Which remote push backend will own token lifecycle, weather evaluation, Expo
+  push receipts, and retries?
 - Will rule evaluation run client-side, server-side, or hybrid?
 - Which app icon library will be used for non-weather UI?
 - Which authoritative provider will supply severe-weather alerts?
-- Whether the Phase 3A prototype colors become the production semantic tokens.
-- Whether a secondary body font is needed in addition to JetBrains Mono.
-- Whether production weather artwork keeps the Phase 3A native-view dither
-  technique or moves to a dedicated renderer.
-- Whether the current-weather hero uses SVG, Lottie, custom RN animation, or a hybrid.
 
 ---
 
@@ -476,14 +631,18 @@ Validate:
   permission paths; iOS behavior; TalkBack/VoiceOver and large-text passes; and
   stale/offline/background-refresh/complete-error transitions on a controllable
   native network.
+- Remote push remains blocked on an EAS `projectId`, Android FCM v1/iOS APNs
+  credentials, a protected token registry, and a server sender. Local scheduled
+  notifications are implemented and do not require those services.
 
 ---
 
 ## Next concrete action
 
-Complete the remaining physical Android/iOS and native cache/error matrix above.
-Do not repeat the Phase 3B.3 implementation or advance to another product phase
-without explicit authorization.
+Link the application to an EAS project, configure FCM v1/APNs credentials, then
+design the authenticated `push_devices` registry and server sender before
+claiming remote push delivery. In parallel, verify hosted email confirmation,
+signed-in saved-location CRUD, iOS, and large-text/reduced-motion behavior.
 
 ---
 

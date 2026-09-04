@@ -1,10 +1,14 @@
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useLocationCapability } from '@/features/locations/application/location-capability-provider';
-import type { LocationCapabilityState } from '@/features/locations/domain/location';
+import type {
+  LocationAcquisitionErrorCode,
+  LocationCapabilityState,
+} from '@/features/locations/domain/location';
 import {
   appThemes,
   homeVisualTokens,
+  neoShadows,
   spacing,
   touchTargets,
   typography,
@@ -21,15 +25,34 @@ interface LocationPresentation {
   readonly showRefreshAfterSettings?: boolean;
 }
 
+interface LocationCapabilityStripProps {
+  readonly compact?: boolean;
+}
+
 function readyDetail(state: Extract<LocationCapabilityState, { status: 'ready' }>) {
-  const { latitude, longitude } = state.selectedLocation.coordinates;
+  if (state.position === undefined) {
+    const placeName = state.selectedLocation.label ?? 'Địa điểm đã chọn';
+    return `ĐỊA ĐIỂM ĐÃ CHỌN // ${placeName}. Vị trí này được tìm từ xa và không thay đổi GPS thiết bị.`;
+  }
+
   const accuracy = state.position.accuracyMeters;
-  const coordinateLabel = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-  const accuracyLabel = accuracy === undefined ? '' : ` // ±${Math.round(accuracy)} m`;
+  const placeName = state.selectedLocation.label ?? 'Địa điểm hiện tại';
+  const accuracyLabel = accuracy === undefined ? '' : ` // ĐỘ CHÍNH XÁC ±${Math.round(accuracy)} M`;
   const fallbackLabel =
     state.position.source === 'last_known' ? 'VỊ TRÍ GẦN NHẤT' : 'VỊ TRÍ HIỆN TẠI';
 
-  return `${fallbackLabel} // ${coordinateLabel}${accuracyLabel}. Tọa độ này được chuẩn hóa trước khi tạo weather query.`;
+  return `${fallbackLabel} // ${placeName}${accuracyLabel}. Vị trí này được dùng để tải thời tiết địa phương.`;
+}
+
+function acquisitionErrorLabel(code: LocationAcquisitionErrorCode) {
+  const labels: Record<LocationAcquisitionErrorCode, string> = {
+    timeout: 'QUÁ THỜI GIAN',
+    position_unavailable: 'KHÔNG CÓ TÍN HIỆU',
+    invalid_position: 'TỌA ĐỘ KHÔNG HỢP LỆ',
+    unexpected: 'KHÔNG XÁC ĐỊNH',
+  };
+
+  return labels[code];
 }
 
 function getPresentation(state: LocationCapabilityState): LocationPresentation {
@@ -38,7 +61,7 @@ function getPresentation(state: LocationCapabilityState): LocationPresentation {
       return {
         label: 'VỊ TRÍ // CHƯA KIỂM TRA',
         title: 'Khả năng vị trí đang khởi tạo',
-        detail: 'Home tiếp tục dùng dữ liệu mẫu.',
+        detail: 'Màn hình chính tiếp tục dùng dữ liệu minh họa.',
         tone: 'neutral',
       };
     case 'checking_permission':
@@ -54,7 +77,7 @@ function getPresentation(state: LocationCapabilityState): LocationPresentation {
         label: 'VỊ TRÍ // CẦN CHO PHÉP',
         title: 'Dùng vị trí để chuẩn bị thời tiết địa phương',
         detail:
-          'Ứng dụng chỉ yêu cầu vị trí khi đang sử dụng. Bạn có thể từ chối và tiếp tục dùng Home; tìm địa điểm thủ công sẽ là nguồn thay thế sau.',
+          'Ứng dụng chỉ yêu cầu vị trí khi đang sử dụng. Bạn có thể từ chối và tìm địa điểm thủ công từ menu.',
         tone: 'attention',
         primaryAction: 'request',
         primaryActionLabel: 'CHO PHÉP VỊ TRÍ',
@@ -76,6 +99,16 @@ function getPresentation(state: LocationCapabilityState): LocationPresentation {
         loading: true,
       };
     case 'ready':
+      if (state.position === undefined) {
+        return {
+          label: 'VỊ TRÍ // CHỌN THỦ CÔNG',
+          title: 'Đang xem thời tiết ở địa điểm đã chọn',
+          detail: readyDetail(state),
+          tone: 'ready',
+          primaryAction: 'retry',
+          primaryActionLabel: 'DÙNG GPS',
+        };
+      }
       return {
         label:
           state.position.source === 'last_known'
@@ -93,10 +126,10 @@ function getPresentation(state: LocationCapabilityState): LocationPresentation {
     case 'permission_denied':
       return {
         label: 'VỊ TRÍ // BỊ TỪ CHỐI',
-        title: 'Home vẫn hoạt động khi không có GPS',
+        title: 'Ứng dụng vẫn hoạt động khi không có GPS',
         detail: state.canAskAgain
-          ? 'Quyền vị trí chưa được cấp. Bạn có thể thử lại; tìm địa điểm thủ công sẽ được bổ sung sau.'
-          : 'Quyền vị trí đã bị chặn. Bạn có thể thay đổi trong cài đặt; tìm địa điểm thủ công sẽ được bổ sung sau.',
+          ? 'Quyền vị trí chưa được cấp. Bạn có thể thử lại hoặc tìm địa điểm thủ công từ menu.'
+          : 'Quyền vị trí đã bị chặn. Bạn có thể thay đổi trong cài đặt hoặc tìm địa điểm thủ công từ menu.',
         tone: 'attention',
         primaryAction: state.canAskAgain ? 'request' : 'settings',
         primaryActionLabel: state.canAskAgain ? 'THỬ LẠI' : 'MỞ CÀI ĐẶT',
@@ -106,7 +139,7 @@ function getPresentation(state: LocationCapabilityState): LocationPresentation {
       return {
         label: 'VỊ TRÍ // QUYỀN KHÔNG KHẢ DỤNG',
         title: 'Không thể kiểm tra quyền vị trí',
-        detail: `${state.message} Home vẫn dùng dữ liệu mẫu; tìm địa điểm thủ công sẽ được bổ sung sau.`,
+        detail: `${state.message} Ứng dụng vẫn dùng dữ liệu minh họa; tìm địa điểm thủ công có trong menu.`,
         tone: 'attention',
         primaryAction: 'retry',
         primaryActionLabel: 'KIỂM TRA LẠI',
@@ -116,16 +149,16 @@ function getPresentation(state: LocationCapabilityState): LocationPresentation {
         label: 'VỊ TRÍ // DỊCH VỤ ĐANG TẮT',
         title: 'Dịch vụ vị trí không khả dụng',
         detail:
-          'Bật dịch vụ vị trí của thiết bị rồi thử lại. Home không bị khóa và vẫn dùng dữ liệu mẫu.',
+          'Bật dịch vụ vị trí của thiết bị rồi thử lại. Ứng dụng không bị khóa và vẫn dùng dữ liệu minh họa.',
         tone: 'attention',
         primaryAction: 'retry',
         primaryActionLabel: 'THỬ LẠI',
       };
     case 'acquisition_error':
       return {
-        label: `VỊ TRÍ // LỖI ${state.code.toUpperCase()}`,
+        label: `VỊ TRÍ // ${acquisitionErrorLabel(state.code)}`,
         title: 'Chưa lấy được tọa độ thiết bị',
-        detail: `${state.message} Home vẫn dùng dữ liệu mẫu.`,
+        detail: `${state.message} Ứng dụng vẫn dùng dữ liệu minh họa.`,
         tone: 'attention',
         primaryAction: 'retry',
         primaryActionLabel: 'THỬ LẠI',
@@ -156,26 +189,49 @@ function LocationAction({ label, onPress, secondary = false }: LocationActionPro
   );
 }
 
-export function LocationCapabilityStrip() {
+export function LocationCapabilityStrip({ compact = false }: LocationCapabilityStripProps) {
   const { state, requestPermission, retry, refreshPermission } = useLocationCapability();
   const presentation = getPresentation(state);
 
   if (state.status === 'ready') {
-    const { latitude, longitude } = state.selectedLocation.coordinates;
+    if (state.position === undefined) {
+      const placeName = state.selectedLocation.label ?? 'Địa điểm đã chọn';
+
+      return (
+        <View
+          accessibilityLabel={`Địa điểm chọn thủ công. ${placeName}. Không thay đổi GPS thiết bị.`}
+          accessibilityLiveRegion="polite"
+          style={[styles.readyContainer, compact && styles.containerCompact]}
+          testID="location-capability-ready-manual"
+        >
+          <View style={styles.readyCopy}>
+            <View style={styles.labelRow}>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[styles.signal, { backgroundColor: homeVisualTokens.technical }]}
+              />
+              <Text style={styles.label}>ĐỊA ĐIỂM ĐÃ CHỌN</Text>
+            </View>
+            <Text accessibilityRole="header" style={styles.readyPlaceName}>{placeName}</Text>
+            <Text style={styles.readyDetail}>TỪ XA · KHÔNG THAY ĐỔI GPS</Text>
+          </View>
+          <LocationAction label="DÙNG GPS" onPress={() => void refreshPermission()} secondary />
+        </View>
+      );
+    }
+
     const accuracy = state.position.accuracyMeters;
     const sourceLabel =
       state.position.source === 'last_known' ? 'VỊ TRÍ GẦN NHẤT' : 'VỊ TRÍ HIỆN TẠI';
-    const coordinateLabel = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-    const detail =
-      accuracy === undefined
-        ? coordinateLabel
-        : `${coordinateLabel} · ±${Math.round(accuracy)} m`;
+    const placeName = state.selectedLocation.label ?? 'Địa điểm hiện tại';
+    const accuracyLabel = accuracy === undefined ? 'GPS SẴN SÀNG' : `GPS · ±${Math.round(accuracy)} M`;
 
     return (
       <View
-        accessibilityLabel={`${sourceLabel}. ${detail}`}
+        accessibilityLabel={`${sourceLabel}. ${placeName}. ${accuracyLabel}`}
         accessibilityLiveRegion="polite"
-        style={styles.readyContainer}
+        style={[styles.readyContainer, compact && styles.containerCompact]}
         testID="location-capability-ready"
       >
         <View style={styles.readyCopy}>
@@ -195,9 +251,8 @@ export function LocationCapabilityStrip() {
             />
             <Text style={styles.label}>{sourceLabel}</Text>
           </View>
-          <Text numberOfLines={1} style={styles.readyDetail}>
-            {detail}
-          </Text>
+          <Text accessibilityRole="header" style={styles.readyPlaceName}>{placeName}</Text>
+          <Text style={styles.readyDetail}>{accuracyLabel}</Text>
         </View>
         <LocationAction label="CẬP NHẬT" onPress={() => void retry()} secondary />
       </View>
@@ -230,7 +285,7 @@ export function LocationCapabilityStrip() {
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={styles.container}
+      style={[styles.container, compact && styles.containerCompact]}
       testID={`location-capability-${state.status}`}
     >
       <View style={styles.labelRow}>
@@ -247,10 +302,10 @@ export function LocationCapabilityStrip() {
             style={[styles.signal, { backgroundColor: signalColor }]}
           />
         )}
-        <Text style={styles.label}>{presentation.label}</Text>
+        <Text style={styles.label}>{presentation.label.replaceAll(' // ', ' · ')}</Text>
       </View>
 
-      <Text accessibilityRole="header" style={styles.title}>
+      <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact]}>
         {presentation.title}
       </Text>
       <Text style={styles.detail}>{presentation.detail}</Text>
@@ -271,17 +326,23 @@ export function LocationCapabilityStrip() {
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 const minimumTouchTarget = Platform.OS === 'ios' ? touchTargets.ios : touchTargets.android;
 
 const styles = StyleSheet.create({
   container: {
     gap: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     backgroundColor: homeVisualTokens.fieldDeep,
+    marginHorizontal: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
+  },
+  containerCompact: {
+    paddingVertical: spacing.sm,
   },
   readyContainer: {
     minHeight: 72,
@@ -289,11 +350,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     backgroundColor: homeVisualTokens.fieldDeep,
+    marginHorizontal: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   readyCopy: {
     flex: 1,
@@ -301,11 +365,17 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   readyDetail: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identity,
     fontSize: 11,
     lineHeight: 17,
-    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.45,
+  },
+  readyPlaceName: {
+    color: colors.text,
+    fontFamily: typography.heading,
+    fontSize: 17,
+    lineHeight: 21,
   },
   labelRow: {
     minHeight: 20,
@@ -314,26 +384,32 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   signal: {
-    width: 6,
-    height: 6,
+    width: 9,
+    height: 9,
+    borderWidth: 2,
+    borderColor: homeVisualTokens.ink,
   },
   label: {
     flex: 1,
-    color: homeVisualTokens.technical,
+    color: homeVisualTokens.ink,
     fontFamily: typography.identitySemibold,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.7,
   },
   title: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: typography.heading,
+    fontSize: 21,
+    lineHeight: 24,
+  },
+  titleCompact: {
+    fontSize: 19,
+    lineHeight: 22,
   },
   detail: {
     maxWidth: 620,
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 13,
     lineHeight: 20,
@@ -347,28 +423,28 @@ const styles = StyleSheet.create({
   action: {
     minHeight: minimumTouchTarget,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: homeVisualTokens.technical,
-    borderRadius: 2,
-    backgroundColor: homeVisualTokens.field,
+    borderWidth: 3,
+    borderColor: homeVisualTokens.ink,
+    backgroundColor: homeVisualTokens.cobalt,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+    boxShadow: neoShadows.control,
   },
   actionSecondary: {
-    borderColor: colors.border,
-    backgroundColor: 'transparent',
+    backgroundColor: homeVisualTokens.field,
   },
   actionPressed: {
-    backgroundColor: homeVisualTokens.fieldRaised,
+    boxShadow: neoShadows.controlPressed,
+    transform: [{ translateX: 3 }, { translateY: 3 }],
   },
   actionText: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 11,
-    lineHeight: 16,
+    color: colors.surface,
+    fontFamily: typography.heading,
+    fontSize: 16,
+    lineHeight: 19,
     letterSpacing: 0.6,
   },
   actionTextSecondary: {
-    color: colors.textMuted,
+    color: colors.text,
   },
 });

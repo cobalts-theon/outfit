@@ -1,46 +1,20 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { CurrentWeather } from '@/features/weather/domain/current-weather';
-import {
-  clearDayWeather,
-  clearNightWeather,
-  partialCurrentWeather,
-  unhealthyAirQualityWeather,
-} from '@/features/weather/fixtures/current-weather-fixtures';
-import { getWeatherGlyphState } from '@/features/home/model/weather-glyph-state';
+import { getWeatherIconKey } from '@/features/home/model/weather-glyph-state';
 
-describe('Home weather glyph composition', () => {
-  it('keeps moon visibility independent from the canonical condition', () => {
-    const clearNight = getWeatherGlyphState(clearNightWeather);
-    const sameConditionWithoutMoon = getWeatherGlyphState({
-      ...clearNightWeather,
-      moon: undefined,
-    } satisfies CurrentWeather);
-
-    expect(clearNight.hasVisibleMoon).toBe(true);
-    expect(sameConditionWithoutMoon.hasVisibleMoon).toBe(false);
-    expect(clearNight.hasCloud).toBe(sameConditionWithoutMoon.hasCloud);
+describe('Home weather icon mapping', () => {
+  it('uses separate day and night icons for clear conditions', () => {
+    expect(getWeatherIconKey('clear', true)).toBe('sunny');
+    expect(getWeatherIconKey('clear', false)).toBe('night');
   });
 
-  it('changes particulate density from normalized AQI without changing weather condition', () => {
-    const clearAir = getWeatherGlyphState(clearDayWeather);
-    const unhealthyClearAir = getWeatherGlyphState({
-      ...clearDayWeather,
-      airQuality: unhealthyAirQualityWeather.airQuality,
-    } satisfies CurrentWeather);
-
-    expect(unhealthyClearAir.particleCount).toBeGreaterThan(clearAir.particleCount);
-    expect(unhealthyClearAir.hasElevatedAqi).toBe(true);
-    expect(unhealthyClearAir.hasCloud).toBe(clearAir.hasCloud);
+  it('maps normalized rain intensity without provider codes', () => {
+    expect(getWeatherIconKey('light_rain', true)).toBe('rain_light');
+    expect(getWeatherIconKey('rain', true)).toBe('rain');
+    expect(getWeatherIconKey('heavy_rain', true)).toBe('rain_heavy');
   });
 
-  it('preserves wind and partial-data fallbacks independently', () => {
-    const partial = getWeatherGlyphState(partialCurrentWeather);
-
-    expect(partial.windRotation).toBe('0deg');
-    expect(partial.windOpacity).toBeGreaterThan(0);
-    expect(partial.particleCount).toBe(0);
-    expect(partial.hasVisibleMoon).toBe(false);
+  it('provides a safe fallback for unknown conditions', () => {
+    expect(getWeatherIconKey('unknown', true)).toBe('cloudy');
   });
 });
-

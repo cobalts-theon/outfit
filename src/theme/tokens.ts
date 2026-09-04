@@ -1,31 +1,16 @@
-import { Platform } from 'react-native';
-
-export type AppColorScheme = 'light' | 'dark';
+export type AppColorScheme = 'light';
 
 const lightColors = {
-  background: '#F1F2EE',
-  surface: '#E4E7E1',
-  surfaceRaised: '#FAFBF7',
-  text: '#101415',
-  textMuted: '#536063',
-  border: '#C7CDC7',
-  accent: '#2C7252',
-  success: '#256B46',
-  warning: '#8A5A00',
-  danger: '#A3262E',
-} as const;
-
-const darkColors = {
-  background: '#0A0C0D',
-  surface: '#15191B',
-  surfaceRaised: '#1D2326',
-  text: '#F2F4F0',
-  textMuted: '#9AA4A6',
-  border: '#30383B',
-  accent: '#8CBF9F',
-  success: '#78B892',
-  warning: '#E4B95F',
-  danger: '#E46B68',
+  background: '#FFFDF5',
+  surface: '#FFFFFF',
+  surfaceRaised: '#FFF4C7',
+  text: '#101010',
+  textMuted: '#424242',
+  border: '#101010',
+  accent: '#1769FF',
+  success: '#137A4B',
+  warning: '#9A5100',
+  danger: '#C62222',
 } as const;
 
 export const appThemes = {
@@ -33,13 +18,9 @@ export const appThemes = {
     colorScheme: 'light',
     colors: lightColors,
   },
-  dark: {
-    colorScheme: 'dark',
-    colors: darkColors,
-  },
 } as const;
 
-export type AppTheme = (typeof appThemes)[AppColorScheme];
+export type AppTheme = (typeof appThemes)['light'];
 
 export const spacing = {
   xxs: 4,
@@ -53,14 +34,21 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  subtle: 2,
-  control: 4,
-  overlay: 8,
+  subtle: 0,
+  control: 0,
+  overlay: 0,
 } as const;
 
 export const borderWidths = {
   hairline: 1,
-  emphasis: 2,
+  emphasis: 3,
+  heavy: 4,
+} as const;
+
+export const neoShadows = {
+  control: '4px 4px 0px #101010',
+  controlPressed: '1px 1px 0px #101010',
+  panel: '6px 6px 0px #101010',
 } as const;
 
 export const touchTargets = {
@@ -72,34 +60,41 @@ export const layout = {
   maxContentWidth: 720,
 } as const;
 
-/** Phase 3A Home-specific atmospheric and semantic surfaces on the dark foundation. */
+/** Light-only Weather Public Bulletin surfaces and semantic signals. */
 export const homeVisualTokens = {
-  field: '#101416',
-  fieldRaised: '#171D20',
-  fieldDeep: '#07090A',
-  grid: '#242C2F',
-  technical: '#9BC7AB',
-  technicalMuted: '#60736A',
-  calm: '#78B892',
-  calmSurface: '#102019',
-  attention: '#D4C36A',
-  attentionSurface: '#211E10',
-  warning: '#E4A857',
-  warningSurface: '#241A0E',
-  danger: '#F07770',
-  dangerSurface: '#291313',
-  unavailable: '#A4ADB0',
-  unavailableSurface: '#191D1F',
+  ink: '#101010',
+  paper: '#FFFDF5',
+  field: '#FFFFFF',
+  paleBlueField: '#D6E5FF',
+  fieldRaised: '#FFF0A3',
+  fieldDeep: '#C7F6D8',
+  grid: '#10101024',
+  technical: '#1769FF',
+  technicalMuted: '#234F8F',
+  calm: '#137A4B',
+  calmSurface: '#C7F6D8',
+  attention: '#F5C400',
+  attentionSurface: '#FFF0A3',
+  warning: '#E86D00',
+  warningSurface: '#FFD1A8',
+  danger: '#D92D27',
+  dangerSurface: '#FFC5BC',
+  unavailable: '#626262',
+  unavailableSurface: '#E6E6DF',
+  cobalt: '#1769FF',
+  sunflower: '#FFD21C',
+  coral: '#FF6B5A',
+  mint: '#BDF4CF',
 } as const;
 
 export const typography = {
+  brand: 'SyneExtraBold',
+  brandRegular: 'Syne',
+  display: 'ArchivoBlack',
+  temperature: 'BebasNeue',
+  heading: 'ArchivoBlack',
+  headingSemibold: 'JetBrainsMonoBold',
   identity: 'JetBrainsMono',
-  identitySemibold: 'JetBrainsMonoSemiBold',
-  body:
-    Platform.select({
-      ios: 'System',
-      android: 'sans-serif',
-      web: 'system-ui',
-      default: 'sans-serif',
-    }) ?? 'sans-serif',
+  identitySemibold: 'JetBrainsMonoBold',
+  body: 'JetBrainsMono',
 } as const;

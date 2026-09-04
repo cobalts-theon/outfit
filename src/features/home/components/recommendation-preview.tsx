@@ -1,13 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { HomeRecommendationPreview } from '@/features/home/model/home-prototype';
+import { RecommendationActionIcon } from '@/features/recommendations/components/recommendation-action-icon';
 import type {
   Recommendation,
   RecommendationEvaluation,
-  RecommendationGroup,
   RecommendationInputDimension,
   RecommendationSeverity,
 } from '@/features/recommendations/domain/recommendation';
+import { resolveRecommendationIconPresentation } from '@/features/recommendations/presentation/recommendation-icon-assets';
 import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
 
 import { RuledSection, SystemLabel } from './home-primitives';
@@ -17,21 +18,32 @@ interface RecommendationPreviewProps {
 }
 
 interface RecommendationRowProps {
-  readonly label: 'WHAT' | 'WHY' | 'DO';
+  readonly label: 'GỢI Ý' | 'LÝ DO' | 'LÀM';
   readonly value: string;
   readonly emphasized?: boolean;
+  readonly primaryAction?: boolean;
 }
 
 interface LiveRecommendationPanelProps {
   readonly evaluation: RecommendationEvaluation;
 }
 
-const groupLabels: Record<RecommendationGroup, string> = {
-  weather_alert: 'CẢNH BÁO',
-  wellness: 'SỨC KHỎE',
-  outdoor: 'NGOÀI TRỜI',
-  clothing: 'TRANG PHỤC',
+const actionLabels: Readonly<Record<string, string>> = {
+  'weather-shelter': 'TRÚ ẨN',
+  'air-quality-exposure': 'KHÔNG KHÍ',
+  'rain-protection': 'CHỐNG MƯA',
+  'protect-laundry': 'SINH HOẠT',
+  'sun-heat-protection': 'NẮNG & NHIỆT',
+  'sun-protection': 'CHỐNG NẮNG',
+  'heat-hydration': 'BÙ NƯỚC',
+  'light-clothing': 'ĐỒ THOÁNG',
+  'warm-clothing': 'GIỮ ẤM',
+  'outdoor-activity-window': 'RA NGOÀI',
 };
+
+function getActionLabel(recommendation: Recommendation) {
+  return actionLabels[recommendation.actionKey] ?? 'HÀNH ĐỘNG';
+}
 
 const severityLabels: Record<RecommendationSeverity, string> = {
   info: 'THÔNG TIN',
@@ -55,9 +67,17 @@ const missingDimensionLabels: Record<RecommendationInputDimension, string> = {
   hourly_forecast: 'dự báo theo giờ',
 };
 
-function RecommendationRow({ label, value, emphasized = false }: RecommendationRowProps) {
+function RecommendationRow({
+  label,
+  value,
+  emphasized = false,
+  primaryAction = false,
+}: RecommendationRowProps) {
   return (
-    <View accessibilityLabel={`${label}: ${value}`} style={styles.row}>
+    <View
+      accessibilityLabel={`${label}: ${value}`}
+      style={[styles.row, primaryAction ? styles.rowPrimaryAction : null]}
+    >
       <Text style={[styles.label, emphasized && styles.labelEmphasized]}>{label}</Text>
       <Text style={[styles.value, emphasized && styles.valueEmphasized]}>{value}</Text>
     </View>
@@ -66,12 +86,22 @@ function RecommendationRow({ label, value, emphasized = false }: RecommendationR
 
 export function RecommendationPreview({ recommendation }: RecommendationPreviewProps) {
   return (
-    <RuledSection accessibilityLabel="Hành động đề xuất mẫu" testID="recommendation-preview" tone="deep">
-      <SystemLabel index="03" label="HÀNH ĐỘNG" value="BẢN MẪU // KHÔNG PHẢI LIVE" />
+    <RuledSection
+      accessibilityLabel="Hành động đề xuất mẫu"
+      elevated
+      testID="recommendation-preview"
+      tone="deep"
+    >
+      <SystemLabel index="03" label="NÊN LÀM NGAY" value="DỮ LIỆU MINH HỌA" />
       <View style={styles.rows}>
-        <RecommendationRow label="WHAT" value={recommendation.what} />
-        <RecommendationRow label="WHY" value={recommendation.why} />
-        <RecommendationRow emphasized label="DO" value={recommendation.do} />
+        <RecommendationRow
+          emphasized
+          label="LÀM"
+          primaryAction
+          value={recommendation.do}
+        />
+        <RecommendationRow label="GỢI Ý" value={recommendation.what} />
+        <RecommendationRow label="LÝ DO" value={recommendation.why} />
       </View>
       <Text style={styles.disclaimer}>
         Gợi ý chung về sức khỏe và an toàn; không phải chẩn đoán hay điều trị y tế.
@@ -82,33 +112,48 @@ export function RecommendationPreview({ recommendation }: RecommendationPreviewP
 
 function LiveRecommendationItem({
   index,
+  primary,
   recommendation,
 }: {
   readonly index: number;
+  readonly primary: boolean;
   readonly recommendation: Recommendation;
 }) {
   const severityColor = severityColors[recommendation.severity];
+  const actionLabel = getActionLabel(recommendation);
+  const iconPresentation = resolveRecommendationIconPresentation(recommendation.actionKey);
 
   return (
     <View
-      accessibilityLabel={`${groupLabels[recommendation.group]}. ${severityLabels[recommendation.severity]}. ${recommendation.title}. ${recommendation.reason}. Hành động: ${recommendation.action}`}
+      accessibilityLabel={`${actionLabel}. ${severityLabels[recommendation.severity]}. ${recommendation.title}. ${recommendation.reason}. Hành động: ${recommendation.action}`}
       style={styles.liveItem}
     >
-      <View style={styles.liveMeta}>
-        <Text style={styles.liveGroup}>
-          {`${String(index + 1).padStart(2, '0')} // ${groupLabels[recommendation.group]}`}
-        </Text>
-        <Text style={[styles.liveSeverity, { color: severityColor }]}>
-          {severityLabels[recommendation.severity]}
-        </Text>
+      <View style={styles.liveHeading}>
+        <RecommendationActionIcon actionKey={recommendation.actionKey} primary={primary} />
+        <View style={styles.liveMeta}>
+          <Text style={styles.liveGroup}>
+            {`${String(index + 1).padStart(2, '0')} · ${actionLabel}`}
+          </Text>
+          <View style={styles.liveDetailRow}>
+            <Text style={styles.liveEquipment}>{iconPresentation.detailLabel}</Text>
+            <Text style={[styles.liveSeverity, { color: severityColor }]}>
+              {severityLabels[recommendation.severity]}
+            </Text>
+          </View>
+        </View>
       </View>
       <View style={styles.liveRows}>
         <RecommendationRow
-          label="WHAT"
+          emphasized
+          label="LÀM"
+          primaryAction={primary}
+          value={recommendation.action}
+        />
+        <RecommendationRow
+          label="GỢI Ý"
           value={`${recommendation.title}. ${recommendation.message}`}
         />
-        <RecommendationRow label="WHY" value={recommendation.reason} />
-        <RecommendationRow emphasized label="DO" value={recommendation.action} />
+        <RecommendationRow label="LÝ DO" value={recommendation.reason} />
       </View>
     </View>
   );
@@ -135,13 +180,14 @@ export function LiveRecommendationPanel({
           ? `${stateTitle}. ${stateCopy}`
           : `${recommendations.length} gợi ý được ưu tiên.`
       }`}
+      elevated
       testID="live-recommendations"
       tone="deep"
     >
       <SystemLabel
         index="03"
-        label="HÀNH ĐỘNG"
-        value={isEmpty ? 'RULE ENGINE // KHÔNG CÓ ƯU TIÊN' : `RULE ENGINE // ${recommendations.length} GỢI Ý`}
+        label="NÊN LÀM NGAY"
+        value={isEmpty ? 'CHƯA CÓ ƯU TIÊN' : `${recommendations.length} ƯU TIÊN`}
       />
       {isEmpty ? (
         <View style={styles.placeholder}>
@@ -156,6 +202,7 @@ export function LiveRecommendationPanel({
             <LiveRecommendationItem
               index={index}
               key={recommendation.actionKey}
+              primary={index === 0}
               recommendation={recommendation}
             />
           ))}
@@ -163,7 +210,7 @@ export function LiveRecommendationPanel({
       )}
       {evaluation.status === 'limited' ? (
         <Text style={styles.limitedNote}>
-          DỮ LIỆU THIẾU //{' '}
+          DỮ LIỆU THIẾU ·{' '}
           {evaluation.missingDimensions
             .map((dimension) => missingDimensionLabels[dimension])
             .join(' · ')}
@@ -176,11 +223,11 @@ export function LiveRecommendationPanel({
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
   rows: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 2,
     borderColor: colors.border,
     marginTop: spacing.sm,
   },
@@ -188,20 +235,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderColor: colors.border,
     paddingVertical: spacing.md,
   },
+  rowPrimaryAction: {
+    backgroundColor: homeVisualTokens.sunflower,
+    marginHorizontal: -spacing.md,
+    paddingHorizontal: spacing.md,
+  },
   label: {
-    width: 44,
-    color: colors.textMuted,
-    fontFamily: typography.identitySemibold,
-    fontSize: 10,
+    width: 72,
+    color: colors.text,
+    fontFamily: typography.heading,
+    fontSize: 16,
     lineHeight: 21,
     letterSpacing: 1,
   },
   labelEmphasized: {
-    color: homeVisualTokens.technical,
+    color: homeVisualTokens.ink,
   },
   value: {
     flex: 1,
@@ -212,11 +264,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   valueEmphasized: {
-    fontFamily: typography.body,
+    fontFamily: typography.headingSemibold,
   },
   disclaimer: {
     maxWidth: 580,
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 12,
     lineHeight: 18,
@@ -224,66 +276,84 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     gap: spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
     borderColor: colors.border,
     marginTop: spacing.sm,
     paddingVertical: spacing.md,
   },
   placeholderTitle: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 15,
-    lineHeight: 22,
+    fontFamily: typography.heading,
+    fontSize: 22,
+    lineHeight: 25,
   },
   placeholderCopy: {
     maxWidth: 580,
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 14,
     lineHeight: 21,
   },
   liveList: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 2,
     borderColor: colors.border,
     marginTop: spacing.sm,
   },
   liveItem: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderColor: colors.border,
     paddingVertical: spacing.md,
   },
+  liveHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
   liveMeta: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xxs,
+  },
+  liveGroup: {
+    color: homeVisualTokens.ink,
+    fontFamily: typography.heading,
+    fontSize: 16,
+    lineHeight: 19,
+    letterSpacing: 0.7,
+  },
+  liveDetailRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  liveGroup: {
-    flex: 1,
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 10,
-    lineHeight: 16,
-    letterSpacing: 0.7,
+    gap: spacing.xs,
   },
   liveSeverity: {
     flexShrink: 0,
     fontFamily: typography.identitySemibold,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.7,
     textAlign: 'right',
   },
+  liveEquipment: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.textMuted,
+    fontFamily: typography.identitySemibold,
+    fontSize: 10,
+    lineHeight: 15,
+    letterSpacing: 0.45,
+  },
   liveRows: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 2,
     borderColor: colors.border,
   },
   limitedNote: {
     color: homeVisualTokens.unavailable,
     fontFamily: typography.identity,
-    fontSize: 9,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.45,
     marginTop: spacing.sm,

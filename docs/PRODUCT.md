@@ -71,11 +71,15 @@ normalized weather and environmental conditions—including temperature,
 apparent temperature, UV, AQI, wind, precipitation, humidity, and alerts—into
 prioritized health/outdoor and clothing guidance.
 
-The core product hierarchy is:
+The Home product hierarchy is:
 
 ```text
-Now → Risk → Next → Action
+Now → Action → Why → Next
 ```
+
+Weather remains the evidence layer, but the first customer task is deciding
+what to do. Risk and environmental readings explain the recommendation instead
+of delaying it.
 
 The application should behave like:
 
@@ -178,7 +182,8 @@ product and must not delay the mobile core experience.
   history, analytics, or licensing requirement.
 - The current recommendation-rule schema is not a finalized general-purpose
   rule DSL and must not be redesigned without tested requirements.
-- Login requirements, weather provider selection, AQI standard, notification
+- Login is optional for weather and manual-location use, but required for
+  Supabase-backed saved-location synchronization. AQI standard, notification
   delivery infrastructure, and rule-evaluation placement remain explicit open
   decisions.
 
@@ -222,10 +227,10 @@ Example:
 
 The Home experience follows:
 
-1. **Now** — location, weather, temperature, condition, and feels-like value.
-2. **Risk** — the most important environmental or weather-related concern.
-3. **Next** — a compact near-term forecast for comparison.
-4. **Action** — practical clothing, sun, rain, wind, heat, or outdoor guidance.
+1. **Now** — concise location, weather, temperature, condition, and feels-like context.
+2. **Action** — prioritized clothing, sun, rain, wind, heat, or outdoor guidance.
+3. **Why** — the most important risk and the measured reason behind the guidance.
+4. **Next** — a compact near-term forecast for planning and comparison.
 5. **Secondary details** — humidity, pressure, visibility, sunrise/sunset,
    moon, and pollutants.
 
@@ -282,8 +287,8 @@ Future work must not fabricate absent evidence.
 
 1. **Interpret before displaying.** Convert measurements into clear meaning and
    prioritized actions instead of presenting an undifferentiated data dump.
-2. **Now → Risk → Next → Action.** Preserve this hierarchy across the core
-   mobile experience.
+2. **Now → Action → Why → Next.** On Home, surface the useful action immediately
+   after current context; weather and environmental data remain its evidence.
 3. **Practical and conservative guidance.** Recommendations must be explainable,
    useful outdoors, and safely bounded away from diagnosis or treatment.
 4. **Location is helpful, not coercive.** Use native location when permitted and

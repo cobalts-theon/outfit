@@ -4,9 +4,11 @@ import * as ExpoLocation from 'expo-location';
 import {
   acquireDevicePosition,
   checkForegroundLocationPermission,
+  formatReverseGeocodedPlace,
   mapExpoPermissionResponse,
   normalizeExpoPosition,
   requestForegroundLocationPermission,
+  resolveDevicePlaceName,
 } from '@/services/location/expo-location-service';
 
 jest.mock('expo-location', () => ({
@@ -21,6 +23,7 @@ jest.mock('expo-location', () => ({
   hasServicesEnabledAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
   getLastKnownPositionAsync: jest.fn(),
+  reverseGeocodeAsync: jest.fn(),
 }));
 
 const getPermissionMock = jest.mocked(ExpoLocation.getForegroundPermissionsAsync);
@@ -28,6 +31,7 @@ const requestPermissionMock = jest.mocked(ExpoLocation.requestForegroundPermissi
 const hasServicesMock = jest.mocked(ExpoLocation.hasServicesEnabledAsync);
 const getCurrentPositionMock = jest.mocked(ExpoLocation.getCurrentPositionAsync);
 const getLastKnownPositionMock = jest.mocked(ExpoLocation.getLastKnownPositionAsync);
+const reverseGeocodeMock = jest.mocked(ExpoLocation.reverseGeocodeAsync);
 
 function permission(
   status: ExpoLocation.PermissionStatus,
@@ -79,6 +83,22 @@ beforeEach(() => {
   jest.resetAllMocks();
   hasServicesMock.mockResolvedValue(true);
   getLastKnownPositionMock.mockResolvedValue(null);
+  reverseGeocodeMock.mockResolvedValue([
+    {
+      city: 'Thành phố Hồ Chí Minh',
+      country: 'Việt Nam',
+      district: 'Quận 1',
+      formattedAddress: null,
+      isoCountryCode: 'VN',
+      name: null,
+      postalCode: null,
+      region: 'Thành phố Hồ Chí Minh',
+      street: null,
+      streetNumber: null,
+      subregion: null,
+      timezone: null,
+    },
+  ]);
 });
 
 describe('Expo Location permission boundary', () => {
@@ -133,6 +153,36 @@ describe('Expo Location permission boundary', () => {
 });
 
 describe('Expo Location position boundary', () => {
+  it('builds a concise place label and removes duplicate administrative names', () => {
+    expect(
+      formatReverseGeocodedPlace({
+        district: 'Quận 1',
+        city: 'Thành phố Hồ Chí Minh',
+        region: 'Thành phố Hồ Chí Minh',
+        name: null,
+        country: 'Việt Nam',
+      }),
+    ).toBe('Quận 1 · Thành phố Hồ Chí Minh');
+    expect(
+      formatReverseGeocodedPlace({
+        district: null,
+        city: 'Đà Nẵng',
+        region: 'Đà Nẵng',
+        name: '159',
+        country: 'Việt Nam',
+      }),
+    ).toBe('Đà Nẵng');
+    expect(
+      formatReverseGeocodedPlace({
+        district: null,
+        city: null,
+        region: null,
+        name: null,
+        country: null,
+      }),
+    ).toBeUndefined();
+  });
+
   it('normalizes platform coordinates without leaking Expo objects', () => {
     expect(normalizeExpoPosition(platformPosition(), 'current')).toEqual({
       coordinates: { latitude: 10.7769, longitude: 106.7009 },
@@ -150,7 +200,7 @@ describe('Expo Location position boundary', () => {
     ).toBeNull();
   });
 
-  it('returns a current position when services and coordinates are valid', async () => {
+  it('returns a current position immediately when services and coordinates are valid', async () => {
     getCurrentPositionMock.mockResolvedValue(platformPosition());
 
     await expect(acquireDevicePosition()).resolves.toMatchObject({
@@ -159,6 +209,25 @@ describe('Expo Location position boundary', () => {
     });
     expect(getCurrentPositionMock).toHaveBeenCalledWith({ accuracy: ExpoLocation.Accuracy.Balanced });
     expect(getLastKnownPositionMock).not.toHaveBeenCalled();
+    expect(reverseGeocodeMock).not.toHaveBeenCalled();
+  });
+
+  it('resolves a place label separately from position acquisition', async () => {
+    await expect(
+      resolveDevicePlaceName({ latitude: 10.7769, longitude: 106.7009 }),
+    ).resolves.toBe('Quận 1 · Thành phố Hồ Chí Minh');
+    expect(reverseGeocodeMock).toHaveBeenCalledWith({
+      latitude: 10.7769,
+      longitude: 106.7009,
+    });
+  });
+
+  it('keeps reverse-geocoding failure separate from valid GPS acquisition', async () => {
+    reverseGeocodeMock.mockRejectedValue(new Error('geocoder unavailable'));
+
+    await expect(
+      resolveDevicePlaceName({ latitude: 10.7769, longitude: 106.7009 }),
+    ).resolves.toBeUndefined();
   });
 
   it('falls back to a bounded last-known position after current acquisition fails', async () => {
@@ -228,4 +297,3 @@ describe('Expo Location position boundary', () => {
     expect(getCurrentPositionMock).not.toHaveBeenCalled();
   });
 });
-

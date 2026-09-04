@@ -9,6 +9,7 @@ export interface DevicePosition {
   readonly coordinates: AppCoordinates;
   readonly observedAt: string;
   readonly accuracyMeters?: number;
+  readonly placeName?: string;
   readonly source: DevicePositionSource;
   readonly isMocked?: boolean;
 }
@@ -59,7 +60,7 @@ export type LocationCapabilityState =
   | { readonly status: 'acquiring_position' }
   | {
       readonly status: 'ready';
-      readonly position: DevicePosition;
+      readonly position?: DevicePosition;
       readonly selectedLocation: SelectedAppLocation;
       readonly fallbackReason?: LocationFallbackReason;
     }
@@ -101,6 +102,7 @@ export function selectDevicePosition(position: DevicePosition): SelectedAppLocat
     coordinates: position.coordinates,
     source: 'device',
     selectedAt: new Date().toISOString(),
+    ...(position.placeName === undefined ? {} : { label: position.placeName }),
     accuracyMeters: position.accuracyMeters,
   };
 }
@@ -122,4 +124,3 @@ export function stateFromLocationPermission(
       };
   }
 }
-

@@ -185,7 +185,7 @@ The product's value is interpretation and decision support, not presenting all w
 
 ## ADR-011 — Visual identity
 
-**Status:** Accepted
+**Status:** Superseded by ADR-022
 
 **Decision:**
 
@@ -622,6 +622,377 @@ partial data and keep provider arrays out of React and rule evaluation.
 
 ---
 
+## ADR-022 — Light-only Weather Public Bulletin visual identity
+
+**Status:** Accepted
+
+**Decision:** Supersede ADR-011's dark retro-futurist/terminal direction with a
+light-only neobrutalist visual system named **Weather Public Bulletin**.
+
+The production mobile UI uses warm paper backgrounds, square geometry, thick
+black outlines, structural offset shadows, cobalt blue, sunflower yellow, mint,
+and coral/red semantic accents. Barlow Condensed owns display and heading roles;
+JetBrains Mono remains the data and technical-label face. Native geometric
+weather art is composed from independent normalized weather dimensions.
+
+The app configuration, navigation theme, status bar, error surface, Home, and
+Forecast surfaces expose light mode only. Day/night remains weather data and
+must not switch the application chrome into a dark theme.
+
+**Reason:** The user explicitly replaced the previous neo-futurist direction
+while retaining the product, data contracts, and decision hierarchy. The new
+world is more legible, distinctive, and civic/editorial without weakening the
+practical `Now → Risk → Next → Action` story.
+
+**Consequences:**
+
+- `docs/DESIGN.md` defines Weather Public Bulletin as the sole current visual
+  authority; old terminal, dither, ASCII, glow, and dark-theme rules are no
+  longer production guidance.
+- Hard shadows communicate structure and interaction; soft gradients,
+  glassmorphism, pill-heavy cards, and decorative cyberpunk effects remain out
+  of scope.
+- User-facing mobile metadata must remain at least 11 pt, preserve Vietnamese
+  wrapping, native touch targets, safe areas, and reduced-motion behavior.
+- Weather-risk colors remain semantic and independent from decorative brand
+  accents.
+- The approved concept image is reference-only; production visuals remain
+  native code and do not ship generated raster artwork.
+
+---
+
+## ADR-023 — Unified JetBrains Mono and animated square weather artwork
+
+**Status:** Superseded in part by ADR-024
+
+**Decision:** Clarify ADR-022 by retaining its light Weather Public Bulletin
+neo-brutalist system while replacing its mixed Barlow/system/JetBrains type
+roles with JetBrains Mono Regular, SemiBold, and Bold for every user-facing
+text role. All application surfaces, controls, status marks, and icon frames
+have zero corner radius.
+
+Weather conditions render from the local amCharts Weather Icons 1.0.0 animated
+SVG package. A synchronized black-filtered copy of the same SVG is offset
+behind the colored layer to make the artwork belong to the hard-shadow visual
+system. Rendering continues to select artwork from normalized domain
+conditions and independent day/night state, never provider codes. When reduced
+motion is enabled, both layers use the package's static counterparts. Preserve
+the bundled CC BY 4.0 license and attribution.
+
+**Reason:** The user explicitly clarified that the product must keep the old
+square neo-brutalist identity, use JetBrains Mono everywhere, simplify the
+former ASCII-heavy presentation, and use the newly supplied animated SVG set.
+
+**Consequences:**
+
+- This decision supersedes only the typography and generated/native weather-art
+  clauses of ADR-022; its light palette, hierarchy, hard outlines, and
+  structural offset shadows remain current.
+- Barlow Condensed, system body type, Expo Symbols weather glyphs, rounded
+  containers, and ASCII weather art are not part of the active mobile system.
+- Animated SVGs render locally in a non-interactive WebView on native and as
+  local images on web; forecast lists remain virtualized to bound active work.
+- Accessibility keeps text labels as the authoritative weather description and
+  honors the platform reduced-motion preference.
+
+---
+
+## ADR-024 — Vietnamese poster typography and bounded weather animation
+
+**Status:** Superseded in part by ADR-025
+
+**Decision:** Preserve the light, square Weather Public Bulletin and replace
+the active JetBrains Mono typography roles with Archivo Regular 400, Archivo
+Bold 700, Archivo Black 900, and Bebas Neue Regular 400. Vietnamese interface
+copy, headings, controls, and navigation use Archivo; Bebas Neue is restricted
+to oversized numeric weather readings. The standalone Syne and Archivo Black
+packages are not shipped because their bundled files do not cover the complete
+Vietnamese character range. Archivo's 900 Black file provides the intended
+poster weight with complete Vietnamese coverage.
+
+Bound animated weather rendering by context. A current-weather hero may mount
+one non-interactive WebView that renders the colored animated SVG and its black
+offset duplicate in the same document. Repeated hourly and daily items use
+cached static SVGs through Expo Image with the same hard black offset treatment.
+Reduced-motion mode also selects static artwork.
+
+**Reason:** The prior all-monospace treatment reduced customer readability and
+did not deliver the requested poster hierarchy. Rendering two WebViews for
+every weather icon multiplied native views, SVG animation work, and memory use
+across forecast sequences. Language coverage and fast scanning take priority
+over including every candidate display font or animating repeated decoration.
+
+**Consequences:**
+
+- This decision supersedes the typography clause and the unbounded animated
+  rendering consequence of ADR-023. Square geometry, local amCharts assets,
+  normalized condition mapping, attribution, and hard offset shadows remain.
+- No user-facing Vietnamese string should depend on a fallback font for missing
+  glyphs.
+- Home and Forecast current-weather artwork may animate; forecast list artwork
+  remains visually consistent but static and cacheable.
+- New animated surfaces require a product role and performance review rather
+  than being enabled by default.
+
+---
+
+## ADR-025 — Role-based technical body type and customer-facing place labels
+
+**Status:** Accepted
+
+**Decision:** Keep Archivo 900 Black for poster headlines and Bebas Neue for
+oversized numeric weather readings, but use JetBrains Mono Regular/Bold for
+normal copy, metadata, compact controls, status, and emphasized body text. Only
+these assigned font cuts are embedded; unused Archivo Regular/Bold files are
+removed from the application font set.
+
+After a successful device-position acquisition, the location service performs
+one bounded platform reverse-geocode request and carries a concise district/city
+label through `DevicePosition` and `SelectedAppLocation`. Failure or timeout of
+reverse geocoding never invalidates usable GPS coordinates. Home, Forecast, and
+the location status surface prefer the resolved place label and do not expose
+raw coordinates or IANA timezone identifiers as primary customer copy.
+
+Action/recommendation content is elevated into a fully bordered mint panel with
+the standard hard black panel plate. Current, hourly, and daily weather artwork
+may use larger optical sizes without changing the bounded-animation policy from
+ADR-024.
+
+**Reason:** The customer-facing interface needs poster weight at structural
+headings but a more technical, clearly differentiated reading texture for
+ordinary text. A human place name answers where the forecast applies more
+quickly than coordinates or `Asia/Ho_Chi_Minh`. The Action step should visually
+close the `Now → Risk → Next → Action` route instead of blending into a flat
+section.
+
+**Consequences:**
+
+- This decision supersedes only the normal-copy typography and place-label
+  presentation clauses of ADR-024; Archivo Black headings, Bebas numeric type,
+  square geometry, and bounded icon animation remain current.
+- Reverse geocoding is invoked only during explicit position acquisition or
+  refresh, not during component render or every weather refetch.
+- Location permission, GPS, weather loading, and offline fallbacks continue to
+  work when no place name can be resolved.
+
+---
+
+## ADR-026 — Recommendation-first Home hierarchy
+
+**Status:** Accepted
+
+**Decision:** Home follows `Now → Action → Why → Next`. The concise current
+weather hero remains the first context surface, but the prioritized Rule Engine
+recommendations follow it immediately. The first `LÀM` row is shown before its
+suggestion and explanation and receives the single sunflower action emphasis.
+
+The risk advisory becomes the explanatory `Why` layer. Near-term forecast comes
+after it, while detailed environmental metrics, location controls, and data
+source status move below the primary decision path.
+
+**Reason:** The product is a daily-life and health-support assistant powered by
+weather, not primarily a weather dashboard. The previous order delayed useful
+guidance behind multiple weather, forecast, GPS, and source surfaces.
+
+**Consequences:**
+
+- This decision supersedes the Home ordering clauses of ADR-010, ADR-022, and
+  ADR-025; their visual identity, data truth, and recommendation safety rules
+  remain current.
+- Current weather stays prominent enough to establish trust and context, but
+  metrics and technical state no longer compete with the primary action.
+- Recommendation priority must come from the Rule Engine; the UI does not
+  invent or reorder domain severity.
+- Empty, partial, fixture, offline, and permission-denied states retain the same
+  ordering and remain explicit about unavailable evidence.
+
+---
+
+## ADR-027 — Optional authentication, remote saved locations, and global app chrome
+
+**Status:** Accepted
+
+**Decision:** Keep weather, GPS, forecast, recommendations, and manual remote
+location search usable without login. Require Supabase Auth only for personal
+cloud data such as `saved_locations`. Implement email/password sign-up,
+sign-in, sign-out, persisted sessions through the existing Expo SQLite storage,
+and foreground-only token auto-refresh lifecycle handling.
+
+Add a square neobrutalist Home masthead with hamburger navigation at top left
+and an account avatar at top right. The drawer exposes Home, Forecast, remote
+locations, and account. Manual search uses Open-Meteo Geocoding behind a
+provider DTO/parser/adapter boundary and produces the existing normalized
+`SelectedAppLocation(source = "manual")` contract. A user may view a result
+immediately or, when authenticated, persist its label and coordinates through
+the existing owner-scoped `saved_locations` table.
+
+Embed Syne Regular 400 and ExtraBold 800 for short ASCII-only masthead and
+system labels. Keep Archivo 900 for Vietnamese poster headings, JetBrains Mono
+for Vietnamese body/data copy, and Bebas Neue for oversized numeric weather
+readings because the bundled Syne cuts do not provide complete Vietnamese
+coverage.
+
+**Reason:** Location permission must remain optional, users need to prepare for
+places they are not physically visiting, and cloud synchronization needs a
+clear account boundary without turning authentication into a weather paywall.
+The dedicated ASCII role honors the requested Syne character while preventing
+silent fallback or missing Vietnamese glyphs.
+
+**Consequences:**
+
+- Auth session state remains client state; profiles and saved locations remain
+  remote state owned by TanStack Query/Supabase.
+- RLS and the authenticated role remain the backend ownership boundary; the
+  client never receives a service-role key.
+- No database migration is required because `profiles`, the auth trigger,
+  `saved_locations`, grants, ownership policies, constraints, and indexes were
+  already implemented and verified.
+- Remote location selection cancels an in-flight GPS acquisition for
+  application state but never changes OS GPS state or writes travel history.
+- New global chrome preserves the accepted `Now → Action → Why → Next` Home
+  hierarchy beneath it and keeps native Back behavior for overlays/routes.
+
+---
+
+## ADR-028 — Android system-geocoder fallback for manual place search
+
+**Status:** Accepted
+
+**Decision:** Keep Open-Meteo Geocoding as the permission-independent remote
+place-search provider. On Android only, when foreground location permission is
+already granted, try Expo Location's bounded system forward geocoder first and
+normalize its result into the same `ManualLocationCandidate` contract. Never
+request location permission merely to perform manual search.
+
+**Reason:** Physical Redmi 7 verification reproduced a TLS/connection stall to
+the dedicated Open-Meteo Geocoding host while Open-Meteo Forecast/Air Quality
+and Android's system geocoder remained usable. A native fallback restores the
+primary task on affected Android networking stacks without leaking Expo values
+into UI or changing device GPS state.
+
+**Consequences:**
+
+- Android users with existing permission can search even when the remote
+  geocoding host cannot complete its handshake.
+- Permission-denied users still use Open-Meteo and are never pressured into
+  granting GPS access for manual search.
+- Native results may contain one coarse candidate and therefore use the typed
+  query as their customer label; Open-Meteo remains richer when available.
+- If remote geocoding remains unreliable for permission-denied Android users,
+  a configurable backend geocoding proxy is the next production-grade step.
+
+---
+
+## ADR-029 — Semantic action kits and opt-in device notifications
+
+**Status:** Accepted for the current client milestone
+
+**Decision:** Represent each Home recommendation with a small semantic kit of
+one or two SVGs selected from the recommendation `actionKey`. Clothing,
+temperature, umbrella, hanger, and footwear imagery comes from
+`assets/weather-cloths`; specialist AQI and shelter imagery remains in the
+recommendation icon set. Visible kit labels explain the preparation meaning,
+while the SVGs remain decorative to assistive technology because the complete
+recommendation text is authoritative.
+
+Use Expo Notifications for an explicit opt-in, device-local scheduling layer.
+Schedule current or near-term rain, the highest warning/danger risk, and one
+primary attention-level action. Persist stable event signatures locally so a
+weather refetch does not resend the same situation. Tapping an app notification
+returns to Home. Use a dedicated Android channel and monochrome notification
+icon in project builds, with an Expo Go fallback channel for local testing.
+
+Do not claim remote push delivery until the app has an EAS project ID, platform
+credentials, a protected token registry, a server-side sender, Expo receipt
+handling, and token-revocation cleanup.
+
+**Reason:** Action-specific equipment is faster to scan than a generic clothing
+glyph, but imagery must not replace Vietnamese guidance. Device-local alerts
+provide useful rain and environmental reminders immediately after normalized
+weather is loaded, while the current repository lacks the credentials and
+backend ownership required for honest remote push.
+
+**Consequences:**
+
+- The client can schedule useful notifications after a successful live-weather
+  evaluation, including while it later runs in the background.
+- Sun/heat/hydration actions use the temperature symbol without a duplicate
+  shirt; clothing artwork remains specific to clothing recommendations.
+- Client scheduling is serialized, failed native replacements are left
+  retryable, and foreground permission changes are reflected in the opt-in UI.
+- Expo Go can verify local scheduling but cannot verify Android remote push;
+  development/release builds remain mandatory for Expo push tokens.
+- Notification preference and scheduled-record state are device-local for this
+  milestone; no Supabase table or service-role capability is added.
+- Remote notification infrastructure remains a separate security and
+  architecture decision.
+
+---
+
+## ADR-030 — Authenticated notification preference synchronization
+
+**Status:** Accepted
+
+**Decision:** Add one owner-scoped `notification_preferences` row per Supabase
+Auth user. Keep operating-system permission, native schedule identifiers, and
+Expo Go fallback behavior device-local. When an authenticated user explicitly
+enables or disables notifications, upsert the account-level opt-in through the
+public Supabase client; guests continue without a database dependency.
+
+The three category columns map directly to the implemented planner slots:
+rain/laundry protection, environmental warning-or-danger risk, and the primary
+attention-level action. Do not add push tokens, delivery history, quiet hours,
+or a remote sender until EAS/FCM/APNs credentials and their lifecycle are
+implemented together.
+
+**Reason:** This creates useful cross-account preference state without
+pretending that the current local scheduler is remote push. It also avoids a
+speculative schema that has no client registration or protected sender yet.
+
+**Consequences:**
+
+- Authenticated enable/disable actions sync to Supabase; a cloud failure does
+  not undo a successful device-local action and is reported in the sheet.
+- Owner RLS and explicit grants prevent cross-user or anonymous access.
+- The primary-key `user_id` covers the RLS lookup without a redundant index.
+- Remote push provider, token lifecycle, and delivery infrastructure remain an
+  open decision.
+
+---
+
+## ADR-031 — Private owner-scoped profile images
+
+**Status:** Accepted
+
+**Decision:** Store account avatars in a private Supabase Storage bucket named
+`profile-images`. Put every image below its authenticated user's UUID folder,
+limit uploads to 5 MiB and supported raster MIME types, and enforce owner-only
+SELECT/INSERT/UPDATE/DELETE with `storage.objects` RLS. Keep the existing
+`profiles.avatar_url` column as the object-path reference and generate a
+short-lived signed URL only for display.
+
+The Expo client uses the native system image picker with square editing and
+uploads an `ArrayBuffer`, as required by Supabase's React Native Storage
+contract. New uploads receive unique paths; after the profile reference is
+updated, the previous owned object is removed.
+
+**Reason:** A profile image is personal account data. A private bucket matches
+the existing owner-only profile contract and prevents permanent public asset
+URLs, while unique filenames avoid stale image replacement through caches.
+
+**Consequences:**
+
+- Signed-in users can choose, replace, and remove their own image; guests do
+  not touch Storage.
+- The same image is shown in the account sheet and global masthead with initials
+  as the loading/error/empty fallback.
+- Storage policies are the authorization boundary; client folder names and
+  profile IDs are not trusted on their own.
+- Camera and microphone permissions are explicitly excluded because this flow
+  selects only from the system photo picker.
+
+---
+
 # Decisions still open
 
 Create new ADR entries when these are resolved:
@@ -630,8 +1001,7 @@ Create new ADR entries when these are resolved:
 - Authoritative severe-weather alert provider
 - Client state library
 - Detailed navigation structure after the initial Home route
-- Authentication requirement for MVP
-- Push notification provider/infrastructure
+- Remote push provider, token lifecycle, and delivery infrastructure
 - Remote rule storage, validation, versioning, and administration format
 - General-purpose icon library
 - Analytics/crash reporting

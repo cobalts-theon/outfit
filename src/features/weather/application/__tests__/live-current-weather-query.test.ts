@@ -56,7 +56,7 @@ describe('live CurrentWeather query identity', () => {
     );
   });
 
-  it('includes deliberate location identity and AQI scale inputs in the key', () => {
+  it('includes coordinate/source identity and AQI scale inputs in the key', () => {
     const device = location(10.7769, 106.7009);
     const manual = location(10.7769, 106.7009, {
       source: 'manual',
@@ -66,8 +66,19 @@ describe('live CurrentWeather query identity', () => {
 
     expect(key).not.toEqual(liveCurrentWeatherKeys.location(device));
     expect(key[3]).toMatchObject({
-      locationIdentity: 'manual:Quận 1',
+      locationIdentity: 'manual:10.777,106.701',
       aqiScale: 'us_aqi',
     });
+  });
+
+  it('does not refetch weather when reverse geocoding only improves the label', () => {
+    const unnamed = location(10.7769, 106.7009);
+    const named = location(10.7769, 106.7009, {
+      label: 'Quận 1 · Thành phố Hồ Chí Minh',
+    });
+
+    expect(liveCurrentWeatherKeys.location(named)).toEqual(
+      liveCurrentWeatherKeys.location(unnamed),
+    );
   });
 });

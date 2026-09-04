@@ -77,6 +77,52 @@ const rainConditions = new Set<WeatherCondition>([
   'thunderstorm_rain',
 ]);
 
+const comfortableOutdoorConditions = new Set<WeatherCondition>([
+  'clear',
+  'mostly_clear',
+  'partly_cloudy',
+  'mostly_cloudy',
+  'cloudy',
+  'overcast',
+]);
+
+function hasActiveRain(current: CurrentWeather) {
+  return (
+    rainConditions.has(current.condition) ||
+    current.precipitation?.type === 'rain' ||
+    current.precipitation?.type === 'drizzle'
+  );
+}
+
+function selectNearTermEntries(
+  current: CurrentWeather,
+  hourly: HourlyForecast | undefined,
+) {
+  if (hourly === undefined) return undefined;
+
+  const observedAt = Date.parse(current.observedAt);
+  const firstFutureIndex = hourly.entries.findIndex(
+    (entry) => Date.parse(entry.forecastAt) >= observedAt,
+  );
+  if (firstFutureIndex < 0) return [];
+
+  return hourly.entries.slice(firstFutureIndex, firstFutureIndex + 3);
+}
+
+function maximumNearTermRainProbability(
+  current: CurrentWeather,
+  hourly: HourlyForecast | undefined,
+) {
+  const nearTermEntries = selectNearTermEntries(current, hourly);
+  if (nearTermEntries === undefined) return undefined;
+
+  const probabilities = nearTermEntries
+    .map((entry) => entry.precipitation?.probability)
+    .filter((value): value is number => value !== undefined);
+
+  return probabilities.length === 0 ? undefined : Math.max(...probabilities);
+}
+
 function chooseHighestAlert(current: CurrentWeather) {
   return current.alerts?.reduce<(typeof current.alerts)[number] | undefined>(
     (highest, alert) => {
@@ -164,7 +210,7 @@ const uvRule: RecommendationRule = ({ current }) => {
   return [
     {
       ruleId: 'high-uv-protection',
-      actionKey: 'sun-protection',
+      actionKey: 'sun-heat-protection',
       group: 'wellness',
       severity: state.severity,
       priority: 85,
@@ -173,8 +219,8 @@ const uvRule: RecommendationRule = ({ current }) => {
       reasonParts: [`UV hiện tại là ${uv.index.toFixed(1)} (${state.title.toLocaleLowerCase('vi-VN')}).`],
       action:
         uv.category === 'high'
-          ? 'Tìm bóng râm, che phủ da và dùng biện pháp chống nắng phù hợp.'
-          : 'Rút ngắn thời gian nắng trực tiếp, tìm bóng râm và che phủ da.',
+          ? 'Tìm bóng râm, che phủ da, dùng biện pháp chống nắng phù hợp và mang theo nước.'
+          : 'Rút ngắn thời gian nắng trực tiếp, tìm bóng râm, che phủ da và uống nước đều.',
       triggers: [{ dimension: 'uv', label: uv.category, value: uv.index, unit: 'UVI' }],
     },
   ];
@@ -241,10 +287,7 @@ const usAqiRule: RecommendationRule = ({ current }) => {
 
 function currentRainRule({ current }: RuleContext): readonly RecommendationCandidate[] {
   const precipitation = current.precipitation;
-  const activeRain =
-    rainConditions.has(current.condition) ||
-    precipitation?.type === 'rain' ||
-    precipitation?.type === 'drizzle';
+  const activeRain = hasActiveRain(current);
   const highProbability =
     precipitation?.probability !== undefined &&
     precipitation.probability >= HIGH_PRECIPITATION_PROBABILITY;
@@ -284,13 +327,8 @@ function currentRainRule({ current }: RuleContext): readonly RecommendationCandi
   ];
 }
 
-function nearTermRainRule({ hourly }: RuleContext): readonly RecommendationCandidate[] {
-  if (hourly === undefined) return [];
-  const probabilities = hourly.entries
-    .slice(0, 3)
-    .map((entry) => entry.precipitation?.probability)
-    .filter((value): value is number => value !== undefined);
-  const maximum = probabilities.length === 0 ? undefined : Math.max(...probabilities);
+function nearTermRainRule({ current, hourly }: RuleContext): readonly RecommendationCandidate[] {
+  const maximum = maximumNearTermRainProbability(current, hourly);
   if (maximum === undefined || maximum < HIGH_PRECIPITATION_PROBABILITY) return [];
 
   return [
@@ -316,6 +354,58 @@ function nearTermRainRule({ hourly }: RuleContext): readonly RecommendationCandi
   ];
 }
 
+const protectLaundryRule: RecommendationRule = ({ current, hourly }) => {
+  const activeRain = hasActiveRain(current);
+  const maximum = maximumNearTermRainProbability(current, hourly);
+  const nearTermRain =
+    maximum !== undefined && maximum >= HIGH_PRECIPITATION_PROBABILITY;
+  if (!activeRain && !nearTermRain) return [];
+
+  const heavyRain =
+    current.condition === 'heavy_rain' ||
+    current.condition === 'heavy_showers' ||
+    current.precipitation?.intensity === 'heavy' ||
+    current.precipitation?.intensity === 'extreme';
+  const reasonParts = [
+    ...(activeRain ? ['Mưa đang xuất hiện tại địa điểm đã chọn.'] : []),
+    ...(nearTermRain
+      ? [`Xác suất mưa cao nhất trong ba giờ đầu là ${Math.round((maximum ?? 0) * 100)}%.`]
+      : []),
+  ];
+  const triggers: RecommendationTrigger[] = [
+    ...(activeRain
+      ? [{ dimension: 'condition' as const, label: 'mưa hiện tại', value: current.condition }]
+      : []),
+    ...(nearTermRain
+      ? [
+          {
+            dimension: 'precipitation' as const,
+            label: 'xác suất mưa vài giờ tới',
+            value: maximum,
+            unit: 'ratio',
+          },
+        ]
+      : []),
+  ];
+
+  return [
+    {
+      ruleId: 'rain-protect-laundry',
+      actionKey: 'protect-laundry',
+      group: 'outdoor',
+      severity: heavyRain ? 'warning' : 'attention',
+      priority: activeRain ? 78 : 72,
+      title: activeRain ? 'Thu đồ đang phơi' : 'Chuẩn bị thu đồ đang phơi',
+      message: 'Giữ quần áo và đồ vải tránh bị ướt khi mưa đến.',
+      reasonParts,
+      action: activeRain
+        ? 'Nếu đang phơi quần áo hoặc đồ vải ngoài trời, hãy thu vào chỗ có mái che ngay.'
+        : 'Nếu đang phơi đồ, hãy thu sớm hoặc chuyển vào khu vực có mái che trước khi mưa đến.',
+      triggers,
+    },
+  ];
+};
+
 const heatRule: RecommendationRule = ({ current }) => {
   const heat = Math.max(
     current.temperature.valueCelsius,
@@ -326,7 +416,7 @@ const heatRule: RecommendationRule = ({ current }) => {
   return [
     {
       ruleId: 'high-temperature-wellness',
-      actionKey: 'heat-hydration',
+      actionKey: 'sun-heat-protection',
       group: 'wellness',
       severity: heat >= VERY_HIGH_HEAT_CELSIUS ? 'warning' : 'attention',
       priority: 65,
@@ -422,6 +512,70 @@ const warmClothingRule: RecommendationRule = ({ current }) => {
   ];
 };
 
+const favorableOutdoorRule: RecommendationRule = ({ current, hourly }) => {
+  const firstThreeHours = selectNearTermEntries(current, hourly) ?? [];
+  const hasReliableDryWindow =
+    firstThreeHours.length === 3 &&
+    firstThreeHours.every(
+      (entry) =>
+        entry.precipitation?.probability !== undefined &&
+        entry.precipitation.probability < 0.3,
+    );
+  const temperature = current.temperature.valueCelsius;
+  const feelsLike = current.temperature.feelsLikeCelsius;
+  const windIsComfortable =
+    current.wind.speedMetersPerSecond < 10 &&
+    (current.wind.gustMetersPerSecond === undefined ||
+      current.wind.gustMetersPerSecond < 15);
+  const hasActiveWarning =
+    current.alerts?.some(
+      (alert) => alert.severity !== 'info' && alert.severity !== 'watch',
+    ) ?? false;
+
+  if (
+    !current.daylight.isDay ||
+    !comfortableOutdoorConditions.has(current.condition) ||
+    current.precipitation?.type !== 'none' ||
+    !hasReliableDryWindow ||
+    current.uv?.category === undefined ||
+    (current.uv.category !== 'low' && current.uv.category !== 'moderate') ||
+    current.airQuality?.scale !== 'us_aqi' ||
+    current.airQuality.category !== 'good' ||
+    temperature < 18 ||
+    temperature > 32 ||
+    feelsLike > 34 ||
+    !windIsComfortable ||
+    hasActiveWarning
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      ruleId: 'favorable-outdoor-window',
+      actionKey: 'outdoor-activity-window',
+      group: 'outdoor',
+      severity: 'info',
+      priority: 12,
+      title: 'Có một khoảng thời tiết thuận lợi',
+      message: 'Điều kiện hiện tại phù hợp cho hoạt động nhẹ ngoài trời.',
+      reasonParts: [
+        `Nhiệt độ ${Math.round(temperature)}°C, US AQI ${Math.round(current.airQuality.index)}, UV ${current.uv.index.toFixed(1)} và ba giờ đầu có xác suất mưa dưới 30%.`,
+      ],
+      action:
+        current.uv.category === 'moderate'
+          ? 'Có thể đi bộ hoặc vận động nhẹ ngoài trời; ưu tiên bóng râm và nghỉ khi thấy không thoải mái.'
+          : 'Có thể đi bộ, hít thở không khí ngoài trời hoặc vận động nhẹ trong khoảng thời gian này.',
+      triggers: [
+        { dimension: 'condition', label: 'điều kiện khô ráo', value: current.condition },
+        { dimension: 'temperature', label: 'nhiệt độ dễ chịu', value: temperature, unit: '°C' },
+        { dimension: 'us_aqi', label: 'không khí tốt', value: current.airQuality.index, unit: 'US AQI' },
+        { dimension: 'uv', label: current.uv.category, value: current.uv.index, unit: 'UVI' },
+      ],
+    },
+  ];
+};
+
 const initialRules: readonly RecommendationRule[] = [
   officialAlertRule,
   hazardousConditionRule,
@@ -429,9 +583,11 @@ const initialRules: readonly RecommendationRule[] = [
   uvRule,
   currentRainRule,
   nearTermRainRule,
+  protectLaundryRule,
   heatRule,
   warmClothingRule,
   lightClothingRule,
+  favorableOutdoorRule,
 ];
 
 export function evaluateInitialRecommendationRules(
@@ -441,4 +597,3 @@ export function evaluateInitialRecommendationRules(
   const context: RuleContext = { current, ...(hourly === undefined ? {} : { hourly }) };
   return initialRules.flatMap((rule) => rule(context));
 }
-

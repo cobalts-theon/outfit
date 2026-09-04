@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { spacing, touchTargets } from '@/theme/tokens';
+import { radii, spacing, touchTargets, typography } from '@/theme/tokens';
 
 describe('foundation design tokens', () => {
   it('keeps the spacing scale strictly increasing', () => {
@@ -12,5 +12,16 @@ describe('foundation design tokens', () => {
   it('preserves native minimum touch targets', () => {
     expect(touchTargets.ios).toBeGreaterThanOrEqual(44);
     expect(touchTargets.android).toBeGreaterThanOrEqual(48);
+  });
+
+  it('keeps the neo-brutalist surface vocabulary square', () => {
+    expect(Object.values(radii).every((radius) => radius === 0)).toBe(true);
+  });
+
+  it('uses JetBrains Mono for normal copy and dedicated poster faces for hierarchy', () => {
+    expect(typography.body).toBe('JetBrainsMono');
+    expect(typography.identity).toBe('JetBrainsMono');
+    expect(typography.heading).toBe('ArchivoBlack');
+    expect(typography.temperature).toBe('BebasNeue');
   });
 });

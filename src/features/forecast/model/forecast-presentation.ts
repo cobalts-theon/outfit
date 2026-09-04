@@ -115,6 +115,7 @@ export interface DetailedHourlyItem {
   readonly timeLabel: string;
   readonly dayLabel?: string;
   readonly conditionLabel: string;
+  readonly condition: WeatherCondition;
   readonly temperatureLabel: string;
   readonly precipitationLabel: string;
   readonly precipitationAmountLabel?: string;
@@ -149,6 +150,7 @@ export function createDetailedHourlyItems(
               .toLocaleUpperCase('vi-VN'),
           }),
       conditionLabel: conditionLabels[entry.condition],
+      condition: entry.condition,
       temperatureLabel: `${Math.round(entry.temperatureCelsius)}°`,
       precipitationLabel:
         entry.precipitation?.probability === undefined
@@ -169,6 +171,7 @@ export interface DailyForecastItem {
   readonly id: string;
   readonly dateLabel: string;
   readonly conditionLabel: string;
+  readonly condition: WeatherCondition;
   readonly temperatureRangeLabel: string;
   readonly precipitationLabel: string;
   readonly amountLabel?: string;
@@ -191,6 +194,7 @@ export function createDailyForecastItems(
             .format(new Date(`${entry.forecastDate}T12:00:00.000Z`))
             .toLocaleUpperCase('vi-VN'),
     conditionLabel: conditionLabels[entry.condition],
+    condition: entry.condition,
     temperatureRangeLabel: `${Math.round(entry.minimumTemperatureCelsius)}° / ${Math.round(
       entry.maximumTemperatureCelsius,
     )}°`,

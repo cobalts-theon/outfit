@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { ForecastDetailItem } from '@/features/forecast/model/forecast-presentation';
-import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
+import { appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme/tokens';
 
 export function ForecastDetails({ items }: { readonly items: readonly ForecastDetailItem[] }) {
   return (
@@ -32,12 +32,12 @@ export function ForecastDetails({ items }: { readonly items: readonly ForecastDe
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
   section: {
     gap: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 3,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
@@ -50,47 +50,49 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   heading: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 12,
-    lineHeight: 18,
+    color: homeVisualTokens.ink,
+    fontFamily: typography.display,
+    fontSize: 20,
+    lineHeight: 26,
     letterSpacing: 1,
   },
   status: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 9,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 17,
     letterSpacing: 0.7,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
+    overflow: 'hidden',
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   item: {
     width: '50%',
     minHeight: 112,
     gap: spacing.xxs,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: 2,
+    borderBottomWidth: 2,
     borderColor: colors.border,
     padding: spacing.sm,
   },
   label: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 9,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 17,
     letterSpacing: 0.6,
   },
   value: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 16,
-    lineHeight: 23,
+    fontFamily: typography.heading,
+    fontSize: 21,
+    lineHeight: 24,
   },
   note: {
     color: colors.textMuted,

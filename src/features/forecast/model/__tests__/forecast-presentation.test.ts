@@ -79,6 +79,7 @@ describe('forecast presentation', () => {
       id: '2026-08-06',
       dateLabel: 'HÔM NAY',
       conditionLabel: 'Mưa',
+      condition: 'rain',
       temperatureRangeLabel: '26° / 31°',
       precipitationLabel: 'Mưa 90%',
       amountLabel: '8.4 mm',

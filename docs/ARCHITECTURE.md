@@ -297,12 +297,18 @@ App starts
 Check existing permission
   ↓
 Allowed ───────────────→ Read coordinates
-  │                         ↓
-  │                     Weather query
+  │                         ├──────────────→ Weather query
+  │                         └──────────────→ Reverse geocode once
+  │                                              ↓
+  │                                      Customer place label
   │
 Denied
   ↓
-Manual location selection
+Manual location search → geocoding adapter → normalized candidate
+  ↓
+SelectedAppLocation(source = manual) → Weather query
+  ↓
+Optional authenticated save → Supabase saved_locations
 ```
 
 Requirements:
@@ -312,6 +318,18 @@ Requirements:
 - allow manual fallback;
 - avoid repeated aggressive permission prompts;
 - cache last valid location when appropriate.
+- resolve a concise district/city label after successful device acquisition;
+- bound reverse-geocoding work with a timeout and keep valid coordinates usable
+  when the platform geocoder is unavailable;
+- keep raw coordinates and IANA timezone values in domain/provider data rather
+  than using them as primary customer-facing location labels.
+- keep Open-Meteo Geocoding DTOs inside their provider adapter; UI consumes
+  only normalized manual-location candidates;
+- on Android, prefer the system forward geocoder only when foreground location
+  permission is already granted; never prompt for GPS merely to search, and
+  keep Open-Meteo Geocoding as the permission-independent remote path;
+- allow guests to search/select a remote location, requiring authentication
+  only when persisting or synchronizing a saved location.
 
 ---
 

@@ -36,19 +36,20 @@ Create only tables required by the current milestone.
 
 ### 3.1 Implemented remote schema — 2026-08-06
 
-The linked Supabase project currently has these application tables only:
+The linked Supabase project currently has these application tables:
 
 ```text
 profiles
 saved_locations
 recommendation_rules
 recommendation_logs
+notification_preferences
 ```
 
-No notification tables, role tables, or other future schema were added during
-the initial migration baseline and hardening work. The four existing
-`recommendation_rules` rows were preserved, and the rule table shape was not
-redesigned.
+The initial migration baseline and hardening work retained the original four
+tables. The notification-preference migration later added only the account
+setting required by the implemented mobile opt-in; no push-device, delivery
+history, role, or speculative rule-model tables were added.
 
 The committed database representation is:
 
@@ -56,6 +57,8 @@ The committed database representation is:
 supabase/migrations/20260806123445_remote_schema_baseline.sql
 supabase/migrations/20260806123541_harden_existing_schema.sql
 supabase/migrations/20260806124959_consolidate_rule_select_policy.sql
+supabase/migrations/20260902102854_add_notification_preferences.sql
+supabase/migrations/20260902105227_add_private_profile_images_bucket.sql
 src/types/database.ts
 ```
 
@@ -79,6 +82,10 @@ created_at timestamptz
 The primary key guarantees one profile per Auth user. The foreign key cascades
 on Auth user deletion.
 
+`avatar_url` stores the private Storage object path rather than a permanent or
+public URL. The mobile client creates a short-lived signed URL only while an
+authenticated owner is displaying the image.
+
 Potential preference fields remain future design only and must be added through
 a later migration when the mobile flow requires them.
 
@@ -90,6 +97,17 @@ RLS:
 
 - user can read/update own profile;
 - controlled admin access separately if required.
+
+### 4.1 Profile image Storage
+
+Profile images use the private `profile-images` bucket. Each upload is stored
+under the authenticated user's UUID folder with a unique filename, which
+avoids stale replacements at the CDN/cache layer. The bucket accepts common
+raster avatar formats and enforces a 5 MiB maximum.
+
+Storage RLS grants authenticated users SELECT, INSERT, UPDATE, and DELETE only
+when the first path segment equals `(select auth.uid())::text`. Downloads use
+one-hour signed URLs; the mobile client never receives a service-role key.
 
 ---
 
@@ -128,42 +146,57 @@ Do not store unnecessary precise location history.
 
 Saved location is different from continuous tracking.
 
+The mobile implementation now uses this table for authenticated cloud-saved
+locations. Guests may search and select a remote location without a database
+write; saving requires a Supabase Auth session. Client queries remain scoped by
+`user_id`, while RLS is the authoritative ownership boundary. No schema change
+was required for this feature because the existing label/coordinate/default
+contract already covers the implemented flow.
+
 ---
 
 ## 6. Notification preferences
+
+The mobile app keeps operating-system permission and native schedules locally,
+then mirrors the coarse opt-in to Supabase for authenticated users whenever
+they explicitly enable or disable notifications. Guests remain local-only.
 
 ```text
 notification_preferences
 ```
 
-Possible shape:
+Implemented shape:
 
 ```text
-user_id uuid PK/FK
-
-severe_weather_enabled boolean
-uv_enabled boolean
-air_quality_enabled boolean
-heavy_rain_enabled boolean
-heat_enabled boolean
-
-quiet_hours_enabled boolean
-quiet_hours_start time nullable
-quiet_hours_end time nullable
+user_id uuid PK/FK → auth.users.id
+notifications_enabled boolean
+rain_enabled boolean
+environmental_risk_enabled boolean
+primary_action_enabled boolean
 
 created_at timestamptz
 updated_at timestamptz
 ```
 
-Exact categories should follow the final product scope.
+The category columns match the three implemented notification-plan slots.
+Category-level controls and quiet hours remain future UI/product work.
 
-RLS:
+RLS and grants:
 
-- owner read/update.
+- authenticated owner SELECT, INSERT, and UPDATE;
+- no anonymous access and no client DELETE;
+- service-role access remains server-only;
+- `updated_at` is maintained by a non-exposed trigger function.
 
 ---
 
 ## 7. Device push tokens
+
+No push token is currently persisted. Expo Go supports the implemented local
+notification path but cannot provide Android remote push for this project, and
+the app is not yet linked to an EAS project with FCM/APNs credentials. Create
+this table only together with an authenticated registration flow, delivery
+backend, receipt handling, token cleanup, migration, RLS, and generated types.
 
 If push delivery requires persisted device tokens:
 
@@ -395,6 +428,10 @@ Implemented policies:
   updates limited by grants to `feedback` and `feedback_at`; no client DELETE;
 - `recommendation_rules`: authenticated users read active rules; admins with
   `app_metadata.app_role = "admin"` read all rules and perform writes;
+- `notification_preferences`: authenticated owners SELECT, INSERT, and UPDATE
+  their single row; no client DELETE;
+- `storage.objects` in `profile-images`: authenticated users SELECT, INSERT,
+  UPDATE, and DELETE only inside their own UUID folder;
 - `anon`: no application-table privileges.
 
 Policy helper calls use `(select auth.uid())` and `(select auth.jwt())` so
@@ -426,6 +463,10 @@ recommendation_logs_user_created_at_idx
 recommendation_logs_rule_id_idx
 recommendation_rules_active_priority_idx
 ```
+
+`notification_preferences.user_id` is its primary key, so ownership lookups
+and the RLS predicate already use the primary-key B-tree; no redundant index is
+added.
 
 The unique partial saved-location index enforces at most one default location
 per user. The final performance advisor run reports the active-rule index as
@@ -509,6 +550,35 @@ advisor checks passed.
 - Final Supabase security advisors: zero findings.
 - Final Supabase performance advisors: zero warnings; one expected INFO notice
   for the newly created, not-yet-used active-rule index.
+
+### Verification performed on 2026-09-02
+
+- The mobile `.env` project URL matches the active healthy Supabase project
+  `xmubbpkaezlgtvxaxofg`; the public client continues to use a publishable key.
+- Migration `20260902102854_add_notification_preferences` was preflighted in a
+  rolled-back transaction before it was recorded remotely.
+- A rolled-back two-user RLS matrix verified owner INSERT/SELECT/UPDATE,
+  cross-user SELECT/UPDATE denial, anonymous grant denial, category defaults,
+  and the `updated_at` trigger; no disposable users, profiles, or preference
+  rows remained.
+- Generated TypeScript types, the authenticated mobile upsert repository,
+  strict TypeScript, the full 200-test suite, and Android production export
+  passed.
+- Final security advisors returned zero findings. Performance advisors returned
+  no warnings; four pre-existing unused-index INFO notices remain while the
+  empty database has no production query statistics.
+- Migration `20260902105227_add_private_profile_images_bucket` was preflighted
+  in a rolled-back transaction, then applied to the linked project. Remote
+  verification confirmed a private 5 MiB bucket, the raster MIME allowlist,
+  and all four owner-folder policies.
+- The profile image client uses Expo's system picker, React Native
+  `ArrayBuffer` uploads, unique object paths, short-lived signed URLs, and
+  updates the existing owner-scoped `profiles.avatar_url` field. The public
+  application schema did not change, so the generated `Database` contract
+  remains current.
+- The post-migration security advisor reports only the project-level leaked
+  password protection warning; the performance advisor reports only existing
+  unused-index INFO notices. Neither finding was introduced by Storage.
 
 ---
 

@@ -1,7 +1,8 @@
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import type { DetailedHourlyItem } from '@/features/forecast/model/forecast-presentation';
-import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
+import { WeatherConditionIcon } from '@/features/home/components/weather-glyph';
+import { appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme/tokens';
 
 interface DetailedHourlyForecastProps {
   readonly items: readonly DetailedHourlyItem[];
@@ -23,10 +24,9 @@ function HourlyItem({ item }: { readonly item: DetailedHourlyItem }) {
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        style={styles.signal}
+        style={styles.iconWrap}
       >
-        <View style={[styles.signalLine, !item.isDay && styles.signalLineNight]} />
-        <View style={styles.signalDot} />
+        <WeatherConditionIcon condition={item.condition} isDay={item.isDay} size={60} />
       </View>
       <Text style={styles.temperature}>{item.temperatureLabel}</Text>
       <Text style={styles.condition}>{item.conditionLabel}</Text>
@@ -54,7 +54,7 @@ export function DetailedHourlyForecast({
 
       {items.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyMark}>--:--</Text>
+          <Text style={styles.emptyMark}>CHƯA CÓ</Text>
           <Text style={styles.emptyCopy}>
             Chuỗi theo giờ chưa khả dụng. Không có giá trị thay thế được tạo ra.
           </Text>
@@ -79,12 +79,12 @@ export function DetailedHourlyForecast({
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
   section: {
     gap: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 3,
     borderColor: colors.border,
     paddingTop: spacing.lg,
   },
@@ -97,89 +97,76 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   heading: {
-    color: homeVisualTokens.technical,
-    fontFamily: typography.identitySemibold,
-    fontSize: 12,
-    lineHeight: 18,
+    color: homeVisualTokens.ink,
+    fontFamily: typography.display,
+    fontSize: 20,
+    lineHeight: 26,
     letterSpacing: 1,
   },
   status: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 9,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 17,
     letterSpacing: 0.7,
   },
   summary: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 13,
     lineHeight: 19,
     paddingHorizontal: spacing.md,
   },
   sequence: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 3,
     borderColor: colors.border,
     marginTop: spacing.xs,
     paddingLeft: spacing.md,
+    backgroundColor: colors.surface,
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   item: {
-    width: 118,
-    minHeight: 214,
+    width: 132,
+    minHeight: 250,
     gap: spacing.xs,
-    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
   itemCurrent: {
     backgroundColor: homeVisualTokens.fieldRaised,
-    borderTopWidth: 2,
-    borderTopColor: homeVisualTokens.technical,
   },
   day: {
     minHeight: 15,
     color: homeVisualTokens.technicalMuted,
     fontFamily: typography.identity,
-    fontSize: 8,
-    lineHeight: 13,
+    fontSize: 11,
+    lineHeight: 16,
     letterSpacing: 0.5,
   },
   time: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.identity,
-    fontSize: 10,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 17,
   },
   timeCurrent: {
-    color: homeVisualTokens.technical,
+    color: homeVisualTokens.ink,
     fontFamily: typography.identitySemibold,
   },
-  signal: {
-    width: 44,
-    height: 12,
+  iconWrap: {
+    width: 70,
+    height: 70,
+    alignItems: 'center',
     justifyContent: 'center',
-  },
-  signalLine: {
-    width: 44,
-    height: 2,
-    backgroundColor: homeVisualTokens.attention,
-  },
-  signalLineNight: {
-    backgroundColor: homeVisualTokens.technicalMuted,
-  },
-  signalDot: {
-    position: 'absolute',
-    right: 9,
-    width: 7,
-    height: 7,
-    backgroundColor: colors.text,
   },
   temperature: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
+    fontFamily: typography.temperature,
     fontSize: 27,
-    lineHeight: 33,
+    lineHeight: 31,
     fontVariant: ['tabular-nums'],
   },
   condition: {
@@ -190,23 +177,23 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   precipitation: {
-    color: homeVisualTokens.attention,
+    color: colors.text,
     fontFamily: typography.identitySemibold,
-    fontSize: 10,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 16,
   },
   amount: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 9,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 16,
   },
   emptyState: {
     minHeight: 128,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 3,
     borderColor: colors.border,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.md,

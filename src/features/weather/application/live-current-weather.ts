@@ -134,7 +134,7 @@ export function createLiveCurrentWeatherInput(
   return {
     coordinates: normalizeWeatherQueryCoordinates(selectedLocation.coordinates),
     locationName,
-    locationIdentity: `${selectedLocation.source}:${locationName}`,
+    locationIdentity: `${selectedLocation.source}:${selectedLocation.coordinates.latitude.toFixed(3)},${selectedLocation.coordinates.longitude.toFixed(3)}`,
     aqiScale: LIVE_CURRENT_WEATHER_AQI_SCALE,
   };
 }

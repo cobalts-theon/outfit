@@ -40,6 +40,8 @@ describe('Home near-term hourly forecast selection', () => {
       precipitationProbability: 0.75,
       isDay: false,
     });
+    expect(preview.summary).toBe('Diễn biến vài giờ tới theo giờ địa phương.');
+    expect(preview.summary).not.toContain('Asia/Ho_Chi_Minh');
   });
 
   it('formats later hours in the forecast IANA timezone across midnight', () => {

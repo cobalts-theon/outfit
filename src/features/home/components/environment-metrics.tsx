@@ -5,7 +5,7 @@ import {
   getAirQualityLabel,
   getUvLabel,
 } from '@/features/home/model/home-prototype';
-import { appThemes, homeVisualTokens, spacing, typography } from '@/theme/tokens';
+import { appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme/tokens';
 
 import { RuledSection, SystemLabel } from './home-primitives';
 
@@ -110,22 +110,24 @@ export function EnvironmentMetrics({ source, weather }: EnvironmentMetricsProps)
       </View>
       {airQuality?.scale === undefined ? null : (
         <Text style={styles.scaleNote}>
-          UV // WHO UVI · AQI // {getAirQualityScaleLabel(airQuality.scale)}
+          UV · WHO UVI · AQI · {getAirQualityScaleLabel(airQuality.scale)}
         </Text>
       )}
     </RuledSection>
   );
 }
 
-const colors = appThemes.dark.colors;
+const colors = appThemes.light.colors;
 
 const styles = StyleSheet.create({
   metrics: {
     flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: 3,
     borderColor: colors.border,
     marginTop: spacing.sm,
+    overflow: 'hidden',
+    boxShadow: neoShadows.panel,
+    marginBottom: 6,
   },
   metricsStacked: {
     flexDirection: 'column',
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 96,
     justifyContent: 'space-between',
-    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: 2,
     borderColor: colors.border,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
@@ -149,7 +151,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     borderRightWidth: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
   },
   metricStackedLast: {
     borderBottomWidth: 0,
@@ -157,8 +159,8 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 16,
     letterSpacing: 0.8,
   },
   metricLabelStacked: {
@@ -166,9 +168,9 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 22,
-    lineHeight: 30,
+    fontFamily: typography.temperature,
+    fontSize: 31,
+    lineHeight: 34,
     fontVariant: ['tabular-nums'],
   },
   metricValueStacked: {
@@ -178,7 +180,7 @@ const styles = StyleSheet.create({
     color: homeVisualTokens.unavailable,
   },
   metricDetail: {
-    color: colors.textMuted,
+    color: colors.text,
     fontFamily: typography.body,
     fontSize: 12,
     lineHeight: 17,
@@ -189,7 +191,7 @@ const styles = StyleSheet.create({
   scaleNote: {
     color: colors.textMuted,
     fontFamily: typography.identity,
-    fontSize: 9,
+    fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.5,
     marginTop: spacing.xs,
