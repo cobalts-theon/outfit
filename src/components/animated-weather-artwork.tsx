@@ -1,9 +1,14 @@
+/**
+ * Hiển thị hình thời tiết chuyển động trên điện thoại.
+ * Chọn tài nguyên theo trạng thái thời tiết và tôn trọng tùy chọn giảm chuyển động.
+ */
 import { Asset } from 'expo-asset';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WeatherIconAssetPair } from '@/components/home-weather';
 import { useReducedMotion } from '@/components/controls';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { styles, weatherArtworkCss } from '@/css/components/animated-weather-artwork.styles';
 
 // animated-weather-artwork
 
@@ -13,6 +18,7 @@ interface AnimatedWeatherArtworkProps {
   readonly size: number;
 }
 
+// Mã hóa ký tự trước khi chèn HTML.
 function escapeAttribute(value: string) {
   return value
     .replaceAll('&', '&amp;')
@@ -21,11 +27,8 @@ function escapeAttribute(value: string) {
     .replaceAll('>', '&gt;');
 }
 
-export function AnimatedWeatherArtwork({
-  assets,
-  shadowOffset,
-  size,
-}: AnimatedWeatherArtworkProps) {
+// Hiển thị hình thời tiết chuyển động.
+export function AnimatedWeatherArtwork({ assets, shadowOffset, size }: AnimatedWeatherArtworkProps) {
   const reducedMotion = useReducedMotion();
   const moduleId = reducedMotion ? assets.static : assets.animated;
   const asset = useMemo(() => Asset.fromModule(moduleId), [moduleId]);
@@ -44,7 +47,17 @@ export function AnimatedWeatherArtwork({
 
   const html = useMemo(
     () =>
-      `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>html,body{position:relative;margin:0;width:100%;height:100%;overflow:hidden;background:transparent}.art{position:absolute;top:0;left:0;width:${size}px;height:${size}px;object-fit:contain}.shadow{transform:translate(${shadowOffset}px,${shadowOffset}px);filter:grayscale(1) brightness(0)}</style></head><body><img class="art shadow" src="${escapeAttribute(uri)}" /><img class="art" src="${escapeAttribute(uri)}" /></body></html>`,
+      `<!doctype html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+            <style>${weatherArtworkCss(size, shadowOffset)}</style>
+          </head>
+          <body>
+            <img class="art shadow" src="${escapeAttribute(uri)}" />
+            <img class="art" src="${escapeAttribute(uri)}" />
+          </body>
+        </html>`,
     [shadowOffset, size, uri],
   );
 
@@ -69,5 +82,3 @@ export function AnimatedWeatherArtwork({
     />
   );
 }
-
-const styles = StyleSheet.create({ webView: { flex: 1, backgroundColor: 'transparent' } });

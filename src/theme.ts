@@ -1,3 +1,7 @@
+/**
+ * Bảng màu, font, khoảng cách và quy ước trình bày dùng chung.
+ * Các màn hình lấy giá trị ở đây để giữ giao diện nhất quán.
+ */
 // tokens
 
 export const appPalette = {
@@ -39,16 +43,7 @@ export const appThemes = { light: { colorScheme: 'light', colors: lightColors } 
 
 export type AppTheme = (typeof appThemes)['light'];
 
-export const spacing = {
-  xxs: 4,
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-  display: 64,
-} as const;
+export const spacing = { xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32, xxl: 48, display: 64 } as const;
 
 export const radii = { subtle: 12, control: 12, overlay: 12 } as const;
 

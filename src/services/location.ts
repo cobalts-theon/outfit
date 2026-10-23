@@ -1,14 +1,11 @@
+/**
+ * Thao tác vị trí: xin quyền, lấy GPS, tìm địa danh và lưu địa điểm.
+ * Chuẩn hóa kết quả để phần giao diện dùng cùng một cấu trúc.
+ */
 import * as ExpoLocation from 'expo-location';
 import {
-  normalizeCoordinates,
-  type DevicePosition,
-  type DevicePositionSource,
-  type LocationAcquisitionErrorCode,
-  type LocationFallbackReason,
-  type LocationPermission,
-  type LocationPermissionAccuracy,
-  type ManualLocationCandidate,
-  type ManualLocationSelection,
+  normalizeCoordinates, type DevicePosition, type DevicePositionSource, type LocationAcquisitionErrorCode, type LocationFallbackReason, type LocationPermission,
+  type LocationPermissionAccuracy, type ManualLocationCandidate, type ManualLocationSelection,
 } from '@/utils/validation';
 import { Platform } from 'react-native';
 import type { Tables } from '@/types/database';
@@ -47,15 +44,15 @@ export type LocationAcquisitionResult =
     };
 
 class CurrentPositionTimeoutError extends Error {
+  // Khởi tạo lỗi và thông tin đi kèm.
   constructor() {
     super('Current position request timed out.');
     this.name = 'CurrentPositionTimeoutError';
   }
 }
 
-function permissionAccuracy(
-  response: ExpoLocation.LocationPermissionResponse,
-): LocationPermissionAccuracy {
+// Xác định mức chính xác của quyền vị trí.
+function permissionAccuracy(response: ExpoLocation.LocationPermissionResponse): LocationPermissionAccuracy {
   if (response.ios?.accuracy === 'reduced' || response.android?.accuracy === 'coarse') {
     return 'approximate';
   }
@@ -67,9 +64,8 @@ function permissionAccuracy(
   return 'unknown';
 }
 
-export function mapExpoPermissionResponse(
-  response: ExpoLocation.LocationPermissionResponse,
-): LocationPermission {
+// Chuẩn hóa quyền vị trí từ Expo.
+export function mapExpoPermissionResponse(response: ExpoLocation.LocationPermissionResponse): LocationPermission {
   if (response.status === ExpoLocation.PermissionStatus.GRANTED || response.granted) {
     return { status: 'granted', accuracy: permissionAccuracy(response) };
   }
@@ -85,10 +81,8 @@ export function mapExpoPermissionResponse(
   return { status: 'unknown' };
 }
 
-export function normalizeExpoPosition(
-  location: ExpoLocation.LocationObject,
-  source: DevicePositionSource,
-): DevicePosition | null {
+// Chuẩn hóa tọa độ thiết bị trả về.
+export function normalizeExpoPosition(location: ExpoLocation.LocationObject, source: DevicePositionSource): DevicePosition | null {
   const coordinates = normalizeCoordinates(location.coords.latitude, location.coords.longitude);
   const observedAt = new Date(location.timestamp);
 
@@ -112,12 +106,14 @@ export function normalizeExpoPosition(
   };
 }
 
+// Ghép tên địa điểm từ dữ liệu tọa độ.
 export function formatReverseGeocodedPlace(
   address: Pick<
     ExpoLocation.LocationGeocodedAddress,
     'city' | 'country' | 'district' | 'name' | 'region'
   >,
 ): string | undefined {
+  // Loại bỏ tên địa điểm trùng nhau.
   const uniqueNames = (candidates: readonly (string | null)[]) => {
     const names: string[] = [];
 
@@ -139,18 +135,13 @@ export function formatReverseGeocodedPlace(
   if (administrativeNames.length > 0) return administrativeNames.join(' · ');
 
   const placeName = address.name?.trim();
-  const fallbackNames = uniqueNames([
-    placeName && /\p{L}/u.test(placeName) ? placeName : null,
-    address.country,
-  ]);
+  const fallbackNames = uniqueNames([placeName && /\p{L}/u.test(placeName) ? placeName : null, address.country]);
 
   return fallbackNames.length === 0 ? undefined : fallbackNames.join(' · ');
 }
 
-async function expoLocationServiceWithTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<T> {
+// Giới hạn thời gian lấy vị trí.
+async function expoLocationServiceWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   const timeout = new Promise<never>((_, reject) => {
@@ -166,20 +157,17 @@ async function expoLocationServiceWithTimeout<T>(
   }
 }
 
-export async function resolveDevicePlaceName(
-  coordinates: DevicePosition['coordinates'],
-): Promise<string | undefined> {
+// Tìm tên địa điểm theo tọa độ thiết bị.
+export async function resolveDevicePlaceName(coordinates: DevicePosition['coordinates']): Promise<string | undefined> {
   try {
-    const addresses = await expoLocationServiceWithTimeout(
-      ExpoLocation.reverseGeocodeAsync(coordinates),
-      REVERSE_GEOCODE_TIMEOUT_MS,
-    );
+    const addresses = await expoLocationServiceWithTimeout(ExpoLocation.reverseGeocodeAsync(coordinates), REVERSE_GEOCODE_TIMEOUT_MS);
     return addresses[0] && formatReverseGeocodedPlace(addresses[0]);
   } catch {
     return undefined;
   }
 }
 
+// Đọc vị trí gần nhất còn phù hợp.
 async function readLastKnownPosition(
   options: Required<
     Pick<LocationAcquisitionOptions, 'lastKnownMaxAgeMs' | 'lastKnownRequiredAccuracyMeters'>
@@ -197,6 +185,7 @@ async function readLastKnownPosition(
   }
 }
 
+// Kiểm tra quyền vị trí khi dùng app.
 export async function checkForegroundLocationPermission(): Promise<LocationPermissionOperationResult> {
   try {
     const response = await ExpoLocation.getForegroundPermissionsAsync();
@@ -206,6 +195,7 @@ export async function checkForegroundLocationPermission(): Promise<LocationPermi
   }
 }
 
+// Xin quyền vị trí khi dùng app.
 export async function requestForegroundLocationPermission(): Promise<LocationPermissionOperationResult> {
   try {
     const response = await ExpoLocation.requestForegroundPermissionsAsync();
@@ -215,9 +205,8 @@ export async function requestForegroundLocationPermission(): Promise<LocationPer
   }
 }
 
-export async function acquireDevicePosition(
-  options: LocationAcquisitionOptions = {},
-): Promise<LocationAcquisitionResult> {
+// Lấy vị trí mới hoặc vị trí gần nhất.
+export async function acquireDevicePosition(options: LocationAcquisitionOptions = {}): Promise<LocationAcquisitionResult> {
   const currentPositionTimeoutMs =
     options.currentPositionTimeoutMs ?? DEFAULT_CURRENT_POSITION_TIMEOUT_MS;
   const fallbackOptions = {
@@ -233,11 +222,7 @@ export async function acquireDevicePosition(
       const fallback = await readLastKnownPosition(fallbackOptions);
 
       return fallback === null
-        ? {
-            ok: false,
-            code: 'services_unavailable',
-            message: 'Dịch vụ vị trí đang tắt hoặc không khả dụng.',
-          }
+        ? { ok: false, code: 'services_unavailable', message: 'Dịch vụ vị trí đang tắt hoặc không khả dụng.' }
         : { ok: true, position: fallback, fallbackReason: 'services_unavailable' };
     }
   } catch {
@@ -248,10 +233,7 @@ export async function acquireDevicePosition(
   let fallbackReason: LocationFallbackReason = 'current_error';
 
   try {
-    const location = await expoLocationServiceWithTimeout(
-      ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced }),
-      currentPositionTimeoutMs,
-    );
+    const location = await expoLocationServiceWithTimeout(ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced }), currentPositionTimeoutMs);
     const position = normalizeExpoPosition(location, 'current');
 
     if (position !== null) {
@@ -308,9 +290,8 @@ export interface OpenMeteoGeocodingResponseDto {
   readonly results?: unknown;
 }
 
-export function parseOpenMeteoGeocodingResponse(
-  input: unknown,
-): readonly OpenMeteoGeocodingResultDto[] {
+// Kiểm tra phản hồi tìm kiếm địa điểm.
+export function parseOpenMeteoGeocodingResponse(input: unknown): readonly OpenMeteoGeocodingResultDto[] {
   if (typeof input !== 'object' || input === null || !('results' in input)) {
     return [];
   }
@@ -319,17 +300,18 @@ export function parseOpenMeteoGeocodingResponse(
   return Array.isArray(results) ? (results as OpenMeteoGeocodingResultDto[]) : [];
 }
 
+// Đọc giá trị chuỗi nếu hợp lệ.
 function textValue(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+// Đọc giá trị số nếu hợp lệ.
 function numberValue(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-export function adaptOpenMeteoGeocodingResult(
-  dto: OpenMeteoGeocodingResultDto,
-): ManualLocationCandidate | null {
+// Chuẩn hóa một kết quả địa điểm.
+export function adaptOpenMeteoGeocodingResult(dto: OpenMeteoGeocodingResultDto): ManualLocationCandidate | null {
   const name = textValue(dto.name);
   const latitude = numberValue(dto.latitude);
   const longitude = numberValue(dto.longitude);
@@ -346,9 +328,7 @@ export function adaptOpenMeteoGeocodingResult(
   const admin2 = textValue(dto.admin2);
   const admin1 = textValue(dto.admin1);
   const country = textValue(dto.country);
-  const contextParts = [admin2, admin1, country].filter(
-    (part, index, parts): part is string => part !== undefined && parts.indexOf(part) === index,
-  );
+  const contextParts = [admin2, admin1, country].filter((part, index, parts): part is string => part !== undefined && parts.indexOf(part) === index);
   const providerId =
     typeof dto.id === 'number' || typeof dto.id === 'string'
       ? String(dto.id)
@@ -363,6 +343,7 @@ export function adaptOpenMeteoGeocodingResult(
   };
 }
 
+// Chuẩn hóa danh sách kết quả địa điểm.
 export function adaptOpenMeteoGeocodingResults(results: readonly OpenMeteoGeocodingResultDto[]) {
   return results
     .map(adaptOpenMeteoGeocodingResult)
@@ -384,6 +365,7 @@ export class LocationSearchError extends Error {
   readonly code: LocationSearchErrorCode;
   readonly status?: number;
 
+  // Khởi tạo lỗi và thông tin đi kèm.
   constructor(code: LocationSearchErrorCode, message: string, status?: number) {
     super(message);
     this.name = 'LocationSearchError';
@@ -408,11 +390,8 @@ interface LocationSearchDependencies {
   readonly timeoutMs?: number;
 }
 
-export async function searchOpenMeteoLocations(
-  query: string,
-  signal?: AbortSignal,
-  dependencies: LocationSearchDependencies = {},
-): Promise<readonly ManualLocationCandidate[]> {
+// Tìm địa điểm qua Open-Meteo.
+export async function searchOpenMeteoLocations(query: string, signal?: AbortSignal, dependencies: LocationSearchDependencies = {}): Promise<readonly ManualLocationCandidate[]> {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2) {
     return [];
@@ -423,7 +402,9 @@ export async function searchOpenMeteoLocations(
   const timeoutController = new AbortController();
   let abortedByCaller = signal?.aborted ?? false;
   const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+  // Hủy truy vấn khi bên gọi yêu cầu.
   const abortFromCaller = () => timeoutController.abort();
+  // Ghi nhận yêu cầu hủy từ bên gọi.
   const markCallerAbort = () => {
     abortedByCaller = true;
     abortFromCaller();
@@ -441,27 +422,16 @@ export async function searchOpenMeteoLocations(
 
     if (!response.ok) {
       if (response.status === 429) {
-        throw new LocationSearchError(
-          'rate_limit',
-          'Dịch vụ tìm kiếm đang nhận quá nhiều yêu cầu.',
-          response.status,
-        );
+        throw new LocationSearchError('rate_limit', 'Dịch vụ tìm kiếm đang nhận quá nhiều yêu cầu.', response.status);
       }
 
-      throw new LocationSearchError(
-        'provider',
-        `Dịch vụ tìm kiếm phản hồi HTTP ${response.status}.`,
-        response.status,
-      );
+      throw new LocationSearchError('provider', `Dịch vụ tìm kiếm phản hồi HTTP ${response.status}.`, response.status);
     }
 
     try {
       return adaptOpenMeteoGeocodingResults(parseOpenMeteoGeocodingResponse(await response.json()));
     } catch {
-      throw new LocationSearchError(
-        'invalid_response',
-        'Dịch vụ tìm kiếm trả về dữ liệu không hợp lệ.',
-      );
+      throw new LocationSearchError('invalid_response', 'Dịch vụ tìm kiếm trả về dữ liệu không hợp lệ.');
     }
   } catch (error) {
     if (error instanceof LocationSearchError) {
@@ -488,12 +458,14 @@ export async function searchOpenMeteoLocations(
 const NATIVE_GEOCODING_TIMEOUT_MS = 8_000;
 
 class NativeGeocodingTimeoutError extends Error {
+  // Khởi tạo lỗi và thông tin đi kèm.
   constructor() {
     super('Native forward geocoding timed out.');
     this.name = 'NativeGeocodingTimeoutError';
   }
 }
 
+// Giới hạn thời gian tìm tọa độ.
 async function expoGeocodingWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_resolve, reject) => {
@@ -511,19 +483,15 @@ async function expoGeocodingWithTimeout<T>(promise: Promise<T>, timeoutMs: numbe
  * Android fallback for devices whose native HTTP stack cannot complete the
  * Open-Meteo Geocoding TLS handshake. It never asks for permission itself.
  */
-export async function searchExpoGeocodedLocations(
-  query: string,
-): Promise<readonly ManualLocationCandidate[] | undefined> {
+// Tìm địa điểm qua dịch vụ thiết bị.
+export async function searchExpoGeocodedLocations(query: string): Promise<readonly ManualLocationCandidate[] | undefined> {
   const normalizedQuery = query.trim();
   if (Platform.OS !== 'android' || normalizedQuery.length < 2) return undefined;
 
   const permission = await ExpoLocation.getForegroundPermissionsAsync();
   if (!permission.granted) return undefined;
 
-  const results = await expoGeocodingWithTimeout(
-    ExpoLocation.geocodeAsync(normalizedQuery),
-    NATIVE_GEOCODING_TIMEOUT_MS,
-  );
+  const results = await expoGeocodingWithTimeout(ExpoLocation.geocodeAsync(normalizedQuery), NATIVE_GEOCODING_TIMEOUT_MS);
 
   return results.slice(0, 5).flatMap((result, index) => {
     const coordinates = normalizeCoordinates(result.latitude, result.longitude);
@@ -545,6 +513,7 @@ export async function searchExpoGeocodedLocations(
 
 export type SavedLocation = Tables<'saved_locations'>;
 
+// Lấy danh sách địa điểm đã lưu.
 export async function listSavedLocations(userId: string): Promise<readonly SavedLocation[]> {
   const { data, error } = await requireSupabaseClient()
     .from('saved_locations')
@@ -560,10 +529,8 @@ export async function listSavedLocations(userId: string): Promise<readonly Saved
   return data;
 }
 
-export async function saveLocation(
-  userId: string,
-  selection: ManualLocationSelection,
-): Promise<SavedLocation> {
+// Lưu địa điểm vào tài khoản.
+export async function saveLocation(userId: string, selection: ManualLocationSelection): Promise<SavedLocation> {
   const label = selection.label.trim().slice(0, 100);
 
   const { data, error } = await requireSupabaseClient()
@@ -585,6 +552,7 @@ export async function saveLocation(
   return data;
 }
 
+// Xóa địa điểm đã lưu.
 export async function deleteSavedLocation(userId: string, locationId: string) {
   const { error } = await requireSupabaseClient()
     .from('saved_locations')

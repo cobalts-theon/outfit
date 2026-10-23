@@ -1,16 +1,11 @@
+/**
+ * Các thành phần giao diện tài khoản: đăng nhập, đăng ký, hồ sơ và ảnh đại diện.
+ * Xử lý thao tác tài khoản được phối hợp qua hook; giao diện hiển thị trạng thái tương ứng.
+ */
 import { Image } from 'expo-image';
 import { useProfileAvatarUrl } from '@/services/account';
-import {
-  StyleSheet,
-  type StyleProp,
-  type TextStyle,
-  type ImageStyle,
-  Text,
-  TextInput,
-  View,
-  ActivityIndicator,
-} from 'react-native';
-import { appThemes, homeVisualTokens, radii, spacing, typography } from '@/theme';
+import { type StyleProp, type TextStyle, type ImageStyle, Text, TextInput, View, ActivityIndicator } from 'react-native';
+import { homeVisualTokens } from '@/theme';
 import { NeoButton, SlideIn, NeoBadge, NeoSheet } from '@/components/controls';
 import { type AccountModel, useAccountModel, type AuthMode } from '@/hooks/account';
 import { getUserDisplayName, getUserInitials } from '@/context/auth';
@@ -18,134 +13,12 @@ import { useEffect, useState } from 'react';
 import { parseLifestylePreferences } from '@/utils/recommendations';
 import { EmailOtpForm } from '@/components/email-otp';
 import { LifestyleSetup } from '@/components/lifestyle-setup';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { accountStyles } from '@/css/components/account.styles';
+
+export { accountStyles } from "@/css/components/account.styles";
 
 // account-styles
-
-const colors = appThemes.light.colors;
-
-export const accountStyles = StyleSheet.create({
-  statePanel: {
-    alignItems: 'center',
-    gap: spacing.md,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    boxShadow: '6px 6px 0px #1D3557',
-  },
-  warningPanel: { alignItems: 'flex-start', backgroundColor: homeVisualTokens.warningSurface },
-  identityPanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    boxShadow: '6px 6px 0px #1D3557',
-  },
-  avatarLarge: {
-    width: 76,
-    height: 76,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    backgroundColor: homeVisualTokens.mint,
-  },
-  avatarImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 9 },
-  avatarActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  avatarAction: { minWidth: 144, flexGrow: 1 },
-  avatarLoading: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  avatarPanel: {
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  avatarPanelCopy: { gap: spacing.xs },
-  avatarText: { color: colors.text, fontFamily: typography.brand, fontSize: 25, lineHeight: 30 },
-  identityCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
-  displayName: { color: colors.text, fontFamily: typography.heading, fontSize: 22, lineHeight: 27 },
-  email: { color: colors.text, fontFamily: typography.body, fontSize: 12, lineHeight: 17 },
-  infoPanel: {
-    gap: spacing.xs,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  formPanel: {
-    gap: spacing.md,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    boxShadow: '6px 6px 0px #1D3557',
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontFamily: typography.heading,
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  body: { color: colors.text, fontFamily: typography.body, fontSize: 13, lineHeight: 20 },
-  fieldGroup: { gap: spacing.xs },
-  fieldLabel: {
-    color: colors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 11,
-    lineHeight: 15,
-    letterSpacing: 0.6,
-  },
-  input: {
-    minHeight: 50,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    color: colors.text,
-    fontFamily: typography.body,
-    fontSize: 15,
-    backgroundColor: homeVisualTokens.paper,
-  },
-  message: {
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    color: colors.text,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 19,
-    backgroundColor: homeVisualTokens.mint,
-  },
-  error: {
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    color: colors.text,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 19,
-    backgroundColor: homeVisualTokens.dangerSurface,
-  },
-  privacyNote: {
-    color: colors.textMuted,
-    fontFamily: typography.body,
-    fontSize: 11,
-    lineHeight: 17,
-  },
-});
 
 // profile-avatar-content
 
@@ -156,12 +29,8 @@ interface ProfileAvatarContentProps {
   readonly textStyle: StyleProp<TextStyle>;
 }
 
-export function ProfileAvatarContent({
-  avatarPath,
-  fallback,
-  imageStyle,
-  textStyle,
-}: ProfileAvatarContentProps) {
+// Hiển thị ảnh hoặc chữ đại diện.
+export function ProfileAvatarContent({ avatarPath, fallback, imageStyle, textStyle }: ProfileAvatarContentProps) {
   const avatarUrlQuery = useProfileAvatarUrl(avatarPath);
 
   if (avatarUrlQuery.data !== undefined && avatarUrlQuery.data !== null) {
@@ -183,24 +52,9 @@ export function ProfileAvatarContent({
 
 // account-auth-form
 
+// Hiển thị form đăng nhập và đăng ký.
 export function AccountAuthForm({ model, entry }: { model: AccountModel; entry: boolean }) {
-  const {
-    mode,
-    setMode,
-    fullName,
-    setFullName,
-    email,
-    setEmail,
-    password,
-    setPassword,
-    pending,
-    message,
-    setMessage,
-    errorMessage,
-    setErrorMessage,
-    setOtpFlow,
-    submit,
-  } = model;
+  const { mode, setMode, fullName, setFullName, email, setEmail, password, setPassword, pending, message, setMessage, errorMessage, setErrorMessage, setOtpFlow, submit } = model;
   return (
     <>
       {entry ? (
@@ -330,25 +184,12 @@ export function AccountAuthForm({ model, entry }: { model: AccountModel; entry: 
 
 // account-profile
 
-export function AccountProfile({
-  model,
-  onEditLifestyle,
-}: {
+// Hiển thị và chỉnh sửa hồ sơ.
+export function AccountProfile({ model, onEditLifestyle }: {
   model: AccountModel;
   onEditLifestyle: () => void;
 }) {
-  const {
-    state,
-    profileQuery,
-    pending,
-    message,
-    errorMessage,
-    runSignOut,
-    avatarPath,
-    avatarPending,
-    chooseProfileAvatar,
-    deleteProfileAvatar,
-  } = model;
+  const { state, profileQuery, pending, message, errorMessage, runSignOut, avatarPath, avatarPending, chooseProfileAvatar, deleteProfileAvatar } = model;
   if (state.status !== 'signed_in') return null;
   return (
     <>
@@ -445,12 +286,8 @@ interface AccountSheetProps {
   readonly initialMode?: AuthMode;
 }
 
-export function AccountSheet({
-  visible,
-  onClose,
-  entry = false,
-  initialMode = 'sign_in',
-}: AccountSheetProps) {
+// Mở bảng thao tác tài khoản.
+export function AccountSheet({ visible, onClose, entry = false, initialMode = 'sign_in' }: AccountSheetProps) {
   const model = useAccountModel(visible, initialMode);
   const { state, mode, setMode, otpFlow, setOtpFlow, setMessage, setErrorMessage } = model;
   const [editingLifestyle, setEditingLifestyle] = useState(false);

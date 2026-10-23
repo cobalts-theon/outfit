@@ -1,3 +1,7 @@
+/**
+ * Các kiểu TypeScript được sinh từ schema Supabase, dùng để kiểm tra truy vấn.
+ * Khi schema thay đổi cần sinh lại file; không chỉnh thủ công các kiểu bên dưới.
+ */
 export type Json =
   | string
   | number

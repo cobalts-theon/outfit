@@ -1,31 +1,25 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { homeVisualTokens, spacing, typography } from '@/theme';
+/**
+ * Các thành phần cho chọn giờ, xem đánh giá và hiển thị giờ đã lưu.
+ * Dữ liệu đánh giá và thao tác được cung cấp qua hook lập kế hoạch.
+ */
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useState, type ReactNode } from 'react';
 import { NeoBadge, NeoButton, SlideReveal } from '@/components/controls';
 import { RecommendationActionIcon } from '@/components/home-advice';
-import {
-  type ActivityAssessment,
-  formatPlanTime,
-  displayPlanningDate,
-  localDate,
-  preparationItems,
-  activityLabel,
-  ACTIVITIES,
-} from '@/utils/planning';
+import { type ActivityAssessment, formatPlanTime, displayPlanningDate, localDate, preparationItems, activityLabel, ACTIVITIES } from '@/utils/planning';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth';
 import { type ActivityPlan, type PlanChange, nextActivityPlan } from '@/services/plans';
 import { useSavedPlanForecast } from '@/hooks/plans';
 import { useRouter } from 'expo-router';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { plannerControlsStyles, activityAssessmentCardStyles, savedPlanListStyles, upcomingPlanStyles } from '@/css/components/plans.styles';
+import { plansLayoutStyles } from '@/css/components/plans.styles';
 
 // planner-controls
 
-export function PlannerChoices<T extends string | number>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
+// Hiển thị nhóm lựa chọn lập giờ.
+export function PlannerChoices<T extends string | number>({ label, options, value, onChange }: {
   label: string;
   options: readonly { value: T; label: string }[];
   value: T;
@@ -41,11 +35,7 @@ export function PlannerChoices<T extends string | number>({
             accessibilityRole="radio"
             accessibilityState={{ checked: value === option.value }}
             onPress={() => onChange(option.value)}
-            style={({ pressed }) => [
-              plannerControlsStyles.choice,
-              value === option.value && plannerControlsStyles.selected,
-              pressed && plannerControlsStyles.pressed,
-            ]}
+            style={({ pressed }) => [plannerControlsStyles.choice, value === option.value && plannerControlsStyles.selected, pressed && plannerControlsStyles.pressed]}
           >
             <Text style={plannerControlsStyles.copy}>{option.label}</Text>
           </Pressable>
@@ -55,75 +45,38 @@ export function PlannerChoices<T extends string | number>({
   );
 }
 
-const plannerControlsStyles = StyleSheet.create({
-  group: { gap: spacing.xs },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  label: { fontFamily: typography.identitySemibold, fontSize: 12, color: homeVisualTokens.ink },
-  choice: {
-    minHeight: 48,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderWidth: 2,
-    borderRadius: 12,
-    borderColor: homeVisualTokens.ink,
-    justifyContent: 'center',
-    backgroundColor: homeVisualTokens.field,
-  },
-  selected: { backgroundColor: homeVisualTokens.selectionSurface, borderWidth: 3 },
-  pressed: { opacity: 0.7 },
-  copy: { fontFamily: typography.body, fontSize: 13, color: homeVisualTokens.ink },
-});
-
 // Inline boxes keep custom choices close to the live environmental result.
-function PlanningBox({
-  label,
-  value,
-  children,
-}: {
+// Hiển thị ô chọn có thể mở rộng.
+function PlanningBox({ label, value, children }: {
   label: string;
   value: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <View style={{ flex: 1, minWidth: 140, gap: 8 }}>
+    <View style={plansLayoutStyles.dateField}>
       <Text style={plannerControlsStyles.label}>{label}</Text>
       <Pressable
         accessibilityRole="combobox"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={`${label}: ${value}`}
         onPress={() => setOpen(!open)}
-        style={[
-          plannerControlsStyles.choice,
-          {
-            backgroundColor: homeVisualTokens.sunflower,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            gap: 8,
-          },
-        ]}
+        style={[plannerControlsStyles.choice, plansLayoutStyles.dateToggle]}
       >
-        <Text style={[plannerControlsStyles.copy, { flexShrink: 1 }]}>
+        <Text style={[plannerControlsStyles.copy, plansLayoutStyles.shrinkText]}>
           {value || 'Chọn giá trị'}
         </Text>
         <Text style={plannerControlsStyles.copy}>{open ? '⌃' : '⌄'}</Text>
       </Pressable>
-      <SlideReveal visible={open} style={{ gap: 8 }}>
+      <SlideReveal visible={open} style={plansLayoutStyles.fieldOptions}>
         {children}
       </SlideReveal>
     </View>
   );
 }
 
-export function PlanningDateDuration({
-  date,
-  duration,
-  today,
-  tomorrow,
-  onDate,
-  onDuration,
-  commute = false,
-}: {
+// Hiển thị phần chọn ngày và thời lượng.
+export function PlanningDateDuration({ date, duration, today, tomorrow, onDate, onDuration, commute = false }: {
   date: string;
   duration: string;
   today: string;
@@ -133,7 +86,7 @@ export function PlanningDateDuration({
   commute?: boolean;
 }) {
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+    <View style={plansLayoutStyles.fieldsRow}>
       <PlanningBox label={commute ? 'Ngày đi' : 'Ngày muốn đánh giá'} value={date}>
         <NeoButton
           tone="secondary"
@@ -185,13 +138,8 @@ export function PlanningDateDuration({
 
 // activity-assessment-card
 
-export function ActivityAssessmentCard({
-  assessment,
-  timeZone,
-  title,
-  onSave,
-  busy,
-}: {
+// Hiển thị kết quả đánh giá hoạt động.
+export function ActivityAssessmentCard({ assessment, timeZone, title, onSave, busy }: {
   assessment: ActivityAssessment;
   timeZone: string;
   title?: string;
@@ -230,11 +178,11 @@ export function ActivityAssessmentCard({
       {assessment.checklist.length ? (
         <Text style={activityAssessmentCardStyles.heading}>Chuẩn bị trước khi đi</Text>
       ) : null}
-      <View style={{ gap: 8 }}>
+      <View style={plansLayoutStyles.actionGroup}>
         {assessment.checklist.map((item) => (
           <View key={item.id} style={activityAssessmentCardStyles.check}>
             <RecommendationActionIcon compact actionKey={item.icon} primary={false} />
-            <Text style={[activityAssessmentCardStyles.body, { flex: 1 }]}>{item.label}</Text>
+            <Text style={[activityAssessmentCardStyles.body, plansLayoutStyles.flexFill]}>{item.label}</Text>
           </View>
         ))}
       </View>
@@ -245,38 +193,14 @@ export function ActivityAssessmentCard({
   );
 }
 
-const activityAssessmentCardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: homeVisualTokens.field,
-    borderWidth: 3,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  title: { color: homeVisualTokens.ink, fontFamily: typography.heading, fontSize: 24 },
-  heading: { color: homeVisualTokens.ink, fontFamily: typography.heading, fontSize: 16 },
-  body: { color: homeVisualTokens.ink, fontFamily: typography.body, fontSize: 13, lineHeight: 21 },
-  fine: { color: homeVisualTokens.ink, fontFamily: typography.body, fontSize: 11, lineHeight: 18 },
-  check: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 8,
-    borderWidth: 2,
-    borderRadius: 12,
-    borderColor: homeVisualTokens.ink,
-    minHeight: 48,
-  },
-});
-
 // saved-hours
 
+// Hiển thị đánh giá mới cho giờ đã lưu.
 export function SavedPlanAdvice({ plan, now }: { plan: ActivityPlan; now: number }) {
   const forecast = useSavedPlanForecast(plan, now);
   const known = forecast.assessment.status !== 'unknown';
   return (
-    <View style={{ gap: spacing.sm }}>
+    <View style={plansLayoutStyles.savedGroup}>
       <Text style={savedPlanListStyles.body}>
         {forecast.loading ? 'Đang kiểm tra chỉ số môi trường…' : forecast.assessment.summary}
       </Text>
@@ -293,13 +217,8 @@ export function SavedPlanAdvice({ plan, now }: { plan: ActivityPlan; now: number
   );
 }
 
-function SavedPlan({
-  plan,
-  busy,
-  now,
-  onChange,
-  initialExpanded = false,
-}: {
+// Hiển thị một giờ hoạt động đã lưu.
+function SavedPlan({ plan, busy, now, onChange, initialExpanded = false }: {
   plan: ActivityPlan;
   busy: boolean;
   now: number;
@@ -322,7 +241,7 @@ function SavedPlan({
         label={expanded ? 'THU GỌN' : 'XEM CĂN CỨ & CHUẨN BỊ'}
         onPress={() => setExpanded(!expanded)}
       />
-      <SlideReveal visible={expanded} style={{ gap: spacing.sm }}>
+      <SlideReveal visible={expanded} style={plansLayoutStyles.upcomingGroup}>
         {expanded ? <SavedPlanAdvice plan={plan} now={now} /> : null}
         <Text style={savedPlanListStyles.fine}>
           Nhắc trước 15 phút. Dự báo được kiểm tra khi mở hoặc quay lại app.
@@ -349,22 +268,15 @@ function SavedPlan({
   );
 }
 
-export function SavedPlanList({
-  plans,
-  busy,
-  now,
-  onChange,
-  initialExpanded = false,
-}: {
+// Hiển thị danh sách giờ đã lưu.
+export function SavedPlanList({ plans, busy, now, onChange, initialExpanded = false }: {
   plans: ActivityPlan[];
   busy: boolean;
   now: number;
   initialExpanded?: boolean;
   onChange: (id: string, change: PlanChange | 'delete') => Promise<void>;
 }) {
-  const upcoming = plans.filter(
-    (plan) => plan.status === 'planned' && Date.parse(plan.starts_at) > now,
-  );
+  const upcoming = plans.filter((plan) => plan.status === 'planned' && Date.parse(plan.starts_at) > now);
   if (!upcoming.length)
     return <Text style={savedPlanListStyles.body}>Chưa có giờ sắp tới được lưu.</Text>;
   return (
@@ -383,33 +295,9 @@ export function SavedPlanList({
   );
 }
 
-const savedPlanListStyles = StyleSheet.create({
-  list: { gap: spacing.md },
-  plan: {
-    borderWidth: 2,
-    borderRadius: 12,
-    borderColor: homeVisualTokens.ink,
-    backgroundColor: homeVisualTokens.field,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  status: {
-    fontFamily: typography.identitySemibold,
-    color: homeVisualTokens.technicalMuted,
-    fontSize: 12,
-  },
-  heading: { fontFamily: typography.heading, fontSize: 17, color: homeVisualTokens.ink },
-  body: { fontFamily: typography.body, fontSize: 13, lineHeight: 21, color: homeVisualTokens.ink },
-  fine: {
-    fontFamily: typography.body,
-    fontSize: 11,
-    lineHeight: 18,
-    color: homeVisualTokens.unavailable,
-  },
-});
-
 // upcoming-plan
 
+// Lấy hoạt động đã lưu sắp diễn ra.
 export function UpcomingPlan({ now }: { now: number }) {
   const { state } = useAuth();
   const owner = state.status === 'signed_in' ? state.user.id : undefined;
@@ -431,6 +319,7 @@ export function UpcomingPlan({ now }: { now: number }) {
   return <UpcomingPlanCard plan={query.data} now={now} />;
 }
 
+// Hiển thị thẻ hoạt động sắp diễn ra.
 export function UpcomingPlanCard({ plan, now }: { plan: ActivityPlan; now: number }) {
   const router = useRouter(),
     forecast = useSavedPlanForecast(plan, now);
@@ -476,26 +365,3 @@ export function UpcomingPlanCard({ plan, now }: { plan: ActivityPlan; now: numbe
     </View>
   );
 }
-
-const upcomingPlanStyles = StyleSheet.create({
-  outer: { marginHorizontal: 16, marginVertical: 12, paddingRight: 4, paddingBottom: 4, gap: 12 },
-  card: {
-    backgroundColor: homeVisualTokens.field,
-    borderWidth: 3,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: 12,
-    boxShadow: '4px 4px 0px #1D3557',
-    padding: 16,
-    gap: 12,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: {
-    flex: 1,
-    fontFamily: typography.heading,
-    fontSize: 19,
-    lineHeight: 26,
-    color: homeVisualTokens.ink,
-  },
-  body: { fontFamily: typography.body, fontSize: 13, lineHeight: 21, color: homeVisualTokens.ink },
-  fine: { fontFamily: typography.body, fontSize: 12, lineHeight: 20, color: homeVisualTokens.ink },
-});

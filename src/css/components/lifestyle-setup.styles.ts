@@ -1,0 +1,90 @@
+/**
+ * Giao diện của lifestyle-setup.tsx: màu, font, khoảng cách, kích thước và trạng thái hiển thị.
+ * Sửa bố cục ở đây; xử lý sự kiện và dữ liệu nằm trong file .tsx tương ứng.
+ */
+import { StyleSheet } from 'react-native';
+import { homeVisualTokens, radii, spacing, typography } from '@/theme';
+
+// Style form sở thích sinh hoạt.
+export const styles = StyleSheet.create({
+  container: { gap: spacing.md, paddingBottom: spacing.sm },
+  intro: { gap: spacing.sm },
+  group: { gap: spacing.sm },
+  heading: { fontFamily: typography.heading, fontSize: 18, lineHeight: 26, color: homeVisualTokens.ink },
+  body: { fontFamily: typography.body, fontSize: 13, lineHeight: 21, color: homeVisualTokens.ink },
+  progressHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  progress: { fontFamily: typography.heading, fontSize: 11, color: homeVisualTokens.ink },
+  progressName: { fontFamily: typography.body, fontSize: 12, color: homeVisualTokens.ink },
+  progressTrack: { flexDirection: 'row', gap: spacing.xs },
+  progressSegment: {
+    flex: 1,
+    height: 10,
+    backgroundColor: homeVisualTokens.paleBlueField,
+    borderWidth: 2,
+    borderColor: homeVisualTokens.ink,
+    borderRadius: radii.control,
+  },
+  progressActive: { backgroundColor: homeVisualTokens.infoSurface },
+  progressDone: { backgroundColor: homeVisualTokens.mint },
+  defer: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  deferText: {
+    color: homeVisualTokens.ink,
+    fontFamily: typography.body,
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  pick: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderWidth: 3,
+    borderRadius: radii.control,
+    borderColor: homeVisualTokens.ink,
+    backgroundColor: homeVisualTokens.field,
+  },
+  selected: { backgroundColor: homeVisualTokens.field, boxShadow: '3px 3px 0px #1D3557' },
+  pressed: { transform: [{ translateX: 2 }] },
+  iconFrame: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.control,
+    backgroundColor: homeVisualTokens.paper,
+  },
+  iconSelected: { backgroundColor: homeVisualTokens.sunflower },
+  icon: { width: 28, height: 28 },
+  checkFrame: {
+    width: 26,
+    height: 26,
+    borderWidth: 2,
+    borderRadius: radii.control,
+    borderColor: homeVisualTokens.ink,
+    backgroundColor: homeVisualTokens.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkSelected: { backgroundColor: homeVisualTokens.mint },
+  check: { fontFamily: typography.heading, fontSize: 17, lineHeight: 21, color: homeVisualTokens.ink },
+  pickText: { flex: 1, fontFamily: typography.body, fontSize: 15, lineHeight: 23, color: homeVisualTokens.ink },
+  timeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  summary: {
+    fontFamily: typography.body,
+    fontSize: 14,
+    color: homeVisualTokens.ink,
+    lineHeight: 22,
+    padding: spacing.sm,
+    backgroundColor: homeVisualTokens.sunflower,
+    borderRadius: radii.control,
+  },
+  error: {
+    padding: spacing.sm,
+    backgroundColor: homeVisualTokens.sunflower,
+    color: homeVisualTokens.ink,
+    fontFamily: typography.body,
+    fontSize: 13,
+    lineHeight: 21,
+  },
+});

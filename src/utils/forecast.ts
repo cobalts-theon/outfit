@@ -1,10 +1,8 @@
-import type {
-  DailyForecast,
-  HourlyForecast,
-  CurrentWeather,
-  ZonedDateTimeString,
-  WeatherCondition,
-} from '@/types/weather';
+/**
+ * Chuyển dữ liệu dự báo thành nhãn, thời gian và giá trị dễ đọc trên giao diện.
+ * Định dạng thời gian theo múi giờ của địa điểm được chọn.
+ */
+import type { DailyForecast, HourlyForecast, CurrentWeather, ZonedDateTimeString, WeatherCondition } from '@/types/weather';
 
 // forecast-presentation
 
@@ -46,6 +44,7 @@ const conditionLabels: Record<WeatherCondition, string> = {
   unknown: 'Chưa xác định',
 };
 
+// Lấy tên tiếng Việt của điều kiện dự báo.
 export function getForecastConditionLabel(condition: WeatherCondition) {
   return conditionLabels[condition];
 }
@@ -54,6 +53,7 @@ const hourFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
 const dayFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
+// Tạo bộ định dạng giờ theo địa điểm.
 function hourFormatter(timeZone: string) {
   const cached = hourFormatterCache.get(timeZone);
   if (cached !== undefined) return cached;
@@ -67,19 +67,16 @@ function hourFormatter(timeZone: string) {
   return formatter;
 }
 
+// Tạo bộ định dạng ngày theo địa điểm.
 function dayFormatter(timeZone: string) {
   const cached = dayFormatterCache.get(timeZone);
   if (cached !== undefined) return cached;
-  const formatter = new Intl.DateTimeFormat('vi-VN', {
-    timeZone,
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-  });
+  const formatter = new Intl.DateTimeFormat('vi-VN', { timeZone, weekday: 'short', day: '2-digit', month: '2-digit' });
   dayFormatterCache.set(timeZone, formatter);
   return formatter;
 }
 
+// Lấy chuỗi ngày tại múi giờ địa điểm.
 function localDateKey(timestamp: string, timeZone: string) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -89,12 +86,11 @@ function localDateKey(timestamp: string, timeZone: string) {
   }).format(new Date(timestamp));
 }
 
+// Tìm giờ dự báo cần hiển thị đầu tiên.
 function firstRelevantHourlyIndex(forecast: HourlyForecast, observedAt: ZonedDateTimeString) {
   const observed = Date.parse(observedAt);
   const currentHour = Math.floor(observed / 3_600_000) * 3_600_000;
-  const exactOrFuture = forecast.entries.findIndex(
-    (entry) => Date.parse(entry.forecastAt) >= currentHour,
-  );
+  const exactOrFuture = forecast.entries.findIndex((entry) => Date.parse(entry.forecastAt) >= currentHour);
   return exactOrFuture < 0 ? forecast.entries.length : exactOrFuture;
 }
 
@@ -111,11 +107,8 @@ export interface DetailedHourlyItem {
   readonly isCurrent: boolean;
 }
 
-export function createDetailedHourlyItems(
-  forecast: HourlyForecast,
-  observedAt: ZonedDateTimeString,
-  limit = DETAILED_HOURLY_LIMIT,
-): readonly DetailedHourlyItem[] {
+// Tạo các dòng dự báo giờ cho giao diện.
+export function createDetailedHourlyItems(forecast: HourlyForecast, observedAt: ZonedDateTimeString, limit = DETAILED_HOURLY_LIMIT): readonly DetailedHourlyItem[] {
   const start = firstRelevantHourlyIndex(forecast, observedAt);
   const observed = Date.parse(observedAt);
   let previousDate: string | undefined;
@@ -165,25 +158,19 @@ export interface DailyForecastItem {
   readonly amountLabel?: string;
 }
 
+// Tạo các dòng dự báo ngày cho giao diện.
 export function createDailyForecastItems(forecast: DailyForecast): readonly DailyForecastItem[] {
   return forecast.entries.map((entry, index) => ({
     id: entry.forecastDate,
     dateLabel:
       index === 0
         ? 'HÔM NAY'
-        : new Intl.DateTimeFormat('vi-VN', {
-            timeZone: 'UTC',
-            weekday: 'short',
-            day: '2-digit',
-            month: '2-digit',
-          })
+        : new Intl.DateTimeFormat('vi-VN', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' })
             .format(new Date(`${entry.forecastDate}T12:00:00.000Z`))
             .toLocaleUpperCase('vi-VN'),
     conditionLabel: conditionLabels[entry.condition],
     condition: entry.condition,
-    temperatureRangeLabel: `${Math.round(entry.minimumTemperatureCelsius)}° / ${Math.round(
-      entry.maximumTemperatureCelsius,
-    )}°`,
+    temperatureRangeLabel: `${Math.round(entry.minimumTemperatureCelsius)}° / ${Math.round(entry.maximumTemperatureCelsius)}°`,
     precipitationLabel:
       entry.precipitation?.probability === undefined
         ? 'Mưa —'
@@ -200,10 +187,8 @@ export interface ForecastDetailItem {
   readonly note: string;
 }
 
-export function createForecastDetails(
-  weather: CurrentWeather,
-  daily: DailyForecast | undefined,
-): readonly ForecastDetailItem[] {
+// Chuẩn bị chỉ số chi tiết để hiển thị.
+export function createForecastDetails(weather: CurrentWeather, daily: DailyForecast | undefined): readonly ForecastDetailItem[] {
   const today = daily?.entries[0];
   const details: ForecastDetailItem[] = [];
   const sun = today?.sun ?? weather.sun;
@@ -211,10 +196,7 @@ export function createForecastDetails(
   if (sun !== undefined) {
     details.push({
       label: 'MẶT TRỜI',
-      value: `${formatTime(sun.sunrise, weather.location.timeZone)} → ${formatTime(
-        sun.sunset,
-        weather.location.timeZone,
-      )}`,
+      value: `${formatTime(sun.sunrise, weather.location.timeZone)} → ${formatTime(sun.sunset, weather.location.timeZone)}`,
       note: 'Bình minh / hoàng hôn',
     });
   }
@@ -232,6 +214,7 @@ export function createForecastDetails(
   return details;
 }
 
+// Định dạng thời gian của địa điểm.
 export function formatTime(timestamp: string, timeZone: string) {
   return hourFormatter(timeZone).format(new Date(timestamp));
 }

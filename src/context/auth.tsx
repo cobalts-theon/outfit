@@ -1,13 +1,9 @@
+/**
+ * Quản lý phiên đăng nhập dùng chung cho toàn ứng dụng.
+ * Theo dõi thay đổi phiên và vòng đời app để cập nhật trạng thái tài khoản.
+ */
 import type { Session, User } from '@supabase/supabase-js';
-import {
-  createContext,
-  type PropsWithChildren,
-  use,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, type PropsWithChildren, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { supabase } from '@/services/supabase';
 
@@ -38,16 +34,16 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Đổi phiên đăng nhập thành trạng thái app.
 function stateFromSession(session: Session | null): AuthState {
   return session === null
     ? { status: 'signed_out' }
     : { status: 'signed_in', session, user: session.user };
 }
 
+// Quản lý phiên đăng nhập dùng chung.
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<AuthState>(
-    supabase === null ? { status: 'unconfigured' } : { status: 'loading' },
-  );
+  const [state, setState] = useState<AuthState>(supabase === null ? { status: 'unconfigured' } : { status: 'loading' });
 
   useEffect(() => {
     if (supabase === null) {
@@ -65,9 +61,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setState(error === null ? stateFromSession(data.session) : { status: 'signed_out' });
     });
 
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
       if (active) {
         setState(stateFromSession(session));
       }
@@ -98,21 +92,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  // Đăng nhập bằng email và mật khẩu.
   const signIn = useCallback(async (email: string, password: string) => {
     if (supabase === null) {
       throw new Error('Supabase chưa được cấu hình.');
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
 
     if (error !== null) {
       throw error;
     }
   }, []);
 
+  // Đăng ký tài khoản mới.
   const signUp = useCallback(async (input: SignUpInput): Promise<AuthActionResult> => {
     if (supabase === null) {
       throw new Error('Supabase chưa được cấu hình.');
@@ -131,6 +124,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return { requiresEmailConfirmation: data.session === null };
   }, []);
 
+  // Đăng xuất khỏi tài khoản hiện tại.
   const signOut = useCallback(async () => {
     if (supabase === null) {
       return;
@@ -142,14 +136,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({ state, signIn, signUp, signOut }),
-    [signIn, signOut, signUp, state],
-  );
+  const value = useMemo<AuthContextValue>(() => ({ state, signIn, signUp, signOut }), [signIn, signOut, signUp, state]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// Lấy trạng thái và thao tác tài khoản.
 export function useAuth() {
   const value = use(AuthContext);
 
@@ -160,6 +152,7 @@ export function useAuth() {
   return value;
 }
 
+// Lấy tên hiển thị của người dùng.
 export function getUserDisplayName(user: User) {
   const metadataName = user.user_metadata.full_name;
 
@@ -170,6 +163,7 @@ export function getUserDisplayName(user: User) {
   return user.email?.split('@')[0] ?? 'Tài khoản';
 }
 
+// Lấy chữ cái đại diện cho tên.
 export function getUserInitials(user: User) {
   return (
     getUserDisplayName(user)

@@ -77,26 +77,32 @@ Exact package choices should be documented in `DECISIONS.md` when installed.
 
 ## 4. Mobile source organization
 
-The application has 50 TypeScript source files in 11 directories including src
-(ADR-049). This includes Expo routes, the web-specific artwork implementation
-and generated database types. Tests remain outside src.
+The application has 81 TypeScript source files in 15 directories including src
+(ADR-062): 58 application modules and 23 dedicated style modules. This includes
+routes, the web-specific artwork and generated database types. Tests remain outside src. No source file exceeds 700 lines at this milestone.
 
-Screens compose named components from 14 grouped UI files. Each group retains
-its original component functions and styles; grouping does not flatten the UI
-into one render function. The before-start route owns its small screen directly.
+Screens compose components from 17 UI files. All 23 `.styles.ts` modules live
+in `src/css`, grouped into `components` (17), `screens` (5, including before-start)
+and `context` (1). Component/screen folders contain their TSX implementation;
+imports link directly to the matching CSS-folder style module.
+Static declarations and dynamic style helpers live in these modules; JSX retains
+state selection and event handling. Shared tokens remain in `theme.ts`.
+See `docs/SUA-GIAO-DIEN.md` for direct edit links.
 
-Context owns app startup, authentication, location and notifications. The three
-hook modules coordinate account, Home and Plans. Services group account data,
-location, plans, notifications and live weather, while four weather files keep
-requests, response parsing, adapters and transport understandable. Five utility
-modules retain validation, planning, presentation and recommendation rules.
-The README contains the exact folder counts and a guide to editing each part.
+Advice icons and recommendation
+previews are separate from Home advice, and GPS capability presentation is
+separate from location search. All moved components retain their functions/styles.
 
-Related declarations share files; colliding local names use descriptive prefixes.
-Imports and native/web module resolution follow the new names. Generated database
-types, persistence keys, query keys, API requests, UI and business rules retain
-their original contents or behavior. Tests mock SQLite installation and WebView
-because grouped modules now import those native dependencies in Node.
+Context owns startup, authentication, location and notifications. Three hook
+modules coordinate account, Home and Plans. Five weather service files separate
+requests, parsing, current-weather normalization, hourly/daily normalization and
+transport. Eight utility files separate activity assessment, the walking policy,
+recommendation aggregation, comfort/environmental rules and presentation.
+Weather fixtures are separate from Home demo scenarios.
+
+Existing module exports are retained so existing callers continue working.
+Database type declarations, persistence/query keys, API requests, UI and business
+rules are preserved. The README contains current folder counts and reading paths.
 
 ---
 

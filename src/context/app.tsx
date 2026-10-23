@@ -1,21 +1,18 @@
+/**
+ * Thiết lập dùng chung: bộ nhớ đệm truy vấn, theme, font và điều hướng.
+ * AppProviders ghép các Context để màn hình con truy cập được auth, vị trí và thông báo.
+ */
 import NetInfo from '@react-native-community/netinfo';
-import {
-  focusManager,
-  onlineManager,
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query';
+import { focusManager, onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppState, Platform, ActivityIndicator, StatusBar, Text, View } from 'react-native';
 import { createContext, type PropsWithChildren, use, useEffect } from 'react';
-import { appThemes, type AppTheme, typography } from '@/theme';
+import { appThemes, type AppTheme } from '@/theme';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { createAppStyles } from '@/css/context/app.styles';
 import { useAuth, AuthProvider } from '@/context/auth';
 import { NeoBackButton, useReducedMotion } from '@/components/controls';
 import { DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-router';
-import {
-  addNotificationResponseReceivedListener,
-  clearLastNotificationResponse,
-  getLastNotificationResponse,
-} from 'expo-notifications/build/NotificationsEmitter';
+import { addNotificationResponseReceivedListener, clearLastNotificationResponse, getLastNotificationResponse } from 'expo-notifications/build/NotificationsEmitter';
 import type { NotificationResponse } from 'expo-notifications/build/Notifications.types';
 import { Archivo_900Black } from '@expo-google-fonts/archivo/900Black';
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
@@ -35,6 +32,7 @@ import { NotificationProvider } from '@/context/notifications';
 
 let isConfigured = false;
 
+// Nối trạng thái mạng và app với cache.
 export function configureQueryRuntime() {
   if (isConfigured) {
     return;
@@ -85,10 +83,12 @@ const lightThemeContext: AppThemeContextValue = { colorScheme: 'light', theme: a
 
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
 
+// Cung cấp theme cho các màn hình.
 export function AppThemeProvider({ children }: PropsWithChildren) {
   return <AppThemeContext.Provider value={lightThemeContext}>{children}</AppThemeContext.Provider>;
 }
 
+// Lấy theme đang dùng.
 export function useAppTheme() {
   const value = use(AppThemeContext);
 
@@ -114,16 +114,19 @@ const navigationTheme = {
   },
 } as const;
 
+// Điều hướng theo trạng thái đăng nhập.
 export function RootNavigator() {
   const { state } = useAuth();
   const signedIn = state.status === 'signed_in';
   const reducedMotion = useReducedMotion();
   const { theme } = useAppTheme();
+  const styles = createAppStyles(theme);
   const router = useRouter();
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
+    // Mở màn hình tương ứng với thông báo.
     const openNotificationDestination = (response: NotificationResponse) => {
       const type = response.notification.request.content.data?.type;
       if (
@@ -161,17 +164,9 @@ export function RootNavigator() {
         translucent={false}
       />
       {state.status === 'loading' ? (
-        <View
-          style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 16,
-            backgroundColor: theme.colors.background,
-          }}
-        >
+        <View style={styles.loadingScreen}>
           <ActivityIndicator color={theme.colors.accent} />
-          <Text style={{ fontFamily: typography.body, color: theme.colors.text }}>
+          <Text style={styles.loadingText}>
             Đang kiểm tra phiên đăng nhập…
           </Text>
         </View>
@@ -187,7 +182,7 @@ export function RootNavigator() {
                 onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
               />
             ),
-            contentStyle: { backgroundColor: theme.colors.background },
+            contentStyle: styles.content,
           }}
         >
           <Stack.Protected guard={!signedIn}>
@@ -204,9 +199,9 @@ export function RootNavigator() {
               headerShown: true,
               title: 'Dự báo',
               headerBackTitle: 'Home',
-              headerStyle: { backgroundColor: theme.colors.surface },
+              headerStyle: styles.header,
               headerTintColor: theme.colors.text,
-              headerTitleStyle: { fontFamily: typography.heading, fontSize: 18 },
+              headerTitleStyle: styles.headerTitle,
               headerShadowVisible: false,
             }}
           />
@@ -225,6 +220,7 @@ export interface AppBootstrapState {
   fontError: Error | null;
 }
 
+// Tải font và hoàn tất khởi động.
 export function useAppBootstrap(): AppBootstrapState {
   const [fontsLoaded, fontError] = useFonts({
     ArchivoBlack: Archivo_900Black,
@@ -245,6 +241,7 @@ export function useAppBootstrap(): AppBootstrapState {
   return { isReady, fontError };
 }
 
+// Ghép các context dùng chung.
 export function AppProviders({ children }: PropsWithChildren) {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>

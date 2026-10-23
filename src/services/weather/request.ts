@@ -1,18 +1,21 @@
+/**
+ * Khai báo tham số, URL, ánh xạ mã thời tiết và các loại lỗi Open-Meteo.
+ * Đây là nơi xem ứng dụng yêu cầu những trường dữ liệu nào từ API.
+ */
 import type { WeatherCondition } from '@/types/weather';
 
 // request
 
 export class OpenMeteoResponseError extends Error {
-  constructor(
-    message: string,
-    readonly path?: string,
-  ) {
+  // Khởi tạo lỗi và thông tin đi kèm.
+  constructor(message: string, readonly path?: string) {
     super(path === undefined ? message : `${path}: ${message}`);
     this.name = 'OpenMeteoResponseError';
   }
 }
 
 export class OpenMeteoHttpError extends Error {
+  // Khởi tạo lỗi và thông tin đi kèm.
   constructor(readonly status: number) {
     super(`Open-Meteo request failed with HTTP ${status}.`);
     this.name = 'OpenMeteoHttpError';
@@ -79,31 +82,16 @@ export const OPEN_METEO_DAILY_VARIABLES = [
 ] as const;
 
 /** Minimal daily enrichment required by the live CurrentWeather slice. */
-export const OPEN_METEO_CURRENT_WEATHER_DAILY_VARIABLES = [
-  'sunrise',
-  'sunset',
-  'moonrise',
-  'moonset',
-  'moon_phase',
-] as const;
+export const OPEN_METEO_CURRENT_WEATHER_DAILY_VARIABLES = ['sunrise', 'sunset', 'moonrise', 'moonset', 'moon_phase'] as const;
 
-export const OPEN_METEO_AIR_QUALITY_VARIABLES = [
-  'pm2_5',
-  'pm10',
-  'carbon_monoxide',
-  'nitrogen_dioxide',
-  'sulphur_dioxide',
-  'ozone',
-  'european_aqi',
-  'us_aqi',
-  'uv_index',
-] as const;
+export const OPEN_METEO_AIR_QUALITY_VARIABLES = ['pm2_5', 'pm10', 'carbon_monoxide', 'nitrogen_dioxide', 'sulphur_dioxide', 'ozone', 'european_aqi', 'us_aqi', 'uv_index'] as const;
 
 export interface OpenMeteoRequestCoordinates {
   readonly latitude: number;
   readonly longitude: number;
 }
 
+// Kiểm tra giới hạn vĩ độ và kinh độ.
 function assertCoordinates(coordinates: OpenMeteoRequestCoordinates) {
   if (
     !Number.isFinite(coordinates.latitude) ||
@@ -117,6 +105,7 @@ function assertCoordinates(coordinates: OpenMeteoRequestCoordinates) {
   }
 }
 
+// Ghép URL với các tham số truy vấn.
 function buildUrl(endpoint: string, parameters: Readonly<Record<string, string | number>>) {
   const query = Object.entries(parameters)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
@@ -125,6 +114,7 @@ function buildUrl(endpoint: string, parameters: Readonly<Record<string, string |
   return `${endpoint}?${query}`;
 }
 
+// Tạo URL lấy dữ liệu dự báo.
 export function buildOpenMeteoForecastUrl(coordinates: OpenMeteoRequestCoordinates) {
   assertCoordinates(coordinates);
 
@@ -142,6 +132,7 @@ export function buildOpenMeteoForecastUrl(coordinates: OpenMeteoRequestCoordinat
   });
 }
 
+// Tạo URL lấy thời tiết hiện tại.
 export function buildOpenMeteoCurrentWeatherForecastUrl(coordinates: OpenMeteoRequestCoordinates) {
   assertCoordinates(coordinates);
 
@@ -159,6 +150,7 @@ export function buildOpenMeteoCurrentWeatherForecastUrl(coordinates: OpenMeteoRe
 }
 
 /** One Forecast API request for live current, hourly, and daily forecast slices. */
+// Tạo URL lấy thời tiết và dự báo đầy đủ.
 export function buildOpenMeteoLiveWeatherForecastUrl(coordinates: OpenMeteoRequestCoordinates) {
   assertCoordinates(coordinates);
 
@@ -176,6 +168,7 @@ export function buildOpenMeteoLiveWeatherForecastUrl(coordinates: OpenMeteoReque
   });
 }
 
+// Tạo URL lấy dữ liệu môi trường.
 export function buildOpenMeteoAirQualityUrl(coordinates: OpenMeteoRequestCoordinates) {
   assertCoordinates(coordinates);
 
@@ -189,6 +182,7 @@ export function buildOpenMeteoAirQualityUrl(coordinates: OpenMeteoRequestCoordin
   });
 }
 
+// Tạo URL lấy môi trường hiện tại.
 export function buildOpenMeteoCurrentAirQualityUrl(coordinates: OpenMeteoRequestCoordinates) {
   assertCoordinates(coordinates);
 
@@ -207,6 +201,7 @@ export type JsonRecord = Record<string, unknown>;
 
 export type NullableNumber = number | null;
 
+// Đọc đối tượng JSON bắt buộc.
 export function readRecord(value: unknown, path: string): JsonRecord {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new OpenMeteoResponseError('Expected an object.', path);
@@ -215,6 +210,7 @@ export function readRecord(value: unknown, path: string): JsonRecord {
   return value as JsonRecord;
 }
 
+// Đọc chuỗi bắt buộc từ phản hồi.
 export function readString(record: JsonRecord, key: string, path = key): string {
   const value = record[key];
 
@@ -225,6 +221,7 @@ export function readString(record: JsonRecord, key: string, path = key): string 
   return value;
 }
 
+// Đọc số hữu hạn từ phản hồi.
 export function readNumber(record: JsonRecord, key: string, path = key): number {
   const value = record[key];
 
@@ -235,11 +232,8 @@ export function readNumber(record: JsonRecord, key: string, path = key): number 
   return value;
 }
 
-export function readOptionalNumber(
-  record: JsonRecord,
-  key: string,
-  path = key,
-): NullableNumber | undefined {
+// Đọc số tùy chọn từ phản hồi.
+export function readOptionalNumber(record: JsonRecord, key: string, path = key): NullableNumber | undefined {
   const value = record[key];
 
   if (value === undefined || value === null) {
@@ -253,11 +247,8 @@ export function readOptionalNumber(
   return value;
 }
 
-export function readNumberArray(
-  record: JsonRecord,
-  key: string,
-  path = key,
-): readonly NullableNumber[] {
+// Đọc mảng số và kiểm tra từng phần tử.
+export function readNumberArray(record: JsonRecord, key: string, path = key): readonly NullableNumber[] {
   const value = record[key];
 
   if (!Array.isArray(value)) {
@@ -277,27 +268,19 @@ export function readNumberArray(
   });
 }
 
-export function readOptionalNumberArray(
-  record: JsonRecord,
-  key: string,
-  path = key,
-): readonly NullableNumber[] | undefined {
+// Đọc mảng số tùy chọn.
+export function readOptionalNumberArray(record: JsonRecord, key: string, path = key): readonly NullableNumber[] | undefined {
   return record[key] === undefined ? undefined : readNumberArray(record, key, path);
 }
 
-export function readOptionalRecord(
-  record: JsonRecord,
-  key: string,
-  path = key,
-): JsonRecord | undefined {
+// Đọc đối tượng tùy chọn từ phản hồi.
+export function readOptionalRecord(record: JsonRecord, key: string, path = key): JsonRecord | undefined {
   const value = record[key];
   return value === undefined ? undefined : readRecord(value, path);
 }
 
-export function readUnitMap(
-  record: JsonRecord,
-  key: string,
-): Readonly<Record<string, string>> | undefined {
+// Đọc bảng đơn vị của các chỉ số.
+export function readUnitMap(record: JsonRecord, key: string): Readonly<Record<string, string>> | undefined {
   const unitRecord = readOptionalRecord(record, key);
 
   if (unitRecord === undefined) {
@@ -348,6 +331,7 @@ const WMO_CONDITION_BY_CODE: Readonly<Record<number, WeatherCondition>> = {
   99: 'severe_thunderstorm',
 };
 
+// Đổi mã WMO thành điều kiện thời tiết.
 export function mapOpenMeteoWmoCondition(code: number): WeatherCondition {
   if (!Number.isInteger(code)) {
     return 'unknown';

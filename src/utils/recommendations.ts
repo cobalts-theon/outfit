@@ -1,151 +1,10 @@
-import type {
-  Recommendation,
-  RecommendationEngineInput,
-  RecommendationEvaluation,
-  RecommendationInputDimension,
-  RecommendationSeverity,
-  RecommendationTrigger,
-  CurrentWeather,
-  HourlyForecast,
-  WeatherCondition,
-} from '@/types/weather';
-import {
-  evaluateInitialRecommendationRules,
-  type RecommendationCandidate,
-} from '@/utils/recommendation-rules';
+/**
+ * Tổng hợp gợi ý: kiểm tra đầu vào, gộp hành động trùng và xếp ưu tiên.
+ * Chuyển kết quả thành hành động theo ngữ cảnh thời gian và sở thích.
+ */
+import type { Recommendation, RecommendationEvaluation, CurrentWeather, HourlyForecast, WeatherCondition } from '@/types/weather';
 
-// recommendation-engine
-
-export const HOME_RECOMMENDATION_LIMIT = 3;
-
-const severityRank: Record<RecommendationSeverity, number> = {
-  info: 1,
-  attention: 2,
-  warning: 3,
-  danger: 4,
-};
-
-function compareCandidates(a: RecommendationCandidate, b: RecommendationCandidate) {
-  const severityDifference = severityRank[b.severity] - severityRank[a.severity];
-  if (severityDifference !== 0) return severityDifference;
-  const priorityDifference = b.priority - a.priority;
-  if (priorityDifference !== 0) return priorityDifference;
-  return a.ruleId.localeCompare(b.ruleId);
-}
-
-function uniqueStrings(values: readonly string[]) {
-  return [...new Set(values)];
-}
-
-function uniqueTriggers(values: readonly RecommendationTrigger[]) {
-  const triggers = new Map<string, RecommendationTrigger>();
-  for (const trigger of values) {
-    const key = `${trigger.dimension}:${trigger.label}:${String(trigger.value ?? '')}:${trigger.unit ?? ''}`;
-    if (!triggers.has(key)) triggers.set(key, trigger);
-  }
-  return [...triggers.values()];
-}
-
-interface MergedCandidate extends RecommendationCandidate {
-  readonly matchedRuleIds: readonly string[];
-}
-
-function mergeDuplicateActions(
-  candidates: readonly RecommendationCandidate[],
-): readonly MergedCandidate[] {
-  const merged = new Map<string, MergedCandidate>();
-
-  for (const candidate of candidates) {
-    const existing = merged.get(candidate.actionKey);
-    if (existing === undefined) {
-      merged.set(candidate.actionKey, { ...candidate, matchedRuleIds: [candidate.ruleId] });
-      continue;
-    }
-
-    const winner = compareCandidates(existing, candidate) <= 0 ? existing : candidate;
-    merged.set(candidate.actionKey, {
-      ...winner,
-      reasonParts: uniqueStrings([...existing.reasonParts, ...candidate.reasonParts]),
-      triggers: uniqueTriggers([...existing.triggers, ...candidate.triggers]),
-      matchedRuleIds: uniqueStrings([...existing.matchedRuleIds, candidate.ruleId]),
-    });
-  }
-
-  return [...merged.values()];
-}
-
-function toRecommendation(candidate: MergedCandidate): Recommendation {
-  return {
-    id: candidate.ruleId,
-    matchedRuleIds: candidate.matchedRuleIds,
-    actionKey: candidate.actionKey,
-    group: candidate.group,
-    severity: candidate.severity,
-    priority: candidate.priority,
-    title: candidate.title,
-    message: candidate.message,
-    reason: candidate.reasonParts.join(' '),
-    action: candidate.action,
-    triggers: candidate.triggers,
-  };
-}
-
-export function prioritizeRecommendationCandidates(
-  candidates: readonly RecommendationCandidate[],
-  limit = HOME_RECOMMENDATION_LIMIT,
-): readonly Recommendation[] {
-  const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
-  return [...mergeDuplicateActions(candidates)]
-    .sort(compareCandidates)
-    .slice(0, safeLimit)
-    .map(toRecommendation);
-}
-
-function missingDimensions(input: RecommendationEngineInput) {
-  const current = input.currentWeather;
-  if (current === undefined) {
-    return [
-      'current_weather',
-      'uv',
-      'us_aqi',
-      'precipitation',
-      'hourly_forecast',
-    ] as const satisfies readonly RecommendationInputDimension[];
-  }
-
-  const missing: RecommendationInputDimension[] = [];
-  if (current.uv?.category === undefined) missing.push('uv');
-  if (
-    current.airQuality?.scale !== 'us_aqi' ||
-    current.airQuality.category === undefined ||
-    current.airQuality.category === 'unknown'
-  ) {
-    missing.push('us_aqi');
-  }
-  if (current.precipitation === undefined) missing.push('precipitation');
-  if (input.hourlyForecast === undefined) missing.push('hourly_forecast');
-  return missing;
-}
-
-export function evaluateRecommendations(
-  input: RecommendationEngineInput,
-): RecommendationEvaluation {
-  const missing = missingDimensions(input);
-  const current = input.currentWeather;
-  if (current === undefined) {
-    return { status: 'unavailable', recommendations: [], missingDimensions: missing };
-  }
-
-  const candidates = evaluateInitialRecommendationRules(current, input.hourlyForecast);
-  const recommendations = prioritizeRecommendationCandidates(candidates, input.maxRecommendations);
-
-  return {
-    status: missing.length === 0 ? 'ready' : 'limited',
-    recommendations,
-    ...(recommendations[0] === undefined ? {} : { primary: recommendations[0] }),
-    missingDimensions: missing,
-  };
-}
+export * from '@/utils/recommendation-engine';
 
 // daily-actions
 
@@ -162,6 +21,7 @@ export interface DailyAction {
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
+// Xác định ngày, giờ và buổi tại địa điểm.
 export function actionContext(weather: CurrentWeather, now = Date.now()) {
   const zone = weather.location.timeZone;
   let formatter = formatters.get(zone);
@@ -179,6 +39,7 @@ export function actionContext(weather: CurrentWeather, now = Date.now()) {
     formatters.set(zone, formatter);
   }
   const parts = formatter.formatToParts(now);
+  // Lấy một thành phần thời gian đã định dạng.
   const part = (type: string) => parts.find((p) => p.type === type)?.value;
   const hour = Number(part('hour'));
   const period: 'night' | 'morning' | 'noon' | 'afternoon' | 'evening' =
@@ -205,12 +66,8 @@ export function actionContext(weather: CurrentWeather, now = Date.now()) {
   };
 }
 
-export function dailyActionId(
-  weather: CurrentWeather,
-  location: string,
-  key: string,
-  now = Date.now(),
-) {
+// Tạo mã hành động theo vị trí và thời gian.
+export function dailyActionId(weather: CurrentWeather, location: string, key: string, now = Date.now()) {
   const { date, period } = actionContext(weather, now);
   return `${location}|${date}|${key === 'protect-laundry' ? 'day' : period}|${key}`;
 }
@@ -225,19 +82,13 @@ const titles: Record<string, string> = {
   'warm-clothing': 'Khoác thêm áo ấm',
 };
 
-export function createDailyActions(
-  weather: CurrentWeather,
-  evaluation: RecommendationEvaluation,
-  location: string,
-  now = Date.now(),
-): DailyAction[] {
+// Tạo hành động phù hợp ngữ cảnh hiện tại.
+export function createDailyActions(weather: CurrentWeather, evaluation: RecommendationEvaluation, location: string, now = Date.now()): DailyAction[] {
   const { period, clock } = actionContext(weather, now);
   const daytime = weather.daylight.isDay && !['evening', 'night'].includes(period);
   const actions = evaluation.recommendations
     .filter((r) => !['protect-laundry', 'dry-laundry'].includes(r.actionKey) || daytime)
-    .filter(
-      (r) => !(r.actionKey === 'outdoor-activity-window' && ['noon', 'night'].includes(period)),
-    )
+    .filter((r) => !(r.actionKey === 'outdoor-activity-window' && ['noon', 'night'].includes(period)))
     .map((r) => ({
       id: dailyActionId(weather, location, r.actionKey, now),
       key: r.actionKey,
@@ -273,9 +124,7 @@ export function createDailyActions(
                           ['evening', 'night'].includes(period)
                         ? 'Uống nước, nghỉ ở chỗ mát'
                         : (titles[r.actionKey] ?? r.action),
-      reason: ['heat-hydration', 'indoor-comfort', 'damp-care', 'dry-air-care'].includes(
-        r.actionKey,
-      )
+      reason: ['heat-hydration', 'indoor-comfort', 'damp-care', 'dry-air-care'].includes(r.actionKey)
         ? `${r.action} ${r.reason}`
         : period === 'night' && r.matchedRuleIds.includes('everyday-weather-clothing')
           ? `Đã ${clock} tại địa điểm đang xem. ${r.reason} Chọn đồ nghỉ thoáng, thêm hoặc bớt lớp theo cảm giác thực tế.`
@@ -288,9 +137,7 @@ export function createDailyActions(
   // Reuse an established environmental rule as evidence for the activity
   // decision; do not manufacture a favorable outdoor window from missing data.
   const constraint = evaluation.recommendations.find((r) =>
-    ['weather-shelter', 'air-quality-exposure', 'sun-heat-protection', 'rain-protection'].includes(
-      r.actionKey,
-    ),
+    ['weather-shelter', 'air-quality-exposure', 'sun-heat-protection', 'rain-protection'].includes(r.actionKey),
   );
   if (
     constraint &&
@@ -309,13 +156,7 @@ export function createDailyActions(
       title,
       reason: constraint.reason,
       detail: constraint.reason,
-      recommendation: {
-        ...constraint,
-        actionKey: 'outdoor-adjustment',
-        title,
-        action: title,
-        group: 'outdoor',
-      },
+      recommendation: { ...constraint, actionKey: 'outdoor-adjustment', title, action: title, group: 'outdoor' },
     });
   }
   return actions.sort(compareDailyActions);
@@ -323,7 +164,9 @@ export function createDailyActions(
 
 /** Safety and personal wellbeing precede optional household chores. */
 /** Keep a compact preview while never collapsing an environmental warning. */
+// Chọn dòng xem trước, giữ mọi cảnh báo.
 export function visibleDailyActions(actions: readonly DailyAction[], expanded = false) {
+  // Nhận diện hành động tùy chọn.
   const optional = (action: DailyAction) =>
     !action.urgent &&
     !['warning', 'danger'].includes(action.recommendation?.severity ?? '') &&
@@ -339,26 +182,19 @@ export function visibleDailyActions(actions: readonly DailyAction[], expanded = 
       );
 }
 
+// Tính thứ tự ưu tiên của hành động.
 export function dailyActionRank(action: DailyAction): number {
   if (action.urgent) return 1000 + (action.recommendation?.priority ?? 0);
   if (action.key.includes('laundry')) return 0;
   if (
-    [
-      'air-quality-exposure',
-      'sun-heat-protection',
-      'sun-protection',
-      'heat-hydration',
-      'indoor-comfort',
-      'damp-care',
-      'dry-air-care',
-      'weather-shelter',
-    ].includes(action.key)
+    ['air-quality-exposure', 'sun-heat-protection', 'sun-protection', 'heat-hydration', 'indoor-comfort', 'damp-care', 'dry-air-care', 'weather-shelter'].includes(action.key)
   )
     return 300;
   if (action.key === 'rain-protection') return 250;
   return 100;
 }
 
+// So sánh thứ tự hai hành động.
 export function compareDailyActions(a: DailyAction, b: DailyAction): number {
   return dailyActionRank(b) - dailyActionRank(a);
 }
@@ -370,12 +206,8 @@ export interface UpcomingAction {
 }
 
 /** Only changes supported by fresh, upcoming forecast samples; never infer a safe window. */
-export function createUpcomingActions(
-  weather: CurrentWeather,
-  forecast: HourlyForecast | undefined,
-  fetchedAt: number,
-  now = Date.now(),
-): UpcomingAction[] {
+// Tạo lời nhắc theo thay đổi dự báo sắp tới.
+export function createUpcomingActions(weather: CurrentWeather, forecast: HourlyForecast | undefined, fetchedAt: number, now = Date.now()): UpcomingAction[] {
   if (!forecast || now - fetchedAt > 30 * 60_000) return [];
   const entries = forecast.entries
     .filter((entry) => {
@@ -386,15 +218,7 @@ export function createUpcomingActions(
   const rain = entries.find((entry) => (entry.precipitation?.probability ?? 0) >= 0.6);
   if (!rain) return [];
   const rainingNow =
-    [
-      'drizzle',
-      'light_rain',
-      'rain',
-      'heavy_rain',
-      'showers',
-      'heavy_showers',
-      'thunderstorm_rain',
-    ].includes(weather.condition) ||
+    ['drizzle', 'light_rain', 'rain', 'heavy_rain', 'showers', 'heavy_showers', 'thunderstorm_rain'].includes(weather.condition) ||
     (weather.precipitation !== undefined &&
       ['rain', 'drizzle'].includes(weather.precipitation.type));
   return [
@@ -439,6 +263,7 @@ export interface LifestylePreferences {
 }
 
 // User-editable preferences are never authorization claims.
+// Kiểm tra và đọc sở thích sinh hoạt.
 export function parseLifestylePreferences(value: unknown): LifestylePreferences | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const p = value as Partial<LifestylePreferences>;
@@ -480,12 +305,8 @@ export function parseLifestylePreferences(value: unknown): LifestylePreferences 
   };
 }
 
-export function personalizeDailyActions(
-  actions: DailyAction[],
-  preferences: LifestylePreferences | undefined,
-  period: string,
-  clock?: string,
-): DailyAction[] {
+// Điều chỉnh hành động theo sở thích đã lưu.
+export function personalizeDailyActions(actions: DailyAction[], preferences: LifestylePreferences | undefined, period: string, clock?: string): DailyAction[] {
   if (!preferences) return actions;
   const minute =
     clock === undefined ? undefined : Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
@@ -493,18 +314,11 @@ export function personalizeDailyActions(
     preferences.availability && minute !== undefined
       ? isInAvailability(minute, preferences.availability)
       : preferences.periods.some((p) => p === period);
+  // Xác định nhóm sinh hoạt của hành động.
   const activityFor = (key: string): Activity | undefined => {
     if (key.includes('laundry')) return 'laundry';
     if (
-      [
-        'sun-heat-protection',
-        'sun-protection',
-        'heat-hydration',
-        'indoor-comfort',
-        'damp-care',
-        'dry-air-care',
-        'air-quality-exposure',
-      ].includes(key)
+      ['sun-heat-protection', 'sun-protection', 'heat-hydration', 'indoor-comfort', 'damp-care', 'dry-air-care', 'air-quality-exposure'].includes(key)
     )
       return 'wellness';
     if (key.startsWith('outdoor-')) return 'exercise';
@@ -512,6 +326,7 @@ export function personalizeDailyActions(
     if (key === 'rain-protection') return 'commute';
     return undefined;
   };
+  // Kiểm tra hành động hợp sở thích đã chọn.
   const relevant = (a: DailyAction) => {
     const activity = activityFor(a.key);
     return activity !== undefined && preferences.activities.includes(activity);
@@ -541,10 +356,7 @@ export function personalizeDailyActions(
           motorbike: 'Chuẩn bị áo mưa, tránh đường ngập',
           covered: 'Mang ô cho đoạn đi bộ từ xe đến nơi',
         }[preferences.transport];
-        return {
-          ...a,
-          title: period === 'night' ? `Nếu còn phải ra ngoài: ${title.toLowerCase()}` : title,
-        };
+        return { ...a, title: period === 'night' ? `Nếu còn phải ra ngoài: ${title.toLowerCase()}` : title };
       }
       if (
         preferences.exposure === 'long' &&
@@ -567,6 +379,7 @@ export function personalizeDailyActions(
     );
 }
 
+// Kiểm tra thời điểm nằm trong giờ rảnh.
 export function isInAvailability(minute: number, range: { start: number; end: number }): boolean {
   return range.start < range.end
     ? minute >= range.start && minute < range.end
@@ -585,15 +398,7 @@ export const RECOMMENDATION_NOTIFICATION_SLOTS = ['rain', 'risk', 'action'] as c
 
 export type RecommendationNotificationSlot = (typeof RECOMMENDATION_NOTIFICATION_SLOTS)[number];
 
-const rainConditions = new Set<WeatherCondition>([
-  'drizzle',
-  'light_rain',
-  'rain',
-  'heavy_rain',
-  'showers',
-  'heavy_showers',
-  'thunderstorm_rain',
-]);
+const rainConditions = new Set<WeatherCondition>(['drizzle', 'light_rain', 'rain', 'heavy_rain', 'showers', 'heavy_showers', 'thunderstorm_rain']);
 
 export interface RecommendationNotificationEvent {
   readonly slot: RecommendationNotificationSlot;
@@ -613,6 +418,7 @@ interface RecommendationNotificationPlanInput {
   readonly now?: number;
 }
 
+// Kiểm tra mưa hiện tại để lập thông báo.
 function isActiveRain(current: CurrentWeather) {
   return (
     rainConditions.has(current.condition) ||
@@ -621,11 +427,8 @@ function isActiveRain(current: CurrentWeather) {
   );
 }
 
-function selectFirstNearTermRain(
-  current: CurrentWeather,
-  hourly: HourlyForecast | undefined,
-  now: number,
-) {
+// Tìm mốc sắp mưa đầu tiên.
+function selectFirstNearTermRain(current: CurrentWeather, hourly: HourlyForecast | undefined, now: number) {
   if (hourly === undefined) return undefined;
   const observedAt = Date.parse(current.observedAt);
 
@@ -639,18 +442,15 @@ function selectFirstNearTermRain(
     );
 }
 
+// Rút ngắn tên địa điểm cho thông báo.
 function compactLocationLabel(value: string) {
   const label = value.trim();
   return label.length > 32 ? `${label.slice(0, 31).trimEnd()}…` : label;
 }
 
+// Tạo lịch thông báo từ dự báo và lời khuyên.
 export function createRecommendationNotificationPlan({
-  currentWeather,
-  evaluation,
-  hourlyForecast,
-  locationIdentity,
-  locationLabel,
-  now = Date.now(),
+  currentWeather, evaluation, hourlyForecast, locationIdentity, locationLabel, now = Date.now(),
 }: RecommendationNotificationPlanInput): readonly RecommendationNotificationEvent[] {
   const events: RecommendationNotificationEvent[] = [];
   const label = compactLocationLabel(locationLabel);
@@ -658,9 +458,7 @@ export function createRecommendationNotificationPlan({
   const nearTermRain = selectFirstNearTermRain(currentWeather, hourlyForecast, now);
 
   if (activeRain) {
-    const observationBucket = Math.floor(
-      Date.parse(currentWeather.observedAt) / (3 * 60 * 60 * 1000),
-    );
+    const observationBucket = Math.floor(Date.parse(currentWeather.observedAt) / (3 * 60 * 60 * 1000));
     events.push({
       slot: 'rain',
       signature: `rain-now-v2:${locationIdentity}:${observationBucket}`,

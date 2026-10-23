@@ -1,17 +1,16 @@
-import { radii, appThemes, homeVisualTokens, neoShadows, spacing, typography } from '@/theme';
+/**
+ * Các phần hiển thị thời tiết hiện tại: hình thời tiết, chỉ số môi trường và icon.
+ * Nội dung sử dụng kiểu dữ liệu nội bộ thay vì mã riêng của nhà cung cấp.
+ */
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import { AnimatedWeatherArtwork } from '@/components/animated-weather-artwork';
 import type { CurrentWeather, WeatherCondition } from '@/types/weather';
-import {
-  getWeatherIconKey,
-  getConditionLabel,
-  getDaylightLabel,
-  getAirQualityLabel,
-  getUvLabel,
-  type WeatherIconKey,
-} from '@/hooks/home';
+import { getWeatherIconKey, getConditionLabel, getDaylightLabel, getAirQualityLabel, getUvLabel, type WeatherIconKey } from '@/hooks/home';
 import { Image } from 'expo-image';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { homePrimitivesStyles, staticWeatherArtworkStyles, weatherGlyphStyles, weatherHeroStyles, environmentMetricsStyles } from '@/css/components/home-weather.styles';
+import { artworkShadowStyle, artworkSizeStyle, artworkStageStyle } from '@/css/components/home-weather.styles';
 
 // home-primitives
 
@@ -21,6 +20,7 @@ interface SystemLabelProps {
   readonly value?: string;
 }
 
+// Hiển thị nhãn tiêu đề của một phần.
 export function SystemLabel({ label, value }: SystemLabelProps) {
   return (
     <View style={homePrimitivesStyles.systemLabelRow}>
@@ -43,76 +43,18 @@ interface RuledSectionProps extends PropsWithChildren {
   readonly elevated?: boolean;
 }
 
-export function RuledSection({
-  children,
-  testID,
-  accessibilityLabel,
-  tone = 'default',
-  elevated = false,
-}: RuledSectionProps) {
+// Tạo khung nội dung có đường viền.
+export function RuledSection({ children, testID, accessibilityLabel, tone = 'default', elevated = false }: RuledSectionProps) {
   return (
     <View
       accessibilityLabel={accessibilityLabel}
-      style={[
-        homePrimitivesStyles.section,
-        tone === 'deep' && homePrimitivesStyles.sectionDeep,
-        elevated && homePrimitivesStyles.sectionElevated,
-      ]}
+      style={[homePrimitivesStyles.section, tone === 'deep' && homePrimitivesStyles.sectionDeep, elevated && homePrimitivesStyles.sectionElevated]}
       testID={testID}
     >
       {children}
     </View>
   );
 }
-
-const homePrimitivesColors = appThemes.light.colors;
-
-const homePrimitivesStyles = StyleSheet.create({
-  systemLabelRow: {
-    minHeight: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  systemLabelGroup: {
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flex: 1,
-  },
-  systemLabel: {
-    flexShrink: 1,
-    color: homeVisualTokens.ink,
-    fontFamily: typography.heading,
-    fontSize: 17,
-    lineHeight: 22,
-    letterSpacing: 0.4,
-  },
-  systemValue: {
-    color: homePrimitivesColors.text,
-    fontFamily: typography.identity,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.7,
-    textAlign: 'right',
-  },
-  section: {
-    borderTopWidth: 3,
-    borderColor: homePrimitivesColors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  sectionDeep: { backgroundColor: homePrimitivesColors.surface },
-  sectionElevated: {
-    borderWidth: 3,
-    borderRadius: radii.control,
-    marginHorizontal: spacing.sm,
-    marginBottom: 6,
-    boxShadow: neoShadows.panel,
-  },
-});
 
 // static-weather-artwork
 
@@ -122,6 +64,7 @@ interface StaticWeatherArtworkProps {
   readonly size: number;
 }
 
+// Hiển thị hình thời tiết tĩnh.
 export function StaticWeatherArtwork({ assets, shadowOffset, size }: StaticWeatherArtworkProps) {
   const recyclingKey = String(assets.static);
 
@@ -132,14 +75,7 @@ export function StaticWeatherArtwork({ assets, shadowOffset, size }: StaticWeath
         contentFit="contain"
         recyclingKey={`${recyclingKey}-shadow`}
         source={assets.static}
-        style={[
-          staticWeatherArtworkStyles.image,
-          {
-            width: size,
-            height: size,
-            transform: [{ translateX: shadowOffset }, { translateY: shadowOffset }],
-          },
-        ]}
+        style={[staticWeatherArtworkStyles.image, artworkShadowStyle(size, shadowOffset)]}
         tintColor="#1D3557"
         transition={0}
       />
@@ -148,17 +84,12 @@ export function StaticWeatherArtwork({ assets, shadowOffset, size }: StaticWeath
         contentFit="contain"
         recyclingKey={recyclingKey}
         source={assets.static}
-        style={[staticWeatherArtworkStyles.image, { width: size, height: size }]}
+        style={[staticWeatherArtworkStyles.image, artworkSizeStyle(size)]}
         transition={0}
       />
     </View>
   );
 }
-
-const staticWeatherArtworkStyles = StyleSheet.create({
-  stage: { flex: 1, position: 'relative' },
-  image: { position: 'absolute', left: 0, top: 0 },
-});
 
 // weather-icon-assets
 
@@ -228,13 +159,8 @@ interface WeatherConditionIconProps {
   readonly animated?: boolean;
 }
 
-export function WeatherConditionIcon({
-  condition,
-  isDay,
-  size = 40,
-  framed = false,
-  animated = false,
-}: WeatherConditionIconProps) {
+// Chọn icon theo điều kiện thời tiết.
+export function WeatherConditionIcon({ condition, isDay, size = 40, framed = false, animated = false }: WeatherConditionIconProps) {
   const assets = weatherIconAssets[getWeatherIconKey(condition, isDay)];
   const shadowOffset = Math.max(3, Math.round(size * 0.055));
 
@@ -242,11 +168,7 @@ export function WeatherConditionIcon({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[
-        weatherGlyphStyles.iconStage,
-        { width: size + shadowOffset, height: size + shadowOffset },
-        framed && weatherGlyphStyles.iconStageFramed,
-      ]}
+      style={[weatherGlyphStyles.iconStage, artworkStageStyle(size, shadowOffset), framed && weatherGlyphStyles.iconStageFramed]}
     >
       <View pointerEvents="none" style={weatherGlyphStyles.artwork}>
         {animated ? (
@@ -264,6 +186,7 @@ interface WeatherGlyphProps {
   readonly compact?: boolean;
 }
 
+// Hiển thị hình thời tiết theo kích thước.
 export function WeatherGlyph({ weather, compact = false }: WeatherGlyphProps) {
   return (
     <View
@@ -282,24 +205,6 @@ export function WeatherGlyph({ weather, compact = false }: WeatherGlyphProps) {
   );
 }
 
-const weatherGlyphStyles = StyleSheet.create({
-  iconStage: { position: 'relative', overflow: 'visible' },
-  iconStageFramed: { backgroundColor: homeVisualTokens.fieldRaised },
-  artwork: { position: 'absolute', inset: 0, backgroundColor: 'transparent' },
-  heroFrame: {
-    width: 178,
-    height: 186,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: homeVisualTokens.ink,
-    backgroundColor: '#D8E2DC',
-    overflow: 'hidden',
-  },
-  heroFrameCompact: { width: 152, height: 164 },
-});
-
 // weather-hero
 
 interface WeatherHeroProps {
@@ -308,6 +213,7 @@ interface WeatherHeroProps {
   readonly reflow?: boolean;
 }
 
+// Hiển thị thời tiết chính và nhiệt độ.
 export function WeatherHero({ weather, compact = false, reflow = false }: WeatherHeroProps) {
   const temperature = Math.round(weather.temperature.valueCelsius);
   const feelsLike = Math.round(weather.temperature.feelsLikeCelsius);
@@ -325,11 +231,7 @@ export function WeatherHero({ weather, compact = false, reflow = false }: Weathe
         <SystemLabel index="00" label="HIỆN TẠI" value={daylightLabel.toUpperCase()} />
 
         <View
-          style={[
-            weatherHeroStyles.heroRow,
-            compact && weatherHeroStyles.heroRowCompact,
-            reflow && weatherHeroStyles.heroRowReflow,
-          ]}
+          style={[weatherHeroStyles.heroRow, compact && weatherHeroStyles.heroRowCompact, reflow && weatherHeroStyles.heroRowReflow]}
         >
           <View style={weatherHeroStyles.reading}>
             <Text
@@ -337,10 +239,7 @@ export function WeatherHero({ weather, compact = false, reflow = false }: Weathe
               adjustsFontSizeToFit
               minimumFontScale={0.74}
               numberOfLines={1}
-              style={[
-                weatherHeroStyles.temperature,
-                compact && weatherHeroStyles.temperatureCompact,
-              ]}
+              style={[weatherHeroStyles.temperature, compact && weatherHeroStyles.temperatureCompact]}
             >
               {temperature}
               <Text style={weatherHeroStyles.degree}>°</Text>
@@ -366,85 +265,6 @@ export function WeatherHero({ weather, compact = false, reflow = false }: Weathe
   );
 }
 
-const weatherHeroColors = appThemes.light.colors;
-
-const weatherHeroStyles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-    marginHorizontal: spacing.sm,
-    marginRight: spacing.sm + 7,
-    marginBottom: 7,
-  },
-  shadow: {
-    borderRadius: radii.control,
-    position: 'absolute',
-    top: 7,
-    right: -7,
-    bottom: -7,
-    left: 7,
-    backgroundColor: homeVisualTokens.ink,
-  },
-  container: {
-    position: 'relative',
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: weatherHeroColors.border,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
-    backgroundColor: homeVisualTokens.field,
-    overflow: 'hidden',
-  },
-  heroRow: {
-    minHeight: 188,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  heroRowCompact: { minHeight: 172, gap: spacing.xs },
-  heroRowReflow: { minHeight: 320, flexDirection: 'column', alignItems: 'stretch' },
-  reading: { flex: 1, minWidth: 0 },
-  temperature: {
-    color: weatherHeroColors.text,
-    fontFamily: typography.temperature,
-    fontSize: 88,
-    lineHeight: 90,
-    letterSpacing: 0,
-    fontVariant: ['tabular-nums'],
-  },
-  temperatureCompact: { fontSize: 78, lineHeight: 80 },
-  degree: { color: homeVisualTokens.technical, fontSize: 38 },
-  condition: {
-    color: weatherHeroColors.text,
-    fontFamily: typography.display,
-    fontSize: 21,
-    lineHeight: 28,
-    textTransform: 'uppercase',
-  },
-  feelsRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  feelsLabel: {
-    color: weatherHeroColors.text,
-    fontFamily: typography.identity,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.8,
-  },
-  feelsValue: {
-    color: weatherHeroColors.text,
-    fontFamily: typography.identitySemibold,
-    fontSize: 14,
-    lineHeight: 20,
-    fontVariant: ['tabular-nums'],
-  },
-});
-
 // environment-metrics
 
 interface EnvironmentMetricsProps {
@@ -461,20 +281,15 @@ interface MetricProps {
   readonly stacked?: boolean;
 }
 
+// Lấy nhãn thang đo chất lượng không khí.
 function getAirQualityScaleLabel(scale: string) {
   if (scale === 'us_aqi') return 'US AQI';
   if (scale === 'european_aqi') return 'EU AQI';
   return scale.replaceAll('_', ' ').toUpperCase();
 }
 
-function Metric({
-  label,
-  value,
-  detail,
-  unavailable = false,
-  last = false,
-  stacked = false,
-}: MetricProps) {
+// Hiển thị một chỉ số môi trường.
+function Metric({ label, value, detail, unavailable = false, last = false, stacked = false }: MetricProps) {
   return (
     <View
       accessibilityLabel={`${label}: ${unavailable ? 'không có dữ liệu' : `${value}, ${detail}`}`}
@@ -487,10 +302,7 @@ function Metric({
     >
       <Text
         numberOfLines={1}
-        style={[
-          environmentMetricsStyles.metricLabel,
-          stacked && environmentMetricsStyles.metricLabelStacked,
-        ]}
+        style={[environmentMetricsStyles.metricLabel, stacked && environmentMetricsStyles.metricLabelStacked]}
       >
         {label}
       </Text>
@@ -498,19 +310,12 @@ function Metric({
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.8}
-        style={[
-          environmentMetricsStyles.metricValue,
-          stacked && environmentMetricsStyles.metricValueStacked,
-          unavailable && environmentMetricsStyles.metricUnavailable,
-        ]}
+        style={[environmentMetricsStyles.metricValue, stacked && environmentMetricsStyles.metricValueStacked, unavailable && environmentMetricsStyles.metricUnavailable]}
       >
         {value}
       </Text>
       <Text
-        style={[
-          environmentMetricsStyles.metricDetail,
-          stacked && environmentMetricsStyles.metricDetailStacked,
-        ]}
+        style={[environmentMetricsStyles.metricDetail, stacked && environmentMetricsStyles.metricDetailStacked]}
       >
         {detail}
       </Text>
@@ -518,6 +323,7 @@ function Metric({
   );
 }
 
+// Hiển thị nhóm chỉ số môi trường.
 export function EnvironmentMetrics({ source, weather }: EnvironmentMetricsProps) {
   const { width, fontScale } = useWindowDimensions();
   const airQuality = weather.airQuality;
@@ -534,10 +340,7 @@ export function EnvironmentMetrics({ source, weather }: EnvironmentMetricsProps)
         value={source === 'live' ? 'TRỰC TIẾP' : 'BẢN MẪU'}
       />
       <View
-        style={[
-          environmentMetricsStyles.metrics,
-          stacked && environmentMetricsStyles.metricsStacked,
-        ]}
+        style={[environmentMetricsStyles.metrics, stacked && environmentMetricsStyles.metricsStacked]}
       >
         <Metric
           detail={airQuality === undefined ? 'Chưa có' : getAirQualityLabel(airQuality.category)}
@@ -575,75 +378,3 @@ export function EnvironmentMetrics({ source, weather }: EnvironmentMetricsProps)
     </RuledSection>
   );
 }
-
-const environmentMetricsColors = appThemes.light.colors;
-
-const environmentMetricsStyles = StyleSheet.create({
-  metrics: {
-    flexDirection: 'row',
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: environmentMetricsColors.border,
-    marginTop: spacing.sm,
-    overflow: 'hidden',
-    boxShadow: neoShadows.panel,
-    marginBottom: 6,
-  },
-  metricsStacked: { flexDirection: 'column' },
-  metric: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 96,
-    justifyContent: 'flex-start',
-    gap: spacing.xs,
-    borderRightWidth: 2,
-    borderColor: environmentMetricsColors.border,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
-  },
-  metricLast: { borderRightWidth: 0 },
-  metricStacked: {
-    flex: 0,
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderRightWidth: 0,
-    borderBottomWidth: 2,
-  },
-  metricStackedLast: { borderBottomWidth: 0 },
-  metricLabel: {
-    minHeight: 16,
-    color: environmentMetricsColors.textMuted,
-    fontFamily: typography.identity,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.8,
-  },
-  metricLabelStacked: { width: 54 },
-  metricValue: {
-    includeFontPadding: false,
-    color: environmentMetricsColors.text,
-    fontFamily: typography.temperature,
-    fontSize: 31,
-    lineHeight: 34,
-    fontVariant: ['tabular-nums'],
-  },
-  metricValueStacked: { width: 64 },
-  metricUnavailable: { color: homeVisualTokens.unavailable },
-  metricDetail: {
-    color: environmentMetricsColors.text,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  metricDetailStacked: { flex: 1 },
-  scaleNote: {
-    color: environmentMetricsColors.textMuted,
-    fontFamily: typography.identity,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.5,
-    marginTop: spacing.xs,
-  },
-});

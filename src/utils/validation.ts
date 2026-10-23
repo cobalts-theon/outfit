@@ -1,15 +1,10 @@
+/**
+ * Các kiểu cho vị trí, quyền GPS và hàm kiểm tra dữ liệu thời tiết nội bộ.
+ * Phát hiện tọa độ, số đo hoặc thời gian không hợp lệ trước khi sử dụng.
+ */
 import {
-  isWeatherCondition,
-  AIR_QUALITY_CATEGORIES,
-  DAY_PHASES,
-  MOON_PHASES,
-  PRECIPITATION_INTENSITIES,
-  PRECIPITATION_TYPES,
-  UV_CATEGORIES,
-  WEATHER_ALERT_SEVERITIES,
-  WIND_DIRECTIONS,
-  type CurrentWeather,
-  type ZonedDateTimeString,
+  isWeatherCondition, AIR_QUALITY_CATEGORIES, DAY_PHASES, MOON_PHASES, PRECIPITATION_INTENSITIES, PRECIPITATION_TYPES, UV_CATEGORIES, WEATHER_ALERT_SEVERITIES, WIND_DIRECTIONS,
+  type CurrentWeather, type ZonedDateTimeString,
 } from '@/types/weather';
 
 // location
@@ -83,6 +78,7 @@ export type LocationCapabilityState =
       readonly message: string;
     };
 
+// Kiểm tra và chuẩn hóa tọa độ vị trí.
 export function normalizeCoordinates(latitude: number, longitude: number): AppCoordinates | null {
   if (
     !Number.isFinite(latitude) ||
@@ -98,6 +94,7 @@ export function normalizeCoordinates(latitude: number, longitude: number): AppCo
   return { latitude, longitude };
 }
 
+// Chuyển vị trí thiết bị thành vị trí chọn.
 export function selectDevicePosition(position: DevicePosition): SelectedAppLocation {
   return {
     coordinates: position.coordinates,
@@ -108,9 +105,8 @@ export function selectDevicePosition(position: DevicePosition): SelectedAppLocat
   };
 }
 
-export function stateFromLocationPermission(
-  permission: LocationPermission,
-): LocationCapabilityState {
+// Chọn trạng thái app theo quyền GPS.
+export function stateFromLocationPermission(permission: LocationPermission): LocationCapabilityState {
   switch (permission.status) {
     case 'prompt':
       return { status: 'permission_required' };
@@ -119,10 +115,7 @@ export function stateFromLocationPermission(
     case 'denied':
       return { status: 'permission_denied', canAskAgain: permission.canAskAgain };
     case 'unknown':
-      return {
-        status: 'permission_unavailable',
-        message: 'Không thể xác định trạng thái quyền vị trí.',
-      };
+      return { status: 'permission_unavailable', message: 'Không thể xác định trạng thái quyền vị trí.' };
   }
 }
 
@@ -140,14 +133,10 @@ export interface ManualLocationSelection {
   readonly coordinates: AppCoordinates;
 }
 
-export function createManualSelectedLocation(
-  selection: ManualLocationSelection,
-): SelectedAppLocation {
+// Tạo vị trí từ lựa chọn thủ công.
+export function createManualSelectedLocation(selection: ManualLocationSelection): SelectedAppLocation {
   const label = selection.label.trim();
-  const coordinates = normalizeCoordinates(
-    selection.coordinates.latitude,
-    selection.coordinates.longitude,
-  );
+  const coordinates = normalizeCoordinates(selection.coordinates.latitude, selection.coordinates.longitude);
 
   if (label.length === 0 || coordinates === null) {
     throw new Error('Địa điểm thủ công không hợp lệ.');
@@ -199,20 +188,13 @@ const moonPhaseSet: ReadonlySet<string> = new Set(MOON_PHASES);
 
 const alertSeveritySet: ReadonlySet<string> = new Set(WEATHER_ALERT_SEVERITIES);
 
-function addIssue(
-  issues: CurrentWeatherValidationIssue[],
-  path: string,
-  code: CurrentWeatherValidationCode,
-  message: string,
-) {
+// Thêm một lỗi vào kết quả kiểm tra.
+function addIssue(issues: CurrentWeatherValidationIssue[], path: string, code: CurrentWeatherValidationCode, message: string) {
   issues.push({ path, code, message });
 }
 
-function validateFiniteNumber(
-  issues: CurrentWeatherValidationIssue[],
-  path: string,
-  value: number,
-) {
+// Kiểm tra số hữu hạn và ghi lỗi nếu sai.
+function validateFiniteNumber(issues: CurrentWeatherValidationIssue[], path: string, value: number) {
   if (!Number.isFinite(value)) {
     addIssue(issues, path, 'invalid_number', 'Value must be a finite number.');
     return false;
@@ -221,13 +203,8 @@ function validateFiniteNumber(
   return true;
 }
 
-function validateRange(
-  issues: CurrentWeatherValidationIssue[],
-  path: string,
-  value: number,
-  minimum: number,
-  maximum: number,
-) {
+// Kiểm tra số nằm trong giới hạn.
+function validateRange(issues: CurrentWeatherValidationIssue[], path: string, value: number, minimum: number, maximum: number) {
   if (!validateFiniteNumber(issues, path, value)) {
     return;
   }
@@ -237,6 +214,7 @@ function validateRange(
   }
 }
 
+// Kiểm tra số không âm.
 function validateNonNegative(issues: CurrentWeatherValidationIssue[], path: string, value: number) {
   if (!validateFiniteNumber(issues, path, value)) {
     return;
@@ -247,25 +225,19 @@ function validateNonNegative(issues: CurrentWeatherValidationIssue[], path: stri
   }
 }
 
+// Kiểm tra thời gian có thông tin múi giờ.
 function isZonedTimestamp(value: ZonedDateTimeString) {
   return zonedTimestampPattern.test(value) && Number.isFinite(Date.parse(value));
 }
 
-function validateTimestamp(
-  issues: CurrentWeatherValidationIssue[],
-  path: string,
-  value: ZonedDateTimeString,
-) {
+// Kiểm tra thời gian và ghi lỗi nếu sai.
+function validateTimestamp(issues: CurrentWeatherValidationIssue[], path: string, value: ZonedDateTimeString) {
   if (!isZonedTimestamp(value)) {
-    addIssue(
-      issues,
-      path,
-      'invalid_timestamp',
-      'Timestamp must be valid ISO 8601 with Z or an explicit UTC offset.',
-    );
+    addIssue(issues, path, 'invalid_timestamp', 'Timestamp must be valid ISO 8601 with Z or an explicit UTC offset.');
   }
 }
 
+// Kiểm tra múi giờ địa điểm hợp lệ.
 function validateTimeZone(issues: CurrentWeatherValidationIssue[], path: string, value: string) {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
@@ -274,16 +246,14 @@ function validateTimeZone(issues: CurrentWeatherValidationIssue[], path: string,
   }
 }
 
-function validateRequiredText(
-  issues: CurrentWeatherValidationIssue[],
-  path: string,
-  value: string,
-) {
+// Kiểm tra chuỗi bắt buộc không rỗng.
+function validateRequiredText(issues: CurrentWeatherValidationIssue[], path: string, value: string) {
   if (value.trim().length === 0) {
     addIssue(issues, path, 'empty_value', 'Value must not be empty.');
   }
 }
 
+// Kiểm tra các trường của thời tiết nội bộ.
 export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherValidationResult {
   const issues: CurrentWeatherValidationIssue[] = [];
 
@@ -295,29 +265,12 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
     weather.location.countryCode !== undefined &&
     !/^[A-Z]{2}$/.test(weather.location.countryCode)
   ) {
-    addIssue(
-      issues,
-      'location.countryCode',
-      'invalid_value',
-      'Country code must contain two uppercase ISO letters.',
-    );
+    addIssue(issues, 'location.countryCode', 'invalid_value', 'Country code must contain two uppercase ISO letters.');
   }
 
   if (weather.location.coordinates !== undefined) {
-    validateRange(
-      issues,
-      'location.coordinates.latitude',
-      weather.location.coordinates.latitude,
-      -90,
-      90,
-    );
-    validateRange(
-      issues,
-      'location.coordinates.longitude',
-      weather.location.coordinates.longitude,
-      -180,
-      180,
-    );
+    validateRange(issues, 'location.coordinates.latitude', weather.location.coordinates.latitude, -90, 90);
+    validateRange(issues, 'location.coordinates.longitude', weather.location.coordinates.longitude, -180, 180);
   }
 
   if (!isWeatherCondition(weather.condition)) {
@@ -337,11 +290,7 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
   }
 
   validateFiniteNumber(issues, 'temperature.valueCelsius', weather.temperature.valueCelsius);
-  validateFiniteNumber(
-    issues,
-    'temperature.feelsLikeCelsius',
-    weather.temperature.feelsLikeCelsius,
-  );
+  validateFiniteNumber(issues, 'temperature.feelsLikeCelsius', weather.temperature.feelsLikeCelsius);
 
   if (weather.temperature.minCelsius !== undefined) {
     validateFiniteNumber(issues, 'temperature.minCelsius', weather.temperature.minCelsius);
@@ -350,23 +299,14 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
     validateFiniteNumber(issues, 'temperature.maxCelsius', weather.temperature.maxCelsius);
   }
   if (weather.temperature.dewPointCelsius !== undefined) {
-    validateFiniteNumber(
-      issues,
-      'temperature.dewPointCelsius',
-      weather.temperature.dewPointCelsius,
-    );
+    validateFiniteNumber(issues, 'temperature.dewPointCelsius', weather.temperature.dewPointCelsius);
   }
   if (
     weather.temperature.minCelsius !== undefined &&
     weather.temperature.maxCelsius !== undefined &&
     weather.temperature.minCelsius > weather.temperature.maxCelsius
   ) {
-    addIssue(
-      issues,
-      'temperature',
-      'inconsistent_value',
-      'Minimum temperature must not exceed maximum temperature.',
-    );
+    addIssue(issues, 'temperature', 'inconsistent_value', 'Minimum temperature must not exceed maximum temperature.');
   }
 
   validateRange(issues, 'humidityPercent', weather.humidityPercent, 0, 100);
@@ -385,12 +325,7 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
   if (weather.wind.gustMetersPerSecond !== undefined) {
     validateNonNegative(issues, 'wind.gustMetersPerSecond', weather.wind.gustMetersPerSecond);
     if (weather.wind.gustMetersPerSecond < weather.wind.speedMetersPerSecond) {
-      addIssue(
-        issues,
-        'wind.gustMetersPerSecond',
-        'inconsistent_value',
-        'Gust speed must not be lower than sustained wind speed.',
-      );
+      addIssue(issues, 'wind.gustMetersPerSecond', 'inconsistent_value', 'Gust speed must not be lower than sustained wind speed.');
     }
   }
   if (weather.wind.directionDegrees !== undefined) {
@@ -404,61 +339,32 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
     const precipitation = weather.precipitation;
 
     if (!precipitationTypeSet.has(precipitation.type)) {
-      addIssue(
-        issues,
-        'precipitation.type',
-        'invalid_value',
-        'Precipitation type must be canonical.',
-      );
+      addIssue(issues, 'precipitation.type', 'invalid_value', 'Precipitation type must be canonical.');
     }
     if (precipitation.probability !== undefined) {
       validateRange(issues, 'precipitation.probability', precipitation.probability, 0, 1);
     }
     if (precipitation.amountMillimeters !== undefined) {
-      validateNonNegative(
-        issues,
-        'precipitation.amountMillimeters',
-        precipitation.amountMillimeters,
-      );
+      validateNonNegative(issues, 'precipitation.amountMillimeters', precipitation.amountMillimeters);
     }
     if (
       precipitation.intensity !== undefined &&
       !precipitationIntensitySet.has(precipitation.intensity)
     ) {
-      addIssue(
-        issues,
-        'precipitation.intensity',
-        'invalid_value',
-        'Precipitation intensity must be canonical.',
-      );
+      addIssue(issues, 'precipitation.intensity', 'invalid_value', 'Precipitation intensity must be canonical.');
     }
     if (
       precipitation.type === 'none' &&
       precipitation.intensity !== undefined &&
       precipitation.intensity !== 'none'
     ) {
-      addIssue(
-        issues,
-        'precipitation',
-        'inconsistent_value',
-        'Dry precipitation cannot have an active intensity.',
-      );
+      addIssue(issues, 'precipitation', 'inconsistent_value', 'Dry precipitation cannot have an active intensity.');
     }
     if (precipitation.type === 'none' && (precipitation.amountMillimeters ?? 0) > 0) {
-      addIssue(
-        issues,
-        'precipitation',
-        'inconsistent_value',
-        'Dry precipitation cannot have a positive amount.',
-      );
+      addIssue(issues, 'precipitation', 'inconsistent_value', 'Dry precipitation cannot have a positive amount.');
     }
     if (precipitation.type !== 'none' && precipitation.intensity === 'none') {
-      addIssue(
-        issues,
-        'precipitation',
-        'inconsistent_value',
-        'Active precipitation cannot use the none intensity.',
-      );
+      addIssue(issues, 'precipitation', 'inconsistent_value', 'Active precipitation cannot use the none intensity.');
     }
   }
 
@@ -467,12 +373,7 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
     if (weather.uv.maxToday !== undefined) {
       validateNonNegative(issues, 'uv.maxToday', weather.uv.maxToday);
       if (weather.uv.maxToday < weather.uv.index) {
-        addIssue(
-          issues,
-          'uv.maxToday',
-          'inconsistent_value',
-          'Daily maximum UV must not be below the current UV index.',
-        );
+        addIssue(issues, 'uv.maxToday', 'inconsistent_value', 'Daily maximum UV must not be below the current UV index.');
       }
     }
     if (weather.uv.category !== undefined && !uvCategorySet.has(weather.uv.category)) {
@@ -489,20 +390,10 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
       weather.airQuality.category !== undefined &&
       !airQualityCategorySet.has(weather.airQuality.category)
     ) {
-      addIssue(
-        issues,
-        'airQuality.category',
-        'invalid_value',
-        'Air-quality category must be canonical.',
-      );
+      addIssue(issues, 'airQuality.category', 'invalid_value', 'Air-quality category must be canonical.');
     }
     if (weather.airQuality.category !== undefined && weather.airQuality.scale === undefined) {
-      addIssue(
-        issues,
-        'airQuality.scale',
-        'inconsistent_value',
-        'A scale is required when an air-quality category is supplied.',
-      );
+      addIssue(issues, 'airQuality.scale', 'inconsistent_value', 'A scale is required when an air-quality category is supplied.');
     }
     if (weather.airQuality.pollutants !== undefined) {
       for (const [name, value] of Object.entries(weather.airQuality.pollutants)) {
@@ -564,12 +455,7 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
         isZonedTimestamp(alert.endsAt) &&
         Date.parse(alert.endsAt) < Date.parse(alert.startsAt)
       ) {
-        addIssue(
-          issues,
-          path,
-          'inconsistent_value',
-          'Alert end time must not precede its start time.',
-        );
+        addIssue(issues, path, 'inconsistent_value', 'Alert end time must not precede its start time.');
       }
     });
   }
@@ -577,6 +463,7 @@ export function validateCurrentWeather(weather: CurrentWeather): CurrentWeatherV
   return issues.length === 0 ? { valid: true, issues: [] } : { valid: false, issues };
 }
 
+// Báo lỗi nếu dữ liệu thời tiết không hợp lệ.
 export function assertValidCurrentWeather(weather: CurrentWeather): void {
   const result = validateCurrentWeather(weather);
 

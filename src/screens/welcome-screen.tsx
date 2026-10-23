@@ -1,11 +1,17 @@
+/**
+ * Màn hình chào và luồng xác thực tài khoản.
+ * Ghép form đăng nhập/đăng ký và xử lý các bước OTP khi cần.
+ */
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NeoBadge, NeoButton, useReducedMotion } from '@/components/controls';
 import { AccountSheet } from '@/components/account';
-import { homeVisualTokens, spacing, typography } from '@/theme';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { styles } from '@/css/screens/welcome-screen.styles';
+import { slideWidthStyle, artFrameHeightStyle, titleHeightStyle, bodyHeightStyle } from '@/css/screens/welcome-screen.styles';
 
 // welcome-screen
 
@@ -30,6 +36,7 @@ const slides = [
   },
 ] as const;
 
+// Hiển thị màn hình chào và xác thực.
 export function WelcomeScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<'sign_in' | 'sign_up'>();
@@ -76,11 +83,11 @@ export function WelcomeScreen() {
               ? slides.map((slide, index) => (
                   <View
                     key={slide.label}
-                    style={[styles.slide, { width }]}
+                    style={[styles.slide, slideWidthStyle(width)]}
                     accessibilityElementsHidden={page !== index}
                     importantForAccessibility={page === index ? 'auto' : 'no-hide-descendants'}
                   >
-                    <View style={[styles.artFrame, { height: Math.min((width - 8) * 0.625, 245) }]}>
+                    <View style={[styles.artFrame, artFrameHeightStyle(width)]}>
                       <Image
                         source={slide.image}
                         contentFit="cover"
@@ -89,7 +96,7 @@ export function WelcomeScreen() {
                       />
                     </View>
                     <Text style={styles.eyebrow}>{slide.label}</Text>
-                    <View style={{ minHeight: titleHeight }}>
+                    <View style={titleHeightStyle(titleHeight)}>
                       <Text
                         accessibilityRole="header"
                         style={styles.title}
@@ -101,7 +108,7 @@ export function WelcomeScreen() {
                         {slide.title}
                       </Text>
                     </View>
-                    <View style={{ minHeight: bodyHeight }}>
+                    <View style={bodyHeightStyle(bodyHeight)}>
                       <Text
                         style={styles.body}
                         onLayout={(event) => {
@@ -144,79 +151,3 @@ export function WelcomeScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: homeVisualTokens.paper },
-  content: {
-    flexGrow: 1,
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-    padding: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 12,
-  },
-  tagline: {
-    flex: 1,
-    textAlign: 'right',
-    fontFamily: typography.body,
-    fontSize: 11,
-    color: homeVisualTokens.ink,
-  },
-  slide: { paddingHorizontal: 4, gap: 12 },
-  art: { width: '100%', height: '100%' },
-  artFrame: {
-    width: '100%',
-    borderWidth: 3,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#2A9D8F',
-  },
-  eyebrow: {
-    fontFamily: typography.body,
-    fontSize: 11,
-    color: homeVisualTokens.ink,
-    textAlign: 'center',
-  },
-  title: {
-    fontFamily: typography.heading,
-    fontSize: 27,
-    lineHeight: 35,
-    textAlign: 'center',
-    color: homeVisualTokens.ink,
-  },
-  body: {
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 21,
-    color: homeVisualTokens.ink,
-    textAlign: 'center',
-    paddingHorizontal: 12,
-  },
-  pagination: { flexDirection: 'row', justifyContent: 'center', marginVertical: 4 },
-  dotTarget: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: homeVisualTokens.ink,
-    backgroundColor: homeVisualTokens.field,
-  },
-  dotActive: { width: 26, backgroundColor: homeVisualTokens.coral },
-  actions: { marginTop: 'auto', gap: 14, paddingTop: 8, paddingRight: 4 },
-  note: {
-    textAlign: 'center',
-    fontFamily: typography.body,
-    fontSize: 11,
-    lineHeight: 18,
-    color: homeVisualTokens.ink,
-  },
-});

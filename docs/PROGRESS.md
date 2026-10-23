@@ -2,6 +2,66 @@
 
 ## Current milestone
 
+Defense study guide refresh — 2026-10-23:
+- Rewrote docs/ON-BAO-VE.md as a staged study guide: 10-minute essentials,
+  six file-by-file feature flows, spoken answers, a worked rule-merging example,
+  code-reading vocabulary, UI/logic edit targets and a two-hour rehearsal plan.
+- Included current css folder paths, the complete Gmail/OTP flow and Supabase
+  responsibilities, implementation limits and test evidence without live claims.
+- Verified local links, named function references and Markdown structure.
+  Documentation-only change; no application code or hosted configuration changed.
+
+Compact source formatting — 2026-10-23:
+- Reformatted imports, destructuring, simple parameters/arguments and short
+  arrays/objects in 70 source files. The supplied account model example is now
+  one line. Long identifier lists wrap in groups rather than one name per line.
+- Removed 2,456 formatting-only lines. Vietnamese comments, shared styles,
+  literals and generated database types are preserved. Updated formatting rules.
+- Verified identical TypeScript/JSX AST for all changes; TypeScript passes.
+
+Short Vietnamese function comments — 2026-10-23:
+- Added one-line // descriptions before 471 named functions/components/callbacks
+  and 46 style groups. Comments cover UI, hooks, services, rules and style helpers;
+  generated database declarations remain untouched.
+- Verified identical TypeScript/JSX AST before/after annotation; TypeScript passes.
+  No executable code, behavior, filenames or imports changed.
+
+Central CSS folder — 2026-10-23 (ADR-062):
+- Moved all 23 unchanged style modules into src/css/components (17), screens (5)
+  and context (1). Updated source imports/re-exports and the UI-edit guide links.
+- Source count stays 81; style files no longer share folders with UI source.
+- Verification: TypeScript, all 357 tests/40 suites, Android and web exports pass.
+
+Separate styles for defense editing — 2026-10-23 (ADR-061):
+- Extracted 23 matching `.styles.ts` files for components, screens and root UI.
+  No StyleSheet.create blocks or inline style object literals remain in TSX.
+  Responsive/state/animation helpers and embedded artwork CSS live in style files.
+- Added Ctrl/Cmd-click import hints and docs/SUA-GIAO-DIEN.md with links for each
+  UI section and common feature changes. Shared tokens remain in theme.ts.
+- Source count: 81 (58 application + 23 style); all files remain below 700 lines.
+  Compared 72 moved declaration initializers without changes.
+- TypeScript, all 357 tests/40 suites, Android export and web export pass.
+  No physical-device/iOS visual smoke was performed for this extraction.
+
+Smaller source modules — 2026-10-23 (ADR-060):
+- Split all seven source files exceeding 700 lines into focused modules, keeping
+  existing exports and all behavior. Source count is now 58; largest file is 653.
+- Home advice 864→372 lines, locations 818→380, demo scenarios 820→483,
+  weather adapters 805→427, recommendations 748→605, rules 730→538,
+  planning 712→385. New modules retain concise Vietnamese explanations.
+- TypeScript, all 357 tests across 40 suites and Android export pass. No new
+  visual device/iOS review; this change only moves existing declarations.
+
+Student readability — 2026-10-23:
+- Added concise Vietnamese role comments to all 50 application source files;
+  generated database type declarations remain unchanged beneath the header.
+- Explained the Home, weather loading, recommendation merging/ordering and
+  activity assessment flows. Expanded nested assessment branches and grouped
+  declarations; replaced abbreviated forecast mapping variables with readable names.
+- Linked the defense study guide and source-reading order from README.
+- Verification: TypeScript and all 357 tests across 40 suites pass. No UI behavior,
+  API contract, database schema or source-file count change.
+
 Everyday advice and compact Do now — 2026-10-23 (ADR-059):
 - Added measured comfort rules for moderate warmth (28–<35°C measured/feels-like),
   conditional indoor comfort in warm/cold weather, humid-weather damp items and

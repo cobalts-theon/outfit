@@ -1,24 +1,15 @@
-import type {
-  HourlyForecast,
-  CurrentWeather,
-  WeatherAlertSeverity,
-  WeatherCondition,
-  RecommendationGroup,
-  RecommendationSeverity,
-  RecommendationTrigger,
-} from '@/types/weather';
+/**
+ * Các quy tắc biến số đo môi trường thành gợi ý có bằng chứng.
+ * Mỗi quy tắc trả ứng viên gồm hành động, mức độ, độ ưu tiên và chỉ số kích hoạt.
+ */
+import type { HourlyForecast, CurrentWeather, WeatherAlertSeverity, WeatherCondition, RecommendationGroup, RecommendationSeverity, RecommendationTrigger } from '@/types/weather';
+
+import { heatRule, everydayHydrationRule, indoorComfortRule, humidityComfortRule, lightClothingRule, warmClothingRule } from '@/utils/comfort-rules';
+export * from '@/utils/comfort-rules';
 
 // recommendation-rules
 
 export const HIGH_PRECIPITATION_PROBABILITY = 0.6;
-
-export const HIGH_HEAT_CELSIUS = 35;
-
-export const VERY_HIGH_HEAT_CELSIUS = 40;
-
-export const COOL_CELSIUS = 20;
-
-export const COLD_CELSIUS = 12;
 
 export interface RecommendationCandidate {
   readonly ruleId: string;
@@ -33,12 +24,12 @@ export interface RecommendationCandidate {
   readonly triggers: readonly RecommendationTrigger[];
 }
 
-interface RuleContext {
+export interface RuleContext {
   readonly current: CurrentWeather;
   readonly hourly?: HourlyForecast;
 }
 
-type RecommendationRule = (context: RuleContext) => readonly RecommendationCandidate[];
+export type RecommendationRule = (context: RuleContext) => readonly RecommendationCandidate[];
 
 const alertSeverity: Record<WeatherAlertSeverity, RecommendationSeverity> = {
   info: 'info',
@@ -48,12 +39,7 @@ const alertSeverity: Record<WeatherAlertSeverity, RecommendationSeverity> = {
   extreme: 'danger',
 };
 
-const severityRank: Record<RecommendationSeverity, number> = {
-  info: 1,
-  attention: 2,
-  warning: 3,
-  danger: 4,
-};
+const severityRank: Record<RecommendationSeverity, number> = { info: 1, attention: 2, warning: 3, danger: 4 };
 
 const dangerousConditions = new Map<
   WeatherCondition,
@@ -71,25 +57,11 @@ const dangerousConditions = new Map<
   ['tornado', { label: 'lốc xoáy', severity: 'danger' }],
 ]);
 
-const rainConditions = new Set<WeatherCondition>([
-  'drizzle',
-  'light_rain',
-  'rain',
-  'heavy_rain',
-  'showers',
-  'heavy_showers',
-  'thunderstorm_rain',
-]);
+const rainConditions = new Set<WeatherCondition>(['drizzle', 'light_rain', 'rain', 'heavy_rain', 'showers', 'heavy_showers', 'thunderstorm_rain']);
 
-const comfortableOutdoorConditions = new Set<WeatherCondition>([
-  'clear',
-  'mostly_clear',
-  'partly_cloudy',
-  'mostly_cloudy',
-  'cloudy',
-  'overcast',
-]);
+const comfortableOutdoorConditions = new Set<WeatherCondition>(['clear', 'mostly_clear', 'partly_cloudy', 'mostly_cloudy', 'cloudy', 'overcast']);
 
+// Kiểm tra dấu hiệu mưa đang xảy ra.
 function hasActiveRain(current: CurrentWeather) {
   return (
     rainConditions.has(current.condition) ||
@@ -98,22 +70,19 @@ function hasActiveRain(current: CurrentWeather) {
   );
 }
 
+// Lấy ba mốc dự báo gần thời điểm số liệu.
 function selectNearTermEntries(current: CurrentWeather, hourly: HourlyForecast | undefined) {
   if (hourly === undefined) return undefined;
 
   const observedAt = Date.parse(current.observedAt);
-  const firstFutureIndex = hourly.entries.findIndex(
-    (entry) => Date.parse(entry.forecastAt) >= observedAt,
-  );
+  const firstFutureIndex = hourly.entries.findIndex((entry) => Date.parse(entry.forecastAt) >= observedAt);
   if (firstFutureIndex < 0) return [];
 
   return hourly.entries.slice(firstFutureIndex, firstFutureIndex + 3);
 }
 
-function maximumNearTermRainProbability(
-  current: CurrentWeather,
-  hourly: HourlyForecast | undefined,
-) {
+// Lấy xác suất mưa cao nhất vài giờ tới.
+function maximumNearTermRainProbability(current: CurrentWeather, hourly: HourlyForecast | undefined) {
   const nearTermEntries = selectNearTermEntries(current, hourly);
   if (nearTermEntries === undefined) return undefined;
 
@@ -124,6 +93,7 @@ function maximumNearTermRainProbability(
   return probabilities.length === 0 ? undefined : Math.max(...probabilities);
 }
 
+// Chọn cảnh báo có mức độ cao nhất.
 function chooseHighestAlert(current: CurrentWeather) {
   return current.alerts?.reduce<(typeof current.alerts)[number] | undefined>((highest, alert) => {
     if (highest === undefined) return alert;
@@ -134,6 +104,7 @@ function chooseHighestAlert(current: CurrentWeather) {
   }, undefined);
 }
 
+// Tạo lời khuyên từ cảnh báo nguồn dữ liệu.
 const officialAlertRule: RecommendationRule = ({ current }) => {
   const alert = chooseHighestAlert(current);
   if (alert === undefined) return [];
@@ -167,6 +138,7 @@ const officialAlertRule: RecommendationRule = ({ current }) => {
   ];
 };
 
+// Gợi ý trú tránh khi thời tiết nguy hiểm.
 const hazardousConditionRule: RecommendationRule = ({ current }) => {
   const condition = dangerousConditions.get(current.condition);
   if (condition === undefined) return [];
@@ -187,6 +159,7 @@ const hazardousConditionRule: RecommendationRule = ({ current }) => {
   ];
 };
 
+// Gợi ý chống nắng khi UV tăng cao.
 const uvRule: RecommendationRule = ({ current }) => {
   const uv = current.uv;
   if (uv?.category === undefined || !current.daylight.isDay) return [];
@@ -211,9 +184,7 @@ const uvRule: RecommendationRule = ({ current }) => {
       priority: 85,
       title: state.title,
       message: 'Cần chủ động chống nắng khi ở ngoài trời.',
-      reasonParts: [
-        `UV hiện tại là ${uv.index.toFixed(1)} (${state.title.toLocaleLowerCase('vi-VN')}).`,
-      ],
+      reasonParts: [`UV hiện tại là ${uv.index.toFixed(1)} (${state.title.toLocaleLowerCase('vi-VN')}).`],
       action:
         uv.category === 'high'
           ? 'Tìm bóng râm, che phủ da, dùng biện pháp chống nắng phù hợp và mang theo nước.'
@@ -223,6 +194,7 @@ const uvRule: RecommendationRule = ({ current }) => {
   ];
 };
 
+// Gợi ý giảm phơi nhiễm khi AQI cao.
 const usAqiRule: RecommendationRule = ({ current }) => {
   const airQuality = current.airQuality;
   if (
@@ -271,18 +243,12 @@ const usAqiRule: RecommendationRule = ({ current }) => {
       message: 'Điều chỉnh thời lượng và cường độ hoạt động ngoài trời.',
       reasonParts: [`US AQI hiện tại là ${Math.round(airQuality.index)}.`],
       action: state.action,
-      triggers: [
-        {
-          dimension: 'us_aqi',
-          label: airQuality.category,
-          value: airQuality.index,
-          unit: 'US AQI',
-        },
-      ],
+      triggers: [{ dimension: 'us_aqi', label: airQuality.category, value: airQuality.index, unit: 'US AQI' }],
     },
   ];
 };
 
+// Gợi ý chống mưa từ điều kiện hiện tại.
 function currentRainRule({ current }: RuleContext): readonly RecommendationCandidate[] {
   const precipitation = current.precipitation;
   const activeRain = hasActiveRain(current);
@@ -325,6 +291,7 @@ function currentRainRule({ current }: RuleContext): readonly RecommendationCandi
   ];
 }
 
+// Gợi ý chuẩn bị khi dự báo sắp mưa.
 function nearTermRainRule({ current, hourly }: RuleContext): readonly RecommendationCandidate[] {
   const maximum = maximumNearTermRainProbability(current, hourly);
   if (maximum === undefined || maximum < HIGH_PRECIPITATION_PROBABILITY) return [];
@@ -340,18 +307,12 @@ function nearTermRainRule({ current, hourly }: RuleContext): readonly Recommenda
       message: 'Chuẩn bị lớp chống mưa trước khi rời đi.',
       reasonParts: [`Xác suất mưa cao nhất trong ba giờ đầu là ${Math.round(maximum * 100)}%.`],
       action: 'Mang ô hoặc áo mưa gọn và kiểm tra lại diễn biến trước khi đi xa.',
-      triggers: [
-        {
-          dimension: 'precipitation',
-          label: 'xác suất mưa vài giờ tới',
-          value: maximum,
-          unit: 'ratio',
-        },
-      ],
+      triggers: [{ dimension: 'precipitation', label: 'xác suất mưa vài giờ tới', value: maximum, unit: 'ratio' }],
     },
   ];
 }
 
+// Gợi ý thu đồ khi đang mưa hoặc sắp mưa.
 const protectLaundryRule: RecommendationRule = ({ current, hourly }) => {
   if (!current.daylight.isDay) return [];
   const activeRain = hasActiveRain(current);
@@ -370,14 +331,7 @@ const protectLaundryRule: RecommendationRule = ({ current, hourly }) => {
       ? [{ dimension: 'condition' as const, label: 'mưa hiện tại', value: current.condition }]
       : []),
     ...(nearTermRain
-      ? [
-          {
-            dimension: 'precipitation' as const,
-            label: 'xác suất mưa vài giờ tới',
-            value: maximum,
-            unit: 'ratio',
-          },
-        ]
+      ? [{ dimension: 'precipitation' as const, label: 'xác suất mưa vài giờ tới', value: maximum, unit: 'ratio' }]
       : []),
   ];
 
@@ -399,200 +353,7 @@ const protectLaundryRule: RecommendationRule = ({ current, hourly }) => {
   ];
 };
 
-const heatRule: RecommendationRule = ({ current }) => {
-  const heat = Math.max(current.temperature.valueCelsius, current.temperature.feelsLikeCelsius);
-  if (heat < HIGH_HEAT_CELSIUS) return [];
-
-  return [
-    {
-      ruleId: 'high-temperature-wellness',
-      actionKey: 'sun-heat-protection',
-      group: 'wellness',
-      severity: heat >= VERY_HIGH_HEAT_CELSIUS ? 'warning' : 'attention',
-      priority: 65,
-      title: heat >= VERY_HIGH_HEAT_CELSIUS ? 'Cảm giác nóng rất cao' : 'Điều kiện nóng',
-      message: 'Giữ cơ thể mát và điều chỉnh cường độ hoạt động.',
-      reasonParts: [
-        `Nhiệt độ là ${Math.round(current.temperature.valueCelsius)}°C, cảm nhận ${Math.round(
-          current.temperature.feelsLikeCelsius,
-        )}°C.`,
-      ],
-      action: 'Uống nước đều, nghỉ ở nơi mát và tránh vận động gắng sức kéo dài.',
-      triggers: [
-        {
-          dimension: 'temperature',
-          label: 'nhiệt độ cao nhất giữa đo và cảm nhận',
-          value: heat,
-          unit: '°C',
-        },
-      ],
-    },
-  ];
-};
-
-// Everyday comfort guidance also covers warmth below the severe heat threshold.
-const everydayHydrationRule: RecommendationRule = ({ current }) => {
-  const heat = Math.max(current.temperature.valueCelsius, current.temperature.feelsLikeCelsius);
-  if (!Number.isFinite(heat) || heat < 28 || heat >= HIGH_HEAT_CELSIUS) return [];
-  return [
-    {
-      ruleId: 'everyday-warm-hydration',
-      actionKey: 'heat-hydration',
-      group: 'wellness',
-      severity: 'info',
-      priority: 25,
-      title: 'Chuẩn bị nước khi thấy nóng',
-      message: 'Để nước uống dễ lấy, uống khi khát hoặc sau khi vận động.',
-      reasonParts: [
-        `Ngoài trời ${Math.round(current.temperature.valueCelsius)}°C, cảm nhận ${Math.round(current.temperature.feelsLikeCelsius)}°C.`,
-      ],
-      action: 'Để nước uống gần chỗ ngồi; uống khi khát, nhất là sau khi di chuyển.',
-      triggers: [
-        { dimension: 'temperature', label: 'nhiệt độ cảm nhận và đo', value: heat, unit: '°C' },
-      ],
-    },
-  ];
-};
-
-const indoorComfortRule: RecommendationRule = ({ current }) => {
-  const low = Math.min(current.temperature.valueCelsius, current.temperature.feelsLikeCelsius);
-  const high = Math.max(current.temperature.valueCelsius, current.temperature.feelsLikeCelsius);
-  if (!Number.isFinite(low) || !Number.isFinite(high) || (high < 28 && low > 20)) return [];
-  const warm = high >= 28;
-  return [
-    {
-      ruleId: 'indoor-temperature-comfort',
-      actionKey: 'indoor-comfort',
-      group: 'wellness',
-      severity: 'info',
-      priority: 20,
-      title: warm ? 'Nếu trong nhà bí nóng, chọn chỗ nghỉ mát' : 'Nếu chỗ ngồi lạnh, tránh gió lùa',
-      message: warm
-        ? 'Điều chỉnh quạt hoặc điều hòa nếu bạn thấy nóng.'
-        : 'Chọn chỗ ngồi kín gió, thêm lớp giữ ấm khi cần.',
-      reasonParts: [
-        `Ngoài trời ${Math.round(current.temperature.valueCelsius)}°C, cảm nhận ${Math.round(current.temperature.feelsLikeCelsius)}°C; app không đo nhiệt độ trong phòng.`,
-      ],
-      action: warm
-        ? 'Nếu phòng cũng bí nóng, dùng quạt hoặc điều chỉnh điều hòa để dễ chịu hơn.'
-        : 'Nếu phòng lạnh, tránh gió lùa và chuẩn bị một lớp giữ ấm dễ lấy.',
-      triggers: [
-        {
-          dimension: 'temperature',
-          label: 'nhiệt độ ngoài trời',
-          value: warm ? high : low,
-          unit: '°C',
-        },
-      ],
-    },
-  ];
-};
-
-const humidityComfortRule: RecommendationRule = ({ current }) => {
-  const humidity = current.humidityPercent;
-  if (
-    !Number.isFinite(humidity) ||
-    humidity < 0 ||
-    humidity > 100 ||
-    (humidity > 35 && humidity < 80)
-  )
-    return [];
-  const damp = humidity >= 80;
-  return [
-    {
-      ruleId: damp ? 'humid-weather-comfort' : 'dry-weather-comfort',
-      actionKey: damp ? 'damp-care' : 'dry-air-care',
-      group: 'wellness',
-      severity: 'info',
-      priority: 15,
-      title: damp
-        ? 'Tách đồ ướt khỏi chỗ ngồi, chỗ nghỉ'
-        : 'Tránh luồng gió khô thổi thẳng vào người',
-      message: damp
-        ? 'Nếu trong nhà cũng ẩm, giữ chỗ nghỉ và đồ dùng khô ráo.'
-        : 'Nếu thấy khô khó chịu, đổi vị trí ngồi và điều chỉnh quạt/điều hòa.',
-      reasonParts: [`Độ ẩm ngoài trời ${Math.round(humidity)}%; độ ẩm trong phòng có thể khác.`],
-      action: damp
-        ? 'Để ô, áo mưa hoặc đồ ướt tách khỏi chỗ nghỉ; lau chỗ ẩm khi thuận tiện.'
-        : 'Nếu thấy khô, tránh ngồi sát luồng gió quạt/điều hòa và để nước uống dễ lấy.',
-      triggers: [{ dimension: 'humidity', label: 'độ ẩm ngoài trời', value: humidity, unit: '%' }],
-    },
-  ];
-};
-
-const lightClothingRule: RecommendationRule = ({ current }) => {
-  const temperature = current.temperature.valueCelsius;
-  const feelsLike = current.temperature.feelsLikeCelsius;
-  if (!Number.isFinite(temperature) || !Number.isFinite(feelsLike)) return [];
-  const warm = temperature >= 30 || feelsLike >= 33;
-  // Fill the everyday-temperature gap without inventing a safe outdoor window.
-  if (!warm && Math.min(temperature, feelsLike) <= COOL_CELSIUS) return [];
-
-  return [
-    {
-      ruleId: warm ? 'warm-weather-clothing' : 'everyday-weather-clothing',
-      actionKey: 'light-clothing',
-      group: 'clothing',
-      severity: 'info',
-      priority: warm ? 30 : 5,
-      title: warm ? 'Ưu tiên trang phục nhẹ' : 'Chọn trang phục dễ điều chỉnh',
-      message: warm
-        ? 'Trang phục thoáng giúp phù hợp hơn với điều kiện nóng hiện tại.'
-        : 'Chọn trang phục theo nhiệt độ cảm nhận tại nơi bạn đang xem.',
-      reasonParts: [
-        `Nhiệt độ là ${Math.round(current.temperature.valueCelsius)}°C, cảm nhận ${Math.round(
-          current.temperature.feelsLikeCelsius,
-        )}°C.`,
-      ],
-      action: warm
-        ? 'Chọn quần áo nhẹ, thoáng và dễ điều chỉnh khi di chuyển.'
-        : 'Ưu tiên đồ thoáng, dễ thêm hoặc bớt lớp khi di chuyển giữa trong nhà và ngoài trời.',
-      triggers: [
-        {
-          dimension: 'temperature',
-          label: warm ? 'điều kiện nóng cho trang phục' : 'nhiệt độ hiện tại cho trang phục',
-          value: current.temperature.valueCelsius,
-          unit: '°C',
-        },
-      ],
-    },
-  ];
-};
-
-const warmClothingRule: RecommendationRule = ({ current }) => {
-  const cool = Math.min(current.temperature.valueCelsius, current.temperature.feelsLikeCelsius);
-  if (cool > COOL_CELSIUS) return [];
-
-  return [
-    {
-      ruleId: 'cool-weather-clothing',
-      actionKey: 'warm-clothing',
-      group: 'clothing',
-      severity: cool <= COLD_CELSIUS ? 'warning' : cool <= 16 ? 'attention' : 'info',
-      priority: 55,
-      title: cool <= COLD_CELSIUS ? 'Điều kiện lạnh' : 'Trời mát',
-      message: 'Cần thêm lớp giữ ấm phù hợp với nhiệt độ hiện tại.',
-      reasonParts: [
-        `Nhiệt độ là ${Math.round(current.temperature.valueCelsius)}°C, cảm nhận ${Math.round(
-          current.temperature.feelsLikeCelsius,
-        )}°C.`,
-      ],
-      action:
-        cool <= COLD_CELSIUS
-          ? 'Mặc nhiều lớp, ưu tiên lớp giữ ấm và che chắn khi ở ngoài lâu.'
-          : 'Mang áo khoác mỏng hoặc một lớp áo dễ cởi khi nhiệt độ thay đổi.',
-      triggers: [
-        {
-          dimension: 'temperature',
-          label: 'nhiệt độ thấp nhất giữa đo và cảm nhận',
-          value: cool,
-          unit: '°C',
-        },
-      ],
-    },
-  ];
-};
-
+// Kiểm tra đủ điều kiện gợi ý ra ngoài.
 const favorableOutdoorRule: RecommendationRule = ({ current, hourly }) => {
   const firstThreeHours = selectNearTermEntries(current, hourly) ?? [];
   const hasReliableDryWindow =
@@ -647,12 +408,7 @@ const favorableOutdoorRule: RecommendationRule = ({ current, hourly }) => {
       triggers: [
         { dimension: 'condition', label: 'điều kiện khô ráo', value: current.condition },
         { dimension: 'temperature', label: 'nhiệt độ dễ chịu', value: temperature, unit: '°C' },
-        {
-          dimension: 'us_aqi',
-          label: 'không khí tốt',
-          value: current.airQuality.index,
-          unit: 'US AQI',
-        },
+        { dimension: 'us_aqi', label: 'không khí tốt', value: current.airQuality.index, unit: 'US AQI' },
         { dimension: 'uv', label: current.uv.category, value: current.uv.index, unit: 'UVI' },
       ],
     },
@@ -660,6 +416,7 @@ const favorableOutdoorRule: RecommendationRule = ({ current, hourly }) => {
 };
 
 // A drying opportunity needs a dry daylight forecast; sunshine alone is insufficient.
+// Kiểm tra khoảng khô ráo để gợi ý phơi đồ.
 const dryLaundryRule: RecommendationRule = ({ current, hourly }) => {
   const hours = selectNearTermEntries(current, hourly) ?? [];
   if (
@@ -690,9 +447,7 @@ const dryLaundryRule: RecommendationRule = ({ current, hourly }) => {
       priority: 4,
       title: 'Có thể phơi đồ nếu cần',
       message: 'Tranh thủ khoảng ban ngày khô ráo cho việc giặt phơi.',
-      reasonParts: [
-        'Hiện trời khô, gió nhẹ và ba giờ dự báo đều ban ngày với khả năng mưa dưới 30%.',
-      ],
+      reasonParts: ['Hiện trời khô, gió nhẹ và ba giờ dự báo đều ban ngày với khả năng mưa dưới 30%.'],
       action: 'Nếu có đồ cần phơi, có thể tranh thủ lúc này; kiểm tra lại khi thời tiết đổi.',
       triggers: [{ dimension: 'precipitation', label: 'ba giờ ít mưa', value: 0.3, unit: 'ratio' }],
     },
@@ -717,10 +472,8 @@ const initialRules: readonly RecommendationRule[] = [
   favorableOutdoorRule,
 ];
 
-export function evaluateInitialRecommendationRules(
-  current: CurrentWeather,
-  hourly?: HourlyForecast,
-): readonly RecommendationCandidate[] {
+// Chạy từng quy tắc để tạo gợi ý ứng viên.
+export function evaluateInitialRecommendationRules(current: CurrentWeather, hourly?: HourlyForecast): readonly RecommendationCandidate[] {
   const context: RuleContext = { current, ...(hourly === undefined ? {} : { hourly }) };
   return initialRules.flatMap((rule) => rule(context));
 }

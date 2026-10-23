@@ -1,79 +1,31 @@
+/**
+ * Màn hình chọn hoạt động, đánh giá giờ phù hợp và xem giờ đã lưu.
+ * Dùng hook lập kế hoạch để thực hiện tính toán và thao tác dữ liệu.
+ */
 import { useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NeoBadge, NeoButton, TimeDropdown } from '@/components/controls';
 import { LocationsSheet, LocationCapabilityStrip } from '@/components/locations';
 import { RecommendationActionIcon } from '@/components/home-advice';
-import { homeVisualTokens, touchTargets, typography } from '@/theme';
+import { homeVisualTokens } from '@/theme';
 import { usePlansScreen } from '@/hooks/plans';
 import { AccountSheet } from '@/components/account';
 import { ACTIVITIES, localHour, displayPlanningDate } from '@/utils/planning';
-import {
-  PlanningDateDuration,
-  PlannerChoices,
-  SavedPlanList,
-  ActivityAssessmentCard,
-} from '@/components/plans';
+import { PlanningDateDuration, PlannerChoices, SavedPlanList, ActivityAssessmentCard } from '@/components/plans';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { styles } from '@/css/screens/plans-screen.styles';
+import { plansScreenLayoutStyles } from '@/css/screens/plans-screen.styles';
 
 // plans-screen
 
+// Hiển thị màn hình đánh giá và lưu giờ.
 export function PlansScreen() {
   const router = useRouter();
   const {
-    planId,
-    model,
-    focused,
-    chosenActivity,
-    commute,
-    departure,
-    setDeparture,
-    setActivity,
-    activity,
-    duration,
-    durationText,
-    setDurationText,
-    dateValue,
-    setDateText,
-    selectionError,
-    from,
-    setFrom,
-    to,
-    setTo,
-    transport,
-    setTransport,
-    accountOpen,
-    setAccountOpen,
-    remind,
-    setRemind,
-    locationOpen,
-    setLocationOpen,
-    notice,
-    setNotice,
-    now,
-    zone,
-    today,
-    tomorrow,
-    dates,
-    day,
-    selected,
-    busy,
-    loading,
-    validRange,
-    candidates,
-    assessment,
-    enableReminder,
-    save,
-    changeSaved,
+    planId, model, focused, chosenActivity, commute, departure, setDeparture, setActivity, activity, duration, durationText, setDurationText, dateValue, setDateText,
+    selectionError, from, setFrom, to, setTo, transport, setTransport, accountOpen, setAccountOpen, remind, setRemind, locationOpen, setLocationOpen, notice, setNotice, now, zone,
+    today, tomorrow, dates, day, selected, busy, loading, validRange, candidates, assessment, enableReminder, save, changeSaved,
   } = usePlansScreen();
   const wide = useWindowDimensions().width >= 700;
   const elapsed =
@@ -172,7 +124,7 @@ export function PlansScreen() {
               style={[styles.activity, chosenActivity === item.id && styles.selected]}
             >
               <RecommendationActionIcon compact actionKey={item.icon} primary={false} />
-              <Text style={[styles.heading, { flexShrink: 1 }]}>{item.label}</Text>
+              <Text style={[styles.heading, plansScreenLayoutStyles.activityLabel]}>{item.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -271,7 +223,7 @@ export function PlansScreen() {
               </Text>
             ) : null}
             {!loading && assessment ? (
-              <View style={{ gap: 8 }}>
+              <View style={plansScreenLayoutStyles.preparationGroup}>
                 {commute ? <Text style={styles.fine}>Xuất phát → dự kiến đến nơi</Text> : null}
                 <ActivityAssessmentCard
                   assessment={assessment}
@@ -381,109 +333,3 @@ export function PlansScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: homeVisualTokens.paper },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    minHeight: 116,
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    backgroundColor: homeVisualTokens.field,
-    borderBottomWidth: 3,
-    borderColor: homeVisualTokens.ink,
-  },
-  topBarCopy: { flex: 1, minWidth: 0, gap: 8 },
-  topBarTitle: {
-    fontFamily: typography.heading,
-    color: homeVisualTokens.ink,
-    fontSize: 21,
-    lineHeight: 29,
-  },
-  closeSpace: { paddingRight: 4, paddingBottom: 4 },
-  closeButton: {
-    width: Platform.OS === 'ios' ? touchTargets.ios : touchTargets.android,
-    minHeight: Platform.OS === 'ios' ? touchTargets.ios : touchTargets.android,
-    borderWidth: 3,
-    borderRadius: 12,
-    borderColor: homeVisualTokens.ink,
-    backgroundColor: homeVisualTokens.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '4px 4px 0px #1D3557',
-  },
-  closePressed: {
-    transform: [{ translateX: 3 }, { translateY: 3 }],
-    boxShadow: '1px 1px 0px #1D3557',
-  },
-  closeText: {
-    fontFamily: typography.brand,
-    fontSize: 20,
-    lineHeight: 23,
-    color: homeVisualTokens.ink,
-  },
-  content: {
-    padding: 16,
-    paddingTop: 0,
-    paddingBottom: 40,
-    gap: 16,
-    width: '100%',
-    maxWidth: 1000,
-    alignSelf: 'center',
-  },
-  title: {
-    fontFamily: typography.heading,
-    color: homeVisualTokens.ink,
-    fontSize: 25,
-    lineHeight: 33,
-  },
-  heading: {
-    fontFamily: typography.heading,
-    color: homeVisualTokens.ink,
-    fontSize: 16,
-    lineHeight: 23,
-  },
-  body: { fontFamily: typography.body, color: homeVisualTokens.ink, fontSize: 13, lineHeight: 21 },
-  fine: { fontFamily: typography.body, color: homeVisualTokens.ink, fontSize: 11, lineHeight: 18 },
-  note: {
-    fontFamily: typography.body,
-    color: homeVisualTokens.ink,
-    fontSize: 12,
-    lineHeight: 20,
-    padding: 12,
-    backgroundColor: homeVisualTokens.sunflower,
-    borderRadius: 12,
-  },
-  section: { borderTopWidth: 3, borderColor: homeVisualTokens.ink, paddingTop: 16, gap: 12 },
-  assessmentLayout: { gap: 16 },
-  sideBySide: { flexDirection: 'row', alignItems: 'flex-start' },
-  settings: { flex: 1, gap: 12, minWidth: 0 },
-  results: {
-    flex: 1,
-    minWidth: 0,
-    gap: 12,
-    padding: 12,
-    backgroundColor: homeVisualTokens.field,
-    borderWidth: 3,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: 12,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  activity: {
-    minWidth: 130,
-    flexGrow: 1,
-    flexBasis: '42%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: homeVisualTokens.field,
-    borderWidth: 3,
-    borderRadius: 12,
-    borderColor: homeVisualTokens.ink,
-    padding: 8,
-  },
-  selected: { backgroundColor: homeVisualTokens.selectionSurface, borderWidth: 3 },
-});

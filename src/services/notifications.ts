@@ -1,35 +1,21 @@
+/**
+ * Làm việc với thông báo cục bộ: quyền, kênh Android, gửi thử và chống gửi lặp.
+ * Đồng bộ tùy chọn thông báo tài khoản khi có người dùng đăng nhập.
+ */
 import { requireSupabaseClient } from '@/services/supabase';
 import 'expo-sqlite/localStorage/install';
 import { useSyncExternalStore } from 'react';
 import { setNotificationCategoryAsync } from 'expo-notifications/build/setNotificationCategoryAsync';
-import {
-  addNotificationResponseReceivedListener,
-  getLastNotificationResponse,
-  clearLastNotificationResponse,
-} from 'expo-notifications/build/NotificationsEmitter';
+import { addNotificationResponseReceivedListener, getLastNotificationResponse, clearLastNotificationResponse } from 'expo-notifications/build/NotificationsEmitter';
 import { dismissNotificationAsync } from 'expo-notifications/build/dismissNotificationAsync';
-import {
-  type NotificationResponse,
-  AndroidNotificationPriority,
-  SchedulableTriggerInputTypes,
-} from 'expo-notifications/build/Notifications.types';
-import {
-  type DailyAction,
-  RECOMMENDATION_NOTIFICATION_SLOTS,
-  type RecommendationNotificationEvent,
-} from '@/utils/recommendations';
+import { type NotificationResponse, AndroidNotificationPriority, SchedulableTriggerInputTypes } from 'expo-notifications/build/Notifications.types';
+import { type DailyAction, RECOMMENDATION_NOTIFICATION_SLOTS, type RecommendationNotificationEvent } from '@/utils/recommendations';
 import Constants from 'expo-constants';
 import { appPalette } from '@/theme';
 import * as Device from 'expo-device';
 import { AndroidImportance } from 'expo-notifications/build/NotificationChannelManager.types';
-import {
-  getPermissionsAsync,
-  requestPermissionsAsync,
-} from 'expo-notifications/build/NotificationPermissions';
-import {
-  IosAuthorizationStatus,
-  type NotificationPermissionsStatus,
-} from 'expo-notifications/build/NotificationPermissions.types';
+import { getPermissionsAsync, requestPermissionsAsync } from 'expo-notifications/build/NotificationPermissions';
+import { IosAuthorizationStatus, type NotificationPermissionsStatus } from 'expo-notifications/build/NotificationPermissions.types';
 import { setNotificationHandler } from 'expo-notifications/build/NotificationsHandler';
 import { cancelScheduledNotificationAsync } from 'expo-notifications/build/cancelScheduledNotificationAsync';
 import { scheduleNotificationAsync } from 'expo-notifications/build/scheduleNotificationAsync';
@@ -38,10 +24,8 @@ import { Platform } from 'react-native';
 
 // notification-preferences
 
-export async function upsertCloudNotificationPreference(
-  userId: string,
-  enabled: boolean,
-): Promise<void> {
+// Lưu tùy chọn thông báo lên tài khoản.
+export async function upsertCloudNotificationPreference(userId: string, enabled: boolean): Promise<void> {
   const { error } = await requireSupabaseClient()
     .from('notification_preferences')
     .upsert({ user_id: userId, notifications_enabled: enabled }, { onConflict: 'user_id' });
@@ -59,24 +43,23 @@ const listeners = new Set<() => void>();
 
 let version = 0;
 
+// Đọc các hành động đã đánh dấu xong.
 function read(): Record<string, number> {
   try {
     const value: unknown = JSON.parse(globalThis.localStorage.getItem(KEY) ?? '{}');
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-    return Object.fromEntries(
-      Object.entries(value).filter(
-        ([key, at]) => key.length < 500 && typeof at === 'number' && at > Date.now() - 7 * 86400000,
-      ),
-    );
+    return Object.fromEntries(Object.entries(value).filter(([key, at]) => key.length < 500 && typeof at === 'number' && at > Date.now() - 7 * 86400000));
   } catch {
     return {};
   }
 }
 
+// Kiểm tra hành động đã được đánh dấu xong.
 export function isActionCompleted(id: string) {
   return Object.hasOwn(read(), id);
 }
 
+// Lưu trạng thái hoàn thành hành động.
 export function setActionCompleted(id: string, completed = true) {
   const records = read();
   if (completed) records[id] = Date.now();
@@ -86,6 +69,7 @@ export function setActionCompleted(id: string, completed = true) {
   listeners.forEach((listener) => listener());
 }
 
+// Theo dõi thay đổi hành động hoàn thành.
 export function useCompletedActionsVersion() {
   return useSyncExternalStore(
     (listener) => {
@@ -107,6 +91,7 @@ const PREFERENCE_KEY = 'weather.notification-preference.v1';
 
 const REMINDERS_KEY = 'weather.action-reminders.v1';
 
+// Đọc mã các nhắc lịch đã đặt.
 function readReminderIds(): string[] {
   try {
     const ids: unknown = JSON.parse(globalThis.localStorage.getItem(REMINDERS_KEY) ?? '[]');
@@ -140,6 +125,7 @@ if (Platform.OS !== 'web') {
   });
 }
 
+// Đọc thông tin thông báo đã lên lịch.
 function readRecords(): ScheduledRecords {
   const raw = globalThis.localStorage.getItem(RECORDS_KEY);
   if (raw === null) return {};
@@ -152,23 +138,28 @@ function readRecords(): ScheduledRecords {
   }
 }
 
+// Lưu thông tin thông báo đã lên lịch.
 function writeRecords(records: ScheduledRecords) {
   globalThis.localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
 }
 
+// Hủy thông báo và xóa bản ghi tương ứng.
 async function cancelRecord(record: ScheduledRecord | undefined) {
   if (record === undefined) return;
   await cancelScheduledNotificationAsync(record.identifier).catch(() => undefined);
 }
 
+// Đọc tùy chọn thông báo trên thiết bị.
 export function readNotificationPreference() {
   return globalThis.localStorage.getItem(PREFERENCE_KEY) === 'enabled';
 }
 
+// Lưu tùy chọn thông báo trên thiết bị.
 export function writeNotificationPreference(enabled: boolean) {
   globalThis.localStorage.setItem(PREFERENCE_KEY, enabled ? 'enabled' : 'disabled');
 }
 
+// Thiết lập kênh thông báo trên Android.
 export async function configureWeatherNotificationChannel() {
   if (Platform.OS !== 'android') return true;
   if (Constants.appOwnership === 'expo') return false;
@@ -191,6 +182,7 @@ export async function configureWeatherNotificationChannel() {
   }
 }
 
+// Kiểm tra kết quả đã cấp quyền thông báo.
 export function hasGrantedNotificationPermission(permission: NotificationPermissionsStatus) {
   if (Platform.OS !== 'ios') return permission.status === 'granted';
   const iosStatus = permission.ios?.status;
@@ -201,6 +193,7 @@ export function hasGrantedNotificationPermission(permission: NotificationPermiss
   );
 }
 
+// Xin quyền gửi thông báo.
 export async function requestWeatherNotificationPermission() {
   if (Platform.OS === 'web') return false;
   await configureWeatherNotificationChannel();
@@ -210,6 +203,7 @@ export async function requestWeatherNotificationPermission() {
   return hasGrantedNotificationPermission(requested);
 }
 
+// Đọc quyền thông báo hiện tại.
 export async function hasWeatherNotificationPermission() {
   if (Platform.OS === 'web') return false;
   const permission = await getPermissionsAsync();
@@ -218,6 +212,7 @@ export async function hasWeatherNotificationPermission() {
 
 export type RemotePushCapability = 'ready' | 'local_only';
 
+// Kiểm tra khả năng nhận push từ xa.
 export async function resolveRemotePushCapability(): Promise<RemotePushCapability> {
   if (!Device.isDevice) return 'local_only';
   if (Constants.appOwnership === 'expo') return 'local_only';
@@ -226,9 +221,7 @@ export async function resolveRemotePushCapability(): Promise<RemotePushCapabilit
   if (typeof projectId !== 'string' || projectId.length === 0) return 'local_only';
 
   try {
-    const { getExpoPushTokenAsync } = await import(
-      'expo-notifications/build/getExpoPushTokenAsync'
-    );
+    const { getExpoPushTokenAsync } = await import('expo-notifications/build/getExpoPushTokenAsync');
     await getExpoPushTokenAsync({ projectId });
     return 'ready';
   } catch {
@@ -236,9 +229,8 @@ export async function resolveRemotePushCapability(): Promise<RemotePushCapabilit
   }
 }
 
-export async function syncRecommendationNotifications(
-  events: readonly RecommendationNotificationEvent[],
-) {
+// Cập nhật thông báo theo lời khuyên mới.
+export async function syncRecommendationNotifications(events: readonly RecommendationNotificationEvent[]) {
   if (Platform.OS === 'web') return;
   const channelReady = await configureWeatherNotificationChannel();
   await configureActionCategory();
@@ -312,6 +304,7 @@ export async function syncRecommendationNotifications(
   }
 }
 
+// Hủy các thông báo lời khuyên.
 export async function cancelRecommendationNotifications() {
   const reminders = readReminderIds();
   await Promise.all(reminders.map((id) => cancelScheduledNotificationAsync(id)));
@@ -321,6 +314,7 @@ export async function cancelRecommendationNotifications() {
   globalThis.localStorage.removeItem(RECORDS_KEY);
 }
 
+// Gửi một thông báo thử.
 export async function sendTestWeatherNotification() {
   if (Platform.OS === 'web') throw new Error('Thông báo cần chạy trên điện thoại.');
   if (!(await hasWeatherNotificationPermission())) throw new Error('permission');
@@ -340,13 +334,13 @@ export async function sendTestWeatherNotification() {
   });
 }
 
+// Đăng ký thao tác trên thông báo.
 async function configureActionCategory() {
   if (Platform.OS === 'web') return;
-  await setNotificationCategoryAsync('weatherTask', [
-    { identifier: 'DONE', buttonTitle: 'Xong', options: { opensAppToForeground: true } },
-  ]);
+  await setNotificationCategoryAsync('weatherTask', [{ identifier: 'DONE', buttonTitle: 'Xong', options: { opensAppToForeground: true } }]);
 }
 
+// Đánh dấu hành động từ thông báo là xong.
 export async function completeWeatherAction(id: string) {
   setActionCompleted(id);
   if (Platform.OS === 'web') return;
@@ -361,8 +355,10 @@ export async function completeWeatherAction(id: string) {
   }
 }
 
+// Lắng nghe thao tác hoàn thành hành động.
 export function listenForCompletedActions() {
   if (Platform.OS === 'web') return () => {};
+  // Xử lý thao tác người dùng trên thông báo.
   const handle = (response: NotificationResponse | null) => {
     const id = response?.notification.request.content.data?.taskId;
     if (response?.actionIdentifier !== 'DONE' || typeof id !== 'string' || id.length > 500) return;
@@ -375,6 +371,7 @@ export function listenForCompletedActions() {
   return () => subscription.remove();
 }
 
+// Đặt nhắc lại cho một hành động.
 export async function remindWeatherAction(action: DailyAction) {
   if (Platform.OS === 'web' || !(await hasWeatherNotificationPermission()))
     throw new Error('permission');
@@ -410,6 +407,7 @@ export async function remindWeatherAction(action: DailyAction) {
 }
 
 /** Retire manually requested chore reminders after removing their UI. */
+// Dọn các nhắc hành động cũ.
 export async function retireActionReminders() {
   if (Platform.OS === 'web') return;
   const ids = readReminderIds();

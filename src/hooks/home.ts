@@ -1,21 +1,9 @@
-import type {
-  AirQualityCategory,
-  CurrentWeather,
-  UVCategory,
-  WeatherCondition,
-  HourlyForecast,
-  ZonedDateTimeString,
-  RecommendationEvaluation,
-  RecommendationSeverity,
-} from '@/types/weather';
-import {
-  evaluateRecommendations,
-  createRecommendationNotificationPlan,
-  actionContext,
-  createDailyActions,
-  parseLifestylePreferences,
-  personalizeDailyActions,
-} from '@/utils/recommendations';
+/**
+ * Chuẩn bị dữ liệu cho Home: vị trí → thời tiết → gợi ý → thông báo.
+ * useHomeModel gom logic để màn hình chủ yếu tập trung vào bố cục.
+ */
+import type { AirQualityCategory, CurrentWeather, UVCategory, WeatherCondition, HourlyForecast, ZonedDateTimeString, RecommendationEvaluation, RecommendationSeverity } from '@/types/weather';
+import { evaluateRecommendations, createRecommendationNotificationPlan, actionContext, createDailyActions, parseLifestylePreferences, personalizeDailyActions } from '@/utils/recommendations';
 import { type LiveCurrentWeatherResult, useLiveCurrentWeather } from '@/services/live-weather';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
@@ -119,22 +107,27 @@ const airQualityLabels: Record<AirQualityCategory, string> = {
   unknown: 'Chưa xác định',
 };
 
+// Lấy tên tiếng Việt của thời tiết.
 export function getConditionLabel(condition: WeatherCondition) {
   return conditionLabels[condition];
 }
 
+// Lấy nhãn ban ngày hoặc ban đêm.
 export function getDaylightLabel(daylight: CurrentWeather['daylight']) {
   return daylightLabels[daylight.phase];
 }
 
+// Lấy nhãn mức tia UV.
 export function getUvLabel(category?: UVCategory) {
   return category === undefined ? 'Chưa phân loại' : uvLabels[category];
 }
 
+// Lấy nhãn chất lượng không khí.
 export function getAirQualityLabel(category?: AirQualityCategory) {
   return category === undefined ? 'Chưa phân loại' : airQualityLabels[category];
 }
 
+// Định dạng giờ số liệu theo địa điểm.
 export function formatObservedTime(weather: CurrentWeather) {
   try {
     return new Intl.DateTimeFormat('vi-VN', {
@@ -148,6 +141,7 @@ export function formatObservedTime(weather: CurrentWeather) {
   }
 }
 
+// Đổi tốc độ gió sang km/h để hiển thị.
 export function formatWind(weather: CurrentWeather) {
   const kilometersPerHour = Math.round(weather.wind.speedMetersPerSecond * 3.6);
   const direction = weather.wind.direction === undefined ? '' : ` ${weather.wind.direction}`;
@@ -173,10 +167,9 @@ export interface HomeLiveRecommendationPresentation {
   readonly risk: HomeRiskPreview;
 }
 
+// Chọn rủi ro chính từ các lời khuyên.
 export function createRecommendationRisk(evaluation: RecommendationEvaluation): HomeRiskPreview {
-  const primaryRisk = evaluation.recommendations.find(
-    (recommendation) => recommendation.severity !== 'info',
-  );
+  const primaryRisk = evaluation.recommendations.find((recommendation) => recommendation.severity !== 'info');
 
   if (primaryRisk !== undefined) {
     return {
@@ -210,9 +203,8 @@ export function createRecommendationRisk(evaluation: RecommendationEvaluation): 
   };
 }
 
-export function createLiveRecommendationPresentation(
-  result: LiveCurrentWeatherResult,
-): HomeLiveRecommendationPresentation {
+// Đánh giá dữ liệu thật để hiển thị gợi ý.
+export function createLiveRecommendationPresentation(result: LiveCurrentWeatherResult): HomeLiveRecommendationPresentation {
   const evaluation = evaluateRecommendations({
     currentWeather: result.weather,
     hourlyForecast: result.hourlyForecast,
@@ -224,6 +216,7 @@ export function createLiveRecommendationPresentation(
 
 export const HOME_NEAR_TERM_HOUR_COUNT = 6;
 
+// Tìm mốc dự báo gần thời điểm số liệu.
 function findNearTermStart(forecast: HourlyForecast, observedAt: ZonedDateTimeString) {
   const observedTime = Date.parse(observedAt);
   const entries = forecast.entries;
@@ -237,12 +230,10 @@ function findNearTermStart(forecast: HourlyForecast, observedAt: ZonedDateTimeSt
     }
   }
 
-  return {
-    index: entries.findIndex((entry) => Date.parse(entry.forecastAt) > observedTime),
-    hasCurrentHour: false,
-  };
+  return { index: entries.findIndex((entry) => Date.parse(entry.forecastAt) > observedTime), hasCurrentHour: false };
 }
 
+// Định dạng giờ theo múi giờ địa điểm.
 function formatHour(timestamp: string, timeZone: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     timeZone,
@@ -252,11 +243,8 @@ function formatHour(timestamp: string, timeZone: string) {
   }).format(new Date(timestamp));
 }
 
-export function createHomeHourlyForecastPreview(
-  forecast: HourlyForecast,
-  observedAt: ZonedDateTimeString,
-  limit = HOME_NEAR_TERM_HOUR_COUNT,
-): HomeForecastPreview {
+// Tạo dự báo giờ tóm tắt cho Home.
+export function createHomeHourlyForecastPreview(forecast: HourlyForecast, observedAt: ZonedDateTimeString, limit = HOME_NEAR_TERM_HOUR_COUNT): HomeForecastPreview {
   const start = findNearTermStart(forecast, observedAt);
   if (start.index < 0 || limit <= 0) {
     return createUnavailableHomeForecastPreview();
@@ -280,11 +268,9 @@ export function createHomeHourlyForecastPreview(
   return { summary: 'Diễn biến vài giờ tới theo giờ địa phương.', items };
 }
 
+// Tạo nội dung khi thiếu dự báo giờ.
 export function createUnavailableHomeForecastPreview(): HomeForecastPreview {
-  return {
-    summary: 'Chuỗi dự báo theo giờ chưa khả dụng cho lần cập nhật trực tiếp này.',
-    items: [],
-  };
+  return { summary: 'Chuỗi dự báo theo giờ chưa khả dụng cho lần cập nhật trực tiếp này.', items: [] };
 }
 
 // weather-glyph-state
@@ -303,6 +289,7 @@ export type WeatherIconKey =
   | 'snow'
   | 'snow_heavy';
 
+// Chọn mã icon theo thời tiết và ngày đêm.
 export function getWeatherIconKey(condition: WeatherCondition, isDay: boolean): WeatherIconKey {
   switch (condition) {
     case 'clear':
@@ -354,12 +341,15 @@ export function getWeatherIconKey(condition: WeatherCondition, isDay: boolean): 
 
 // use-home-model
 
+// Chuẩn bị thời tiết và lời khuyên cho Home.
 export function useHomeModel() {
+  // Bước 1: lấy tài khoản/sở thích và đồng hồ để xác định ngữ cảnh hiện tại.
   const { state: authState } = useAuth();
   const user = authState.status === 'signed_in' ? authState.user : undefined;
   const preferences = parseLifestylePreferences(user?.user_metadata.lifestyle_preferences);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
+    // Cập nhật thời điểm hiện tại.
     const update = () => setNow(Date.now());
     const timer = setInterval(update, 30_000);
     const subscription = AppState.addEventListener('change', (state) => {
@@ -371,6 +361,7 @@ export function useHomeModel() {
     };
   }, []);
   const { sync: syncNotifications } = useNotifications();
+  // Bước 2: lấy vị trí được chọn rồi truy vấn thời tiết tương ứng.
   const { state: locationState } = useLocationCapability();
   const selectedLocation =
     locationState.status === 'ready' ? locationState.selectedLocation : undefined;
@@ -404,6 +395,7 @@ export function useHomeModel() {
     ? `${selectedLocation.source}:${selectedLocation.coordinates.latitude.toFixed(3)},${selectedLocation.coordinates.longitude.toFixed(3)}`
     : '';
   const context = actionContext(weather, now);
+  // Bước 3: chỉ tạo hành động từ dữ liệu trực tiếp, không quá 30 phút kể từ lần tải.
   const isStale = now - liveWeatherQuery.dataUpdatedAt > 30 * 60_000;
   const evaluation = isStale
     ? { status: 'unavailable' as const, recommendations: [], missingDimensions: [] }
@@ -413,6 +405,7 @@ export function useHomeModel() {
     : [];
   const actions = personalizeDailyActions(baseActions, preferences, context.period, context.clock);
   useEffect(() => {
+    // Bước 4: đồng bộ thông báo; hủy gợi ý thông báo nếu dữ liệu thiếu hoặc đã cũ.
     if (liveResult === undefined || selectedLocation === undefined) {
       void syncNotifications([]);
       return;

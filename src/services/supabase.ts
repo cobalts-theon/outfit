@@ -1,3 +1,7 @@
+/**
+ * Kiểm tra cấu hình công khai và tạo Supabase client dùng chung.
+ * Client giữ phiên đăng nhập; dữ liệu được truy cập theo quyền do backend kiểm soát.
+ */
 import 'react-native-url-polyfill/auto';
 import 'expo-sqlite/localStorage/install';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -24,6 +28,7 @@ export type PublicEnvironment =
   | { status: 'ready'; supabase: SupabasePublicConfiguration; issues: readonly [] }
   | { status: 'incomplete'; supabase: null; issues: readonly EnvironmentIssue[] };
 
+// Kiểm tra URL backend được phép sử dụng.
 function isAllowedSupabaseUrl(value: string) {
   try {
     const url = new URL(value);
@@ -35,10 +40,12 @@ function isAllowedSupabaseUrl(value: string) {
   }
 }
 
+// Phát hiện khóa bí mật trong cấu hình app.
 function looksLikeSecretKey(value: string) {
   return value.startsWith('sb_secret_') || value.toLowerCase().includes('service_role');
 }
 
+// Kiểm tra cấu hình công khai của backend.
 export function validatePublicEnvironment(input: PublicEnvironmentInput): PublicEnvironment {
   const url = input.supabaseUrl?.trim() ?? '';
   const publishableKey = input.supabasePublishableKey?.trim() ?? '';
@@ -72,16 +79,10 @@ export const publicEnvironment = validatePublicEnvironment({
 
 export type AppSupabaseClient = SupabaseClient<Database>;
 
-export function createAppSupabaseClient(
-  configuration: SupabasePublicConfiguration,
-): AppSupabaseClient {
+// Tạo client backend có lưu phiên.
+export function createAppSupabaseClient(configuration: SupabasePublicConfiguration): AppSupabaseClient {
   return createClient<Database>(configuration.url, configuration.publishableKey, {
-    auth: {
-      storage: globalThis.localStorage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
+    auth: { storage: globalThis.localStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
   });
 }
 
@@ -90,17 +91,17 @@ export const supabase =
 
 export const isSupabaseConfigured = supabase !== null;
 
+// Lấy client hoặc báo thiếu cấu hình.
 export function requireSupabaseClient(): AppSupabaseClient {
   if (supabase === null) {
-    throw new Error(
-      'Supabase is not configured. Add the public values documented in .env.example.',
-    );
+    throw new Error('Supabase is not configured. Add the public values documented in .env.example.');
   }
 
   return supabase;
 }
 
 // Password recovery must not replace the application's persisted login session.
+// Tạo client riêng cho khôi phục mật khẩu.
 export function createRecoverySupabaseClient(): AppSupabaseClient {
   if (publicEnvironment.status !== 'ready') throw new Error('Supabase is not configured.');
   return createClient<Database>(

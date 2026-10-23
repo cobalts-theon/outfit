@@ -1,50 +1,28 @@
+/**
+ * Phối hợp dự báo, đánh giá hoạt động, lưu giờ và nhắc lịch.
+ * Các hook cung cấp dữ liệu/thao tác; PlanMonitor kiểm tra lại kế hoạch khi app hoạt động.
+ */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { SelectedAppLocation } from '@/utils/validation';
 import { fetchHourlyAirQuality } from '@/services/weather/client';
 import { useAuth } from '@/context/auth';
 import { useLocationCapability } from '@/context/location';
+import { useLiveCurrentWeather, createPlanningHours, liveCurrentWeatherQueryOptions } from '@/services/live-weather';
+import { changeActivityPlan, listActivityPlans, saveActivityPlan, type PlanChange, type PlanInput, type ActivityPlan, getActivityPlan, clearPlanNotifications, syncPlanNotification } from '@/services/plans';
 import {
-  useLiveCurrentWeather,
-  createPlanningHours,
-  liveCurrentWeatherQueryOptions,
-} from '@/services/live-weather';
-import {
-  changeActivityPlan,
-  listActivityPlans,
-  saveActivityPlan,
-  type PlanChange,
-  type PlanInput,
-  type ActivityPlan,
-  getActivityPlan,
-  clearPlanNotifications,
-  syncPlanNotification,
-} from '@/services/plans';
-import {
-  assessActivity,
-  assessDeparture,
-  validActivityDuration,
-  parsePlanningDate,
-  displayPlanningDate,
-  activityPolicyVersion,
-  activityPolicyContext,
-  type Activity,
-  activityCandidates,
-  type ActivityAssessment,
-  localDate,
-  nextLocalDate,
+  assessActivity, assessDeparture, validActivityDuration, parsePlanningDate, displayPlanningDate, activityPolicyVersion, activityPolicyContext, type Activity, activityCandidates,
+  type ActivityAssessment, localDate, nextLocalDate,
 } from '@/utils/planning';
 import { useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { useNotifications } from '@/context/notifications';
-import {
-  hasWeatherNotificationPermission,
-  readNotificationPreference,
-} from '@/services/notifications';
+import { hasWeatherNotificationPermission, readNotificationPreference } from '@/services/notifications';
 import { parseLifestylePreferences } from '@/utils/recommendations';
 import { AppState } from 'react-native';
 
 // use-activity-planner
 
+// Lấy AQI theo giờ cho phần lập kế hoạch.
 export function usePlanningAirQuality(selectedLocation?: SelectedAppLocation) {
   const coordinates = selectedLocation?.coordinates;
   return useQuery({
@@ -59,6 +37,7 @@ export function usePlanningAirQuality(selectedLocation?: SelectedAppLocation) {
   });
 }
 
+// Phối hợp đánh giá và lưu giờ hoạt động.
 export function useActivityPlanner() {
   const { state: auth } = useAuth();
   const { state: location } = useLocationCapability();
@@ -68,11 +47,7 @@ export function useActivityPlanner() {
   const aqi = usePlanningAirQuality(selectedLocation);
   const client = useQueryClient();
   const key = ['activity-plans', owner ?? 'guest'] as const;
-  const plans = useQuery({
-    queryKey: key,
-    queryFn: () => listActivityPlans(owner),
-    enabled: Boolean(owner),
-  });
+  const plans = useQuery({ queryKey: key, queryFn: () => listActivityPlans(owner), enabled: Boolean(owner) });
   const save = useMutation({
     mutationFn: (input: PlanInput) => {
       if (!owner) throw new Error('Đăng nhập để lưu giờ phù hợp.');
@@ -94,15 +69,13 @@ export function useActivityPlanner() {
     plans,
     save,
     change,
-    hours: createPlanningHours(
-      weather.data?.hourlyForecast,
-      Date.now() - aqi.dataUpdatedAt <= 30 * 60_000 ? aqi.data : undefined,
-    ),
+    hours: createPlanningHours(weather.data?.hourlyForecast, Date.now() - aqi.dataUpdatedAt <= 30 * 60_000 ? aqi.data : undefined),
     fetchedAt: weather.dataUpdatedAt,
     refresh: () => Promise.all([weather.refetch(), aqi.refetch()]),
   };
 }
 
+// Tải dự báo cho hoạt động đã lưu.
 export function useSavedPlanForecast(plan: ActivityPlan, now: number) {
   const location = {
     source: 'manual' as const,
@@ -116,10 +89,7 @@ export function useSavedPlanForecast(plan: ActivityPlan, now: number) {
     activity: plan.activity as Activity,
     ...activityPolicyContext(plan.policy_version),
     duration: (Date.parse(plan.ends_at) - Date.parse(plan.starts_at)) / 60_000,
-    hours: createPlanningHours(
-      weather.data?.hourlyForecast,
-      now - aqi.dataUpdatedAt <= 30 * 60_000 ? aqi.data : undefined,
-    ),
+    hours: createPlanningHours(weather.data?.hourlyForecast, now - aqi.dataUpdatedAt <= 30 * 60_000 ? aqi.data : undefined),
     alerts: weather.data?.weather.alerts,
     fetchedAt: weather.dataUpdatedAt,
     now,
@@ -134,6 +104,7 @@ export function useSavedPlanForecast(plan: ActivityPlan, now: number) {
 
 // use-plans-screen
 
+// Chuẩn bị trạng thái màn hình chọn giờ.
 export function usePlansScreen() {
   const { planId } = useLocalSearchParams<{ planId?: string }>();
   const model = useActivityPlanner();
@@ -157,9 +128,7 @@ export function usePlansScreen() {
   const duration = /^\d+$/.test(durationText) ? Number(durationText) : NaN;
   const [from, setFrom] = useState<number | undefined>(preferences?.availability?.start);
   const [to, setTo] = useState<number | undefined>(preferences?.availability?.end);
-  const [transport, setTransport] = useState<'walk' | 'bike' | 'motorbike' | 'covered' | 'none'>(
-    preferences?.transport === 'none' ? 'walk' : (preferences?.transport ?? 'walk'),
-  );
+  const [transport, setTransport] = useState<'walk' | 'bike' | 'motorbike' | 'covered' | 'none'>(preferences?.transport === 'none' ? 'walk' : (preferences?.transport ?? 'walk'));
   const [accountOpen, setAccountOpen] = useState(false);
   const initialized = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -169,12 +138,7 @@ export function usePlansScreen() {
     setTo((value) => value ?? preferences?.availability?.end);
     if (preferences?.transport && preferences.transport !== 'none')
       setTransport(preferences.transport);
-  }, [
-    model.owner,
-    preferences?.availability?.start,
-    preferences?.availability?.end,
-    preferences?.transport,
-  ]);
+  }, [model.owner, preferences?.availability?.start, preferences?.availability?.end, preferences?.transport]);
   const [remind, setRemind] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -220,19 +184,14 @@ export function usePlansScreen() {
       : undefined
     : (candidates[0] ??
       (chosenActivity && validRange && !selectionError
-        ? activityCandidates({
-            ...input,
-            date: day,
-            timeZone: zone,
-            from,
-            to,
-            includeAvoid: true,
-          })[0]
+        ? activityCandidates({ ...input, date: day, timeZone: zone, from, to, includeAvoid: true })[0]
         : undefined));
+  // Xin quyền và bật nhắc lịch.
   const enableReminder = async () => {
     await notifications.enable();
     return readNotificationPreference() && (await hasWeatherNotificationPermission());
   };
+  // Lưu giờ hoạt động đã chọn.
   const save = async (assessment: ActivityAssessment) => {
     if (!model.owner) {
       setAccountOpen(true);
@@ -280,10 +239,8 @@ export function usePlansScreen() {
       );
     }
   };
-  const changeSaved: (id: string, change: PlanChange | 'delete') => Promise<void> = async (
-    id,
-    change,
-  ) => {
+  // Cập nhật hoặc xóa giờ đã lưu.
+  const changeSaved: (id: string, change: PlanChange | 'delete') => Promise<void> = async (id, change) => {
     try {
       if (change !== 'delete' && change.reminder_enabled && !(await enableReminder())) {
         setNotice('Chưa có quyền gửi thông báo.');
@@ -345,6 +302,7 @@ export function usePlansScreen() {
 
 // plan-monitor
 
+// Theo dõi lại dự báo cho giờ đã lưu.
 export function PlanMonitor() {
   const { state } = useAuth(),
     notifications = useNotifications(),
@@ -365,6 +323,7 @@ export function PlanMonitor() {
     if (!plans.data) return;
     let cancelled = false,
       busy = false;
+    // Kiểm tra kế hoạch và đồng bộ nhắc lịch.
     const run = async () => {
       if (busy || AppState.currentState !== 'active') return;
       busy = true;
@@ -373,10 +332,7 @@ export function PlanMonitor() {
           (p) =>
             p.status === 'planned' && p.reminder_enabled && Date.parse(p.starts_at) > Date.now(),
         );
-        await clearPlanNotifications(
-          upcoming.map((p) => p.id),
-          owner,
-        );
+        await clearPlanNotifications(upcoming.map((p) => p.id), owner);
         // Check the saved coordinates, not whichever location the user is viewing.
         for (const plan of upcoming) {
           if (cancelled) break;
@@ -406,9 +362,7 @@ export function PlanMonitor() {
               activity: plan.activity as Activity,
               ...activityPolicyContext(plan.policy_version),
               start: plan.starts_at,
-              duration: Math.round(
-                (Date.parse(plan.ends_at) - Date.parse(plan.starts_at)) / 60_000,
-              ),
+              duration: Math.round((Date.parse(plan.ends_at) - Date.parse(plan.starts_at)) / 60_000),
               hours,
               alerts: weather.weather.alerts,
               fetchedAt,
@@ -424,11 +378,7 @@ export function PlanMonitor() {
                     from: 6 * 60,
                     to: 22 * 60,
                   });
-            await syncPlanNotification(
-              plan,
-              assessment,
-              alternatives.find((a) => a.start !== plan.starts_at && a.status === 'suitable'),
-            );
+            await syncPlanNotification(plan, assessment, alternatives.find((a) => a.start !== plan.starts_at && a.status === 'suitable'));
           } catch {
             /* Keep last schedule, never treat a failed forecast as favorable. */
           }

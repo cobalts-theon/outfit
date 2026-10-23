@@ -1,13 +1,9 @@
+/**
+ * Màn hình chính: lấy dữ liệu từ useHomeModel rồi hiển thị lời khuyên và thời tiết.
+ * Trạng thái cục bộ điều khiển việc mở menu, tài khoản, địa điểm và cài đặt.
+ */
 import { useEffect, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  StatusBar,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StatusBar, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppDrawer, AppMasthead } from '@/components/app-shell';
@@ -16,36 +12,20 @@ import { AccountSheet } from '@/components/account';
 import { LocationsSheet, LocationCapabilityStrip } from '@/components/locations';
 import { NotificationSettingsSheet } from '@/components/notification-settings';
 import { createUpcomingActions } from '@/utils/recommendations';
-import { appThemes, layout, spacing, typography } from '@/theme';
 import { useHomeModel } from '@/hooks/home';
-import {
-  ActivityPlanningButton,
-  ConditionsSummary,
-  DailyActionPanel,
-  UpcomingGuidance,
-} from '@/components/home-advice';
+import { ActivityPlanningButton, ConditionsSummary, DailyActionPanel, UpcomingGuidance } from '@/components/home-advice';
 import { EnvironmentMetrics, WeatherHero } from '@/components/home-weather';
 import { ForecastPreview, LiveWeatherStatusStrip } from '@/components/home-forecast';
 import { UpcomingPlan } from '@/components/plans';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { styles, colors } from '@/css/screens/home-screen.styles';
 
 // home-screen
 
+// Hiển thị màn hình thời tiết chính.
 export function HomeScreen() {
   const {
-    user,
-    now,
-    selectedLocation,
-    liveWeatherQuery,
-    liveResult,
-    isLive,
-    weather,
-    liveRecommendationPresentation,
-    forecast,
-    forecastSource,
-    observedTime,
-    location,
-    context,
-    actions,
+    user, now, selectedLocation, liveWeatherQuery, liveResult, isLive, weather, liveRecommendationPresentation, forecast, forecastSource, observedTime, location, context, actions,
     isStale,
   } = useHomeModel();
   const { width, fontScale } = useWindowDimensions();
@@ -140,12 +120,7 @@ export function HomeScreen() {
           <UpcomingPlan now={now} />
           {liveResult ? (
             <UpcomingGuidance
-              actions={createUpcomingActions(
-                weather,
-                liveResult.hourlyForecast,
-                liveWeatherQuery.dataUpdatedAt,
-                now,
-              )}
+              actions={createUpcomingActions(weather, liveResult.hourlyForecast, liveWeatherQuery.dataUpdatedAt, now)}
             />
           ) : null}
           <SlideIn style={styles.weatherDetailsToggle}>
@@ -215,43 +190,3 @@ export function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-const colors = appThemes.light.colors;
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { flexGrow: 1, paddingBottom: spacing.lg },
-  frame: {
-    width: '100%',
-    maxWidth: layout.maxContentWidth,
-    alignSelf: 'center',
-    backgroundColor: colors.background,
-    gap: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  evidenceStack: { gap: spacing.lg, paddingTop: spacing.sm },
-  weatherDetailsToggle: { marginHorizontal: spacing.sm, marginBottom: spacing.sm },
-  footer: {
-    gap: spacing.xs,
-    borderTopWidth: 3,
-    borderColor: colors.border,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.surface,
-  },
-  footerSecondary: {
-    color: colors.text,
-    fontFamily: typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  attribution: {
-    color: colors.textMuted,
-    fontFamily: typography.identity,
-    fontSize: 10,
-    lineHeight: 15,
-    letterSpacing: 0.4,
-  },
-});

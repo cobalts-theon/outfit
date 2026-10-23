@@ -1,15 +1,9 @@
+/**
+ * Kiểu dữ liệu phản hồi và các hàm kiểm tra JSON nhận từ API lúc chạy.
+ * Dữ liệu sai cấu trúc được báo lỗi trước khi chuyển qua adapter.
+ */
 import {
-  readNumber,
-  readNumberArray,
-  readOptionalNumberArray,
-  readOptionalNumber,
-  readOptionalRecord,
-  readRecord,
-  readString,
-  readUnitMap,
-  type JsonRecord,
-  type NullableNumber,
-  OpenMeteoResponseError,
+  readNumber, readNumberArray, readOptionalNumberArray, readOptionalNumber, readOptionalRecord, readRecord, readString, readUnitMap, type JsonRecord, type NullableNumber, OpenMeteoResponseError,
 } from '@/services/weather/request';
 
 // forecast-dto
@@ -99,21 +93,14 @@ export interface OpenMeteoLiveForecastDto {
   readonly dailyIssue?: { readonly code: 'malformed_response' };
 }
 
+// Kiểm tra phần thời tiết hiện tại.
 function forecastDtoParseCurrent(record: JsonRecord): OpenMeteoForecastCurrentDto {
   return {
     time: readNumber(record, 'time', 'current.time'),
     interval: readNumber(record, 'interval', 'current.interval'),
     temperature_2m: readNumber(record, 'temperature_2m', 'current.temperature_2m'),
-    relative_humidity_2m: readNumber(
-      record,
-      'relative_humidity_2m',
-      'current.relative_humidity_2m',
-    ),
-    apparent_temperature: readNumber(
-      record,
-      'apparent_temperature',
-      'current.apparent_temperature',
-    ),
+    relative_humidity_2m: readNumber(record, 'relative_humidity_2m', 'current.relative_humidity_2m'),
+    apparent_temperature: readNumber(record, 'apparent_temperature', 'current.apparent_temperature'),
     is_day: readNumber(record, 'is_day', 'current.is_day'),
     weather_code: readNumber(record, 'weather_code', 'current.weather_code'),
     wind_speed_10m: readNumber(record, 'wind_speed_10m', 'current.wind_speed_10m'),
@@ -125,34 +112,19 @@ function forecastDtoParseCurrent(record: JsonRecord): OpenMeteoForecastCurrentDt
     visibility: readOptionalNumber(record, 'visibility', 'current.visibility'),
     pressure_msl: readOptionalNumber(record, 'pressure_msl', 'current.pressure_msl'),
     surface_pressure: readOptionalNumber(record, 'surface_pressure', 'current.surface_pressure'),
-    wind_direction_10m: readOptionalNumber(
-      record,
-      'wind_direction_10m',
-      'current.wind_direction_10m',
-    ),
+    wind_direction_10m: readOptionalNumber(record, 'wind_direction_10m', 'current.wind_direction_10m'),
     wind_gusts_10m: readOptionalNumber(record, 'wind_gusts_10m', 'current.wind_gusts_10m'),
   };
 }
 
+// Kiểm tra phần dự báo theo giờ.
 function forecastDtoParseHourly(record: JsonRecord): OpenMeteoForecastHourlyDto {
   return {
     time: readNumberArray(record, 'time', 'hourly.time'),
     temperature_2m: readNumberArray(record, 'temperature_2m', 'hourly.temperature_2m'),
-    relative_humidity_2m: readOptionalNumberArray(
-      record,
-      'relative_humidity_2m',
-      'hourly.relative_humidity_2m',
-    ),
-    apparent_temperature: readOptionalNumberArray(
-      record,
-      'apparent_temperature',
-      'hourly.apparent_temperature',
-    ),
-    precipitation_probability: readOptionalNumberArray(
-      record,
-      'precipitation_probability',
-      'hourly.precipitation_probability',
-    ),
+    relative_humidity_2m: readOptionalNumberArray(record, 'relative_humidity_2m', 'hourly.relative_humidity_2m'),
+    apparent_temperature: readOptionalNumberArray(record, 'apparent_temperature', 'hourly.apparent_temperature'),
+    precipitation_probability: readOptionalNumberArray(record, 'precipitation_probability', 'hourly.precipitation_probability'),
     precipitation: readOptionalNumberArray(record, 'precipitation', 'hourly.precipitation'),
     rain: readOptionalNumberArray(record, 'rain', 'hourly.rain'),
     showers: readOptionalNumberArray(record, 'showers', 'hourly.showers'),
@@ -161,80 +133,39 @@ function forecastDtoParseHourly(record: JsonRecord): OpenMeteoForecastHourlyDto 
     cloud_cover: readOptionalNumberArray(record, 'cloud_cover', 'hourly.cloud_cover'),
     visibility: readOptionalNumberArray(record, 'visibility', 'hourly.visibility'),
     wind_speed_10m: readOptionalNumberArray(record, 'wind_speed_10m', 'hourly.wind_speed_10m'),
-    wind_direction_10m: readOptionalNumberArray(
-      record,
-      'wind_direction_10m',
-      'hourly.wind_direction_10m',
-    ),
+    wind_direction_10m: readOptionalNumberArray(record, 'wind_direction_10m', 'hourly.wind_direction_10m'),
     wind_gusts_10m: readOptionalNumberArray(record, 'wind_gusts_10m', 'hourly.wind_gusts_10m'),
     uv_index: readOptionalNumberArray(record, 'uv_index', 'hourly.uv_index'),
     is_day: readNumberArray(record, 'is_day', 'hourly.is_day'),
   };
 }
 
+// Kiểm tra phần dự báo theo ngày.
 function parseDaily(record: JsonRecord): OpenMeteoForecastDailyDto {
   return {
     time: readNumberArray(record, 'time', 'daily.time'),
     weather_code: readOptionalNumberArray(record, 'weather_code', 'daily.weather_code'),
-    temperature_2m_max: readOptionalNumberArray(
-      record,
-      'temperature_2m_max',
-      'daily.temperature_2m_max',
-    ),
-    temperature_2m_min: readOptionalNumberArray(
-      record,
-      'temperature_2m_min',
-      'daily.temperature_2m_min',
-    ),
-    apparent_temperature_max: readOptionalNumberArray(
-      record,
-      'apparent_temperature_max',
-      'daily.apparent_temperature_max',
-    ),
-    apparent_temperature_min: readOptionalNumberArray(
-      record,
-      'apparent_temperature_min',
-      'daily.apparent_temperature_min',
-    ),
+    temperature_2m_max: readOptionalNumberArray(record, 'temperature_2m_max', 'daily.temperature_2m_max'),
+    temperature_2m_min: readOptionalNumberArray(record, 'temperature_2m_min', 'daily.temperature_2m_min'),
+    apparent_temperature_max: readOptionalNumberArray(record, 'apparent_temperature_max', 'daily.apparent_temperature_max'),
+    apparent_temperature_min: readOptionalNumberArray(record, 'apparent_temperature_min', 'daily.apparent_temperature_min'),
     uv_index_max: readOptionalNumberArray(record, 'uv_index_max', 'daily.uv_index_max'),
     sunrise: readOptionalNumberArray(record, 'sunrise', 'daily.sunrise'),
     sunset: readOptionalNumberArray(record, 'sunset', 'daily.sunset'),
     moonrise: readOptionalNumberArray(record, 'moonrise', 'daily.moonrise'),
     moonset: readOptionalNumberArray(record, 'moonset', 'daily.moonset'),
     moon_phase: readOptionalNumberArray(record, 'moon_phase', 'daily.moon_phase'),
-    precipitation_sum: readOptionalNumberArray(
-      record,
-      'precipitation_sum',
-      'daily.precipitation_sum',
-    ),
-    precipitation_probability_max: readOptionalNumberArray(
-      record,
-      'precipitation_probability_max',
-      'daily.precipitation_probability_max',
-    ),
-    wind_speed_10m_max: readOptionalNumberArray(
-      record,
-      'wind_speed_10m_max',
-      'daily.wind_speed_10m_max',
-    ),
-    wind_gusts_10m_max: readOptionalNumberArray(
-      record,
-      'wind_gusts_10m_max',
-      'daily.wind_gusts_10m_max',
-    ),
-    wind_direction_10m_dominant: readOptionalNumberArray(
-      record,
-      'wind_direction_10m_dominant',
-      'daily.wind_direction_10m_dominant',
-    ),
+    precipitation_sum: readOptionalNumberArray(record, 'precipitation_sum', 'daily.precipitation_sum'),
+    precipitation_probability_max: readOptionalNumberArray(record, 'precipitation_probability_max', 'daily.precipitation_probability_max'),
+    wind_speed_10m_max: readOptionalNumberArray(record, 'wind_speed_10m_max', 'daily.wind_speed_10m_max'),
+    wind_gusts_10m_max: readOptionalNumberArray(record, 'wind_gusts_10m_max', 'daily.wind_gusts_10m_max'),
+    wind_direction_10m_dominant: readOptionalNumberArray(record, 'wind_direction_10m_dominant', 'daily.wind_direction_10m_dominant'),
   };
 }
 
+// Đọc cấu trúc chung của phản hồi dự báo.
 function parseForecastResponseRecord(
-  response: JsonRecord,
-  hourly: OpenMeteoForecastHourlyDto | undefined,
-  hourlyUnits: Readonly<Record<string, string>> | undefined,
-  daily: OpenMeteoForecastDailyDto | undefined,
+  response: JsonRecord, hourly: OpenMeteoForecastHourlyDto | undefined, hourlyUnits: Readonly<Record<string, string>> | undefined, daily: OpenMeteoForecastDailyDto | undefined,
   dailyUnits: Readonly<Record<string, string>> | undefined,
 ): OpenMeteoForecastResponseDto {
   const current = readRecord(response.current, 'current');
@@ -256,6 +187,7 @@ function parseForecastResponseRecord(
   };
 }
 
+// Kiểm tra toàn bộ JSON dự báo.
 export function parseOpenMeteoForecastResponse(value: unknown): OpenMeteoForecastResponseDto {
   const response = readRecord(value, 'response');
   const hourly = readOptionalRecord(response, 'hourly');
@@ -274,6 +206,7 @@ export function parseOpenMeteoForecastResponse(value: unknown): OpenMeteoForecas
  * Parses the required current/daily slice independently from optional hourly data.
  * This lets the application retain truthful current weather if only hourly JSON is malformed.
  */
+// Đọc dự báo và ghi nhận phần bị lỗi.
 export function parseOpenMeteoLiveForecastResponse(value: unknown): OpenMeteoLiveForecastDto {
   const response = readRecord(value, 'response');
   let hourly: OpenMeteoForecastHourlyDto | undefined;
@@ -354,28 +287,18 @@ export interface OpenMeteoAirQualityResponseDto {
   readonly hourly_units?: Readonly<Record<string, string>>;
 }
 
-const airQualityValueKeys = [
-  'pm2_5',
-  'pm10',
-  'carbon_monoxide',
-  'nitrogen_dioxide',
-  'sulphur_dioxide',
-  'ozone',
-  'european_aqi',
-  'us_aqi',
-  'uv_index',
-] as const;
+const airQualityValueKeys = ['pm2_5', 'pm10', 'carbon_monoxide', 'nitrogen_dioxide', 'sulphur_dioxide', 'ozone', 'european_aqi', 'us_aqi', 'uv_index'] as const;
 
+// Kiểm tra dữ liệu môi trường hiện tại.
 function airQualityDtoParseCurrent(record: JsonRecord): OpenMeteoAirQualityCurrentDto {
   return {
     time: readNumber(record, 'time', 'current.time'),
     interval: readNumber(record, 'interval', 'current.interval'),
-    ...Object.fromEntries(
-      airQualityValueKeys.map((key) => [key, readOptionalNumber(record, key, `current.${key}`)]),
-    ),
+    ...Object.fromEntries(airQualityValueKeys.map((key) => [key, readOptionalNumber(record, key, `current.${key}`)])),
   };
 }
 
+// Kiểm tra dữ liệu môi trường theo giờ.
 function airQualityDtoParseHourly(record: JsonRecord): OpenMeteoAirQualityHourlyDto {
   return {
     time: readNumberArray(record, 'time', 'hourly.time'),
@@ -391,6 +314,7 @@ function airQualityDtoParseHourly(record: JsonRecord): OpenMeteoAirQualityHourly
   };
 }
 
+// Kiểm tra toàn bộ JSON môi trường.
 export function parseOpenMeteoAirQualityResponse(value: unknown): OpenMeteoAirQualityResponseDto {
   const response = readRecord(value, 'response');
   const current = readRecord(response.current, 'current');

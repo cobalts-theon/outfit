@@ -1,17 +1,17 @@
+/**
+ * Nối giao diện tài khoản với đăng nhập, hồ sơ và ảnh đại diện.
+ * Tập trung trạng thái đang xử lý, kết quả và lỗi của thao tác người dùng.
+ */
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth';
-import {
-  useProfile,
-  useUploadProfileAvatar,
-  useRemoveProfileAvatar,
-  type EmailOtpPurpose,
-} from '@/services/account';
+import { useProfile, useUploadProfileAvatar, useRemoveProfileAvatar, type EmailOtpPurpose } from '@/services/account';
 
 // use-account-model
 
 export type AuthMode = 'sign_in' | 'sign_up';
 
+// Đổi lỗi tài khoản thành thông báo dễ hiểu.
 function authErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   if (message.includes('invalid login credentials')) {
@@ -32,6 +32,7 @@ function authErrorMessage(error: unknown) {
   return 'Không thể hoàn tất yêu cầu tài khoản. Hãy thử lại.';
 }
 
+// Đổi lỗi ảnh đại diện thành thông báo.
 function profileAvatarErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
 
@@ -54,6 +55,7 @@ function profileAvatarErrorMessage(error: unknown) {
   return 'Không thể cập nhật ảnh đại diện. Hãy thử lại.';
 }
 
+// Phối hợp tài khoản, hồ sơ và ảnh.
 export function useAccountModel(visible: boolean, initialMode: AuthMode) {
   const { state, signIn, signUp, signOut } = useAuth();
   const [otpFlow, setOtpFlow] = useState<{
@@ -81,6 +83,7 @@ export function useAccountModel(visible: boolean, initialMode: AuthMode) {
   const uploadAvatarMutation = useUploadProfileAvatar(userId, avatarPath);
   const removeAvatarMutation = useRemoveProfileAvatar(userId, avatarPath);
   const avatarPending = uploadAvatarMutation.isPending || removeAvatarMutation.isPending;
+  // Gửi form đăng nhập hoặc đăng ký.
   const submit = async () => {
     setMessage(undefined);
     setErrorMessage(undefined);
@@ -117,6 +120,7 @@ export function useAccountModel(visible: boolean, initialMode: AuthMode) {
       setPending(false);
     }
   };
+  // Đăng xuất và cập nhật giao diện.
   const runSignOut = async () => {
     setPending(true);
     setErrorMessage(undefined);
@@ -128,6 +132,7 @@ export function useAccountModel(visible: boolean, initialMode: AuthMode) {
       setPending(false);
     }
   };
+  // Chọn và tải ảnh đại diện lên.
   const chooseProfileAvatar = async () => {
     setMessage(undefined);
     setErrorMessage(undefined);
@@ -162,6 +167,7 @@ export function useAccountModel(visible: boolean, initialMode: AuthMode) {
     }
   };
 
+  // Xóa ảnh đại diện đang dùng.
   const deleteProfileAvatar = async () => {
     setMessage(undefined);
     setErrorMessage(undefined);

@@ -1518,3 +1518,59 @@ for actual attention/warning/danger. Show three preview rows including optional
 activities, plus all warnings. Secondary icons/type are compact and show actions;
 expand for remaining advice and detailed environmental evidence. Reuse existing
 icon assets and files; no file-count increase or notification-threshold changes.
+
+
+## ADR-060 — Smaller modules for defense preparation (2026-10-23)
+
+**Previous decision:** ADR-049 grouped application declarations into 50 files.
+
+**Decision:** Prioritize shorter files for the student's request to make source
+less overwhelming. Split the seven files exceeding 700 lines by responsibility,
+adding eight modules: recommendation icon/preview, location capability, weather
+fixtures, current-weather adapter, walking planner, recommendation engine and
+comfort rules. Preserve the old exports for existing callers.
+
+**Consequences:** Source count increases from 50 to 58. No source file exceeds
+700 lines; the largest is 653 lines. This reduces the size of individual files,
+not the amount of product behavior. Keep readable formatting and Vietnamese
+headers. Do not remove features or compress statements to reach a line target.
+
+**Validation:** TypeScript, all 357 tests across 40 suites, and Android export pass.
+
+
+## ADR-061 — Dedicated style files for live editing (2026-10-23)
+
+**Previous decision:** UI modules grouped components with their StyleSheet blocks.
+
+**Decision:** The user requested CSS-like files that can be opened directly when
+asked to change UI during the defense. Use React Native `.styles.ts` modules,
+not browser-only CSS imports. Add one matching style module per UI file, plus
+app context styles: 23 modules total. Keep before-start styles outside `src/app`
+so Expo Router does not interpret them as a route. Extract static and inline
+styles, dynamic style helpers and the native artwork's embedded CSS. Preserve
+shared tokens in `theme.ts` and exported account/location style contracts.
+
+**Consequences:** 81 source files total (58 application + 23 style). Components
+link directly to their style modules; functionality remains in components,
+hooks, services and utils. The edit guide maps visible sections to source files.
+
+**Validation:** All 72 moved static declarations retain their initializers.
+TypeScript, 357 tests and Android/web exports pass. No device/iOS visual review
+was performed for this structural change.
+
+
+## ADR-062 — Central CSS folder (2026-10-23)
+
+**Previous decision:** ADR-061 placed `.styles.ts` beside the UI source files.
+
+**Decision:** At the user's request, move all 23 unchanged style modules to
+`src/css/components`, `src/css/screens` and `src/css/context`. Preserve filenames,
+update imports/re-exports, and update the UI edit guide links. Keep `.styles.ts`
+so native React Native styling continues working. `theme.ts` remains the shared
+palette/type/spacing token source.
+
+**Consequences:** 81 source files in 15 directories including src. No style files
+remain mixed into component/screen/context folders. Ctrl/Cmd-click still opens
+the matching style file; no layout or behavior changes.
+
+**Validation:** TypeScript, all 357 tests/40 suites and Android/web exports pass.

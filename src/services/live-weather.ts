@@ -1,53 +1,31 @@
+/**
+ * Tải thời tiết trực tiếp và tổng hợp dự báo với dữ liệu môi trường.
+ * Khai báo truy vấn có cache; cho phép trả dữ liệu một phần khi nguồn phụ bị lỗi.
+ */
 import type { HourlyForecast, CurrentWeather, DailyForecast } from '@/types/weather';
 import type { PlanningHour } from '@/utils/planning';
 import type { AppCoordinates, SelectedAppLocation } from '@/utils/validation';
-import {
-  adaptOpenMeteoAirQuality,
-  type OpenMeteoAqiScale,
-  type OpenMeteoEnvironmentalSnapshot,
-  fetchOpenMeteoCurrentAirQuality,
-  fetchOpenMeteoLiveWeatherForecast,
-} from '@/services/weather/client';
-import type {
-  OpenMeteoAirQualityResponseDto,
-  OpenMeteoLiveForecastDto,
-} from '@/services/weather/responses';
+import { adaptOpenMeteoAirQuality, type OpenMeteoAqiScale, type OpenMeteoEnvironmentalSnapshot, fetchOpenMeteoCurrentAirQuality, fetchOpenMeteoLiveWeatherForecast } from '@/services/weather/client';
+import type { OpenMeteoAirQualityResponseDto, OpenMeteoLiveForecastDto } from '@/services/weather/responses';
 import { OpenMeteoHttpError, OpenMeteoResponseError } from '@/services/weather/request';
-import {
-  adaptOpenMeteoCurrentWeather,
-  adaptOpenMeteoHourlyForecast,
-  adaptOpenMeteoDailyForecast,
-} from '@/services/weather/adapters';
+import { adaptOpenMeteoCurrentWeather, adaptOpenMeteoHourlyForecast, adaptOpenMeteoDailyForecast } from '@/services/weather/adapters';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 // planning-forecast
 
-export function createPlanningHours(
-  forecast: HourlyForecast | undefined,
-  aqi: Record<string, number> = {},
-): PlanningHour[] {
-  const benign = new Set([
-    'clear',
-    'mostly_clear',
-    'partly_cloudy',
-    'mostly_cloudy',
-    'cloudy',
-    'overcast',
-    'drizzle',
-    'light_rain',
-    'rain',
-    'showers',
-  ]);
-  return (forecast?.entries ?? []).map((h) => ({
-    at: h.forecastAt,
-    feelsLike: h.apparentTemperatureCelsius,
-    uv: h.uv?.index,
-    aqi: aqi[h.forecastAt],
-    rainProbability: h.precipitation?.probability,
-    wind: h.wind?.speedMetersPerSecond,
-    gust: h.wind?.gustMetersPerSecond,
-    daylight: h.daylight.isDay,
-    hazardous: !benign.has(h.condition),
+// Đổi dự báo thành dữ liệu đánh giá giờ.
+export function createPlanningHours(forecast: HourlyForecast | undefined, aqi: Record<string, number> = {}): PlanningHour[] {
+  const nonHazardousConditions = new Set(['clear', 'mostly_clear', 'partly_cloudy', 'mostly_cloudy', 'cloudy', 'overcast', 'drizzle', 'light_rain', 'rain', 'showers']);
+  return (forecast?.entries ?? []).map((hour) => ({
+    at: hour.forecastAt,
+    feelsLike: hour.apparentTemperatureCelsius,
+    uv: hour.uv?.index,
+    aqi: aqi[hour.forecastAt],
+    rainProbability: hour.precipitation?.probability,
+    wind: hour.wind?.speedMetersPerSecond,
+    gust: hour.wind?.gustMetersPerSecond,
+    daylight: hour.daylight.isDay,
+    hazardous: !nonHazardousConditions.has(hour.condition),
   }));
 }
 
@@ -81,6 +59,7 @@ export type LiveWeatherIssueCode =
   | 'daily_forecast_unavailable';
 
 export class LiveWeatherError extends Error {
+  // Khởi tạo lỗi và thông tin đi kèm.
   constructor(
     readonly code: LiveWeatherErrorCode,
     readonly source:
@@ -126,12 +105,14 @@ const defaultDependencies: LiveWeatherProviderDependencies = {
   fetchAirQuality: fetchOpenMeteoCurrentAirQuality,
 };
 
+// Làm tròn tọa độ cho truy vấn.
 function roundCoordinate(value: number) {
   const factor = 10 ** WEATHER_QUERY_COORDINATE_DECIMALS;
   const rounded = Math.round(value * factor) / factor;
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
+// Kiểm tra và làm tròn tọa độ thời tiết.
 export function normalizeWeatherQueryCoordinates(coordinates: AppCoordinates): AppCoordinates {
   if (
     !Number.isFinite(coordinates.latitude) ||
@@ -144,15 +125,11 @@ export function normalizeWeatherQueryCoordinates(coordinates: AppCoordinates): A
     throw new LiveWeatherError('invalid_input', 'application', 'Tọa độ thời tiết không hợp lệ.');
   }
 
-  return {
-    latitude: roundCoordinate(coordinates.latitude),
-    longitude: roundCoordinate(coordinates.longitude),
-  };
+  return { latitude: roundCoordinate(coordinates.latitude), longitude: roundCoordinate(coordinates.longitude) };
 }
 
-export function createLiveCurrentWeatherInput(
-  selectedLocation: SelectedAppLocation,
-): LiveCurrentWeatherInput {
+// Chuẩn bị vị trí cho truy vấn thời tiết.
+export function createLiveCurrentWeatherInput(selectedLocation: SelectedAppLocation): LiveCurrentWeatherInput {
   const label = selectedLocation.label?.trim();
   const locationName =
     label && label.length > 0
@@ -169,34 +146,20 @@ export function createLiveCurrentWeatherInput(
   };
 }
 
-function safeError(
-  error: unknown,
-  source: 'forecast' | 'hourly_forecast' | 'daily_forecast' | 'air_quality',
-): LiveWeatherError {
+// Chuẩn hóa lỗi từ nguồn thời tiết.
+function safeError(error: unknown, source: 'forecast' | 'hourly_forecast' | 'daily_forecast' | 'air_quality'): LiveWeatherError {
   if (error instanceof LiveWeatherError) return error;
 
   if (error instanceof OpenMeteoResponseError) {
-    return new LiveWeatherError(
-      'malformed_response',
-      source,
-      'Dữ liệu thời tiết nhận được không đúng định dạng mong đợi.',
-    );
+    return new LiveWeatherError('malformed_response', source, 'Dữ liệu thời tiết nhận được không đúng định dạng mong đợi.');
   }
 
   if (error instanceof OpenMeteoHttpError) {
     if (error.status === 429) {
-      return new LiveWeatherError(
-        'rate_limited',
-        source,
-        'Nguồn thời tiết đang giới hạn yêu cầu. Vui lòng thử lại sau.',
-      );
+      return new LiveWeatherError('rate_limited', source, 'Nguồn thời tiết đang giới hạn yêu cầu. Vui lòng thử lại sau.');
     }
 
-    return new LiveWeatherError(
-      'provider_unavailable',
-      source,
-      'Nguồn thời tiết tạm thời không khả dụng.',
-    );
+    return new LiveWeatherError('provider_unavailable', source, 'Nguồn thời tiết tạm thời không khả dụng.');
   }
 
   if (error instanceof Error && error.name === 'AbortError') {
@@ -210,13 +173,12 @@ function safeError(
   return new LiveWeatherError('unknown', source, 'Không thể hoàn tất yêu cầu thời tiết.');
 }
 
-function issueFromError(
-  error: LiveWeatherError,
-  source: LiveWeatherDataIssue['source'],
-): LiveWeatherDataIssue {
+// Ghi nhận lỗi của một phần dữ liệu.
+function issueFromError(error: LiveWeatherError, source: LiveWeatherDataIssue['source']): LiveWeatherDataIssue {
   return { source, code: error.code, message: error.message };
 }
 
+// Tải và tổng hợp thời tiết với môi trường.
 export async function loadLiveCurrentWeather(
   input: LiveCurrentWeatherInput,
   options: {
@@ -228,6 +190,7 @@ export async function loadLiveCurrentWeather(
   const dependencies = options.dependencies ?? defaultDependencies;
   const requestOptions = { signal: options.signal };
 
+  // Gọi song song, nhưng giữ được dự báo nếu riêng nguồn AQI gặp lỗi.
   const [forecastResult, airQualityResult] = await Promise.allSettled([
     dependencies.fetchForecast(coordinates, requestOptions),
     dependencies.fetchAirQuality(coordinates, requestOptions),
@@ -299,10 +262,7 @@ export async function loadLiveCurrentWeather(
 
   let weather: CurrentWeather;
   try {
-    weather = adaptOpenMeteoCurrentWeather(
-      dailyUsableForCurrent ? forecast : { ...forecast, daily: undefined, daily_units: undefined },
-      { name: input.locationName },
-      environmental,
+    weather = adaptOpenMeteoCurrentWeather(dailyUsableForCurrent ? forecast : { ...forecast, daily: undefined, daily_units: undefined }, { name: input.locationName }, environmental
     );
   } catch (error) {
     throw safeError(error, 'forecast');
@@ -335,6 +295,7 @@ export async function loadLiveCurrentWeather(
   };
 }
 
+// Chọn lỗi được phép tải lại.
 export function shouldRetryLiveWeatherQuery(failureCount: number, error: unknown) {
   if (!(error instanceof LiveWeatherError) || failureCount >= 2) return false;
 
@@ -367,10 +328,8 @@ export const liveCurrentWeatherKeys = {
   },
 };
 
-export function liveCurrentWeatherQueryOptions(
-  selectedLocation: SelectedAppLocation | undefined,
-  dependencies?: LiveWeatherProviderDependencies,
-) {
+// Cấu hình cache và tải lại thời tiết.
+export function liveCurrentWeatherQueryOptions(selectedLocation: SelectedAppLocation | undefined, dependencies?: LiveWeatherProviderDependencies) {
   const input =
     selectedLocation === undefined ? undefined : createLiveCurrentWeatherInput(selectedLocation);
 
@@ -382,11 +341,7 @@ export function liveCurrentWeatherQueryOptions(
     enabled: input !== undefined,
     queryFn: ({ signal }) => {
       if (input === undefined) {
-        throw new LiveWeatherError(
-          'invalid_input',
-          'application',
-          'Không thể tải thời tiết khi chưa có vị trí được chọn.',
-        );
+        throw new LiveWeatherError('invalid_input', 'application', 'Không thể tải thời tiết khi chưa có vị trí được chọn.');
       }
 
       return loadLiveCurrentWeather(input, { signal, dependencies });
@@ -400,6 +355,7 @@ export function liveCurrentWeatherQueryOptions(
   });
 }
 
+// Lấy thời tiết cho địa điểm được chọn.
 export function useLiveCurrentWeather(selectedLocation?: SelectedAppLocation) {
   return useQuery(liveCurrentWeatherQueryOptions(selectedLocation));
 }

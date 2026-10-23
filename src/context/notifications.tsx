@@ -1,29 +1,14 @@
-import {
-  createContext,
-  type PropsWithChildren,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+/**
+ * Quản lý trạng thái bật thông báo và phối hợp đồng bộ thông báo.
+ * Cung cấp thao tác dùng chung cho Home và phần cài đặt.
+ */
+import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import { useAuth } from '@/context/auth';
 import type { RecommendationNotificationEvent } from '@/utils/recommendations';
 import {
-  upsertCloudNotificationPreference,
-  retireActionReminders,
-  cancelRecommendationNotifications,
-  configureWeatherNotificationChannel,
-  hasWeatherNotificationPermission,
-  readNotificationPreference,
-  requestWeatherNotificationPermission,
-  resolveRemotePushCapability,
-  sendTestWeatherNotification,
-  syncRecommendationNotifications,
-  writeNotificationPreference,
-  type RemotePushCapability,
+  upsertCloudNotificationPreference, retireActionReminders, cancelRecommendationNotifications, configureWeatherNotificationChannel, hasWeatherNotificationPermission, readNotificationPreference,
+  requestWeatherNotificationPermission, resolveRemotePushCapability, sendTestWeatherNotification, syncRecommendationNotifications, writeNotificationPreference, type RemotePushCapability,
 } from '@/services/notifications';
 
 // notification-provider
@@ -53,15 +38,13 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
+// Quản lý tùy chọn và đồng bộ thông báo.
 export function NotificationProvider({ children }: PropsWithChildren) {
   const { state: authState } = useAuth();
   const userId = authState.status === 'signed_in' ? authState.user.id : undefined;
   const notificationsActiveRef = useRef(false);
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const [state, setState] = useState<NotificationPreferenceState>({
-    status: 'loading',
-    remotePush: 'local_only',
-  });
+  const [state, setState] = useState<NotificationPreferenceState>({ status: 'loading', remotePush: 'local_only' });
 
   useEffect(() => {
     let active = true;
@@ -136,6 +119,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     return () => subscription.remove();
   }, [state.status]);
 
+  // Đồng bộ tùy chọn thông báo lên tài khoản.
   const persistCloudPreference = useCallback(
     async (enabled: boolean): Promise<boolean | undefined> => {
       if (userId === undefined) return undefined;
@@ -150,6 +134,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     [userId],
   );
 
+  // Xin quyền và bật thông báo.
   const enable = useCallback(async () => {
     setState((current) => ({ ...current, status: 'enabling', feedback: undefined }));
     try {
@@ -199,6 +184,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     }
   }, [persistCloudPreference]);
 
+  // Tắt thông báo và hủy lịch liên quan.
   const disable = useCallback(async () => {
     notificationsActiveRef.current = false;
     writeNotificationPreference(false);
@@ -219,6 +205,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     });
   }, [persistCloudPreference]);
 
+  // Gửi thử để kiểm tra thông báo.
   const sendTest = useCallback(async () => {
     try {
       if (!(await hasWeatherNotificationPermission())) {
@@ -243,6 +230,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
+  // Đồng bộ thông báo theo dữ liệu mới.
   const sync = useCallback(
     async (events: readonly RecommendationNotificationEvent[]) => {
       if (state.status !== 'enabled') return;
@@ -260,18 +248,17 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     [state.status],
   );
 
+  // Mở cài đặt thông báo của hệ điều hành.
   const openSettings = useCallback(async () => {
     await Linking.openSettings();
   }, []);
 
-  const value = useMemo(
-    () => ({ state, enable, disable, openSettings, sendTest, sync }),
-    [disable, enable, openSettings, sendTest, state, sync],
-  );
+  const value = useMemo(() => ({ state, enable, disable, openSettings, sendTest, sync }), [disable, enable, openSettings, sendTest, state, sync]);
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }
 
+// Lấy các thao tác thông báo dùng chung.
 export function useNotifications() {
   const value = useContext(NotificationContext);
   if (value === null) {

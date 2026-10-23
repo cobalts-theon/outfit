@@ -1,3 +1,7 @@
+/**
+ * Mô hình dữ liệu nội bộ cho thời tiết, dự báo và khuyến nghị.
+ * Service, bộ quy tắc và UI cùng sử dụng các hợp đồng kiểu dữ liệu này.
+ */
 // weather
 
 export const WEATHER_CONDITIONS = [
@@ -40,6 +44,7 @@ export type WeatherCondition = (typeof WEATHER_CONDITIONS)[number];
 
 const weatherConditionSet: ReadonlySet<string> = new Set(WEATHER_CONDITIONS);
 
+// Kiểm tra tên điều kiện thời tiết hợp lệ.
 export function isWeatherCondition(value: unknown): value is WeatherCondition {
   return typeof value === 'string' && weatherConditionSet.has(value);
 }
@@ -88,15 +93,7 @@ export interface Wind {
   readonly direction?: WindDirection;
 }
 
-export const PRECIPITATION_TYPES = [
-  'none',
-  'drizzle',
-  'rain',
-  'freezing_rain',
-  'sleet',
-  'snow',
-  'hail',
-] as const;
+export const PRECIPITATION_TYPES = ['none', 'drizzle', 'rain', 'freezing_rain', 'sleet', 'snow', 'hail'] as const;
 
 export type PrecipitationType = (typeof PRECIPITATION_TYPES)[number];
 
@@ -121,15 +118,7 @@ export interface UVReference {
   readonly maxToday?: number;
 }
 
-export const AIR_QUALITY_CATEGORIES = [
-  'good',
-  'moderate',
-  'unhealthy_for_sensitive_groups',
-  'unhealthy',
-  'very_unhealthy',
-  'hazardous',
-  'unknown',
-] as const;
+export const AIR_QUALITY_CATEGORIES = ['good', 'moderate', 'unhealthy_for_sensitive_groups', 'unhealthy', 'very_unhealthy', 'hazardous', 'unknown'] as const;
 
 export type AirQualityCategory = (typeof AIR_QUALITY_CATEGORIES)[number];
 
@@ -155,16 +144,7 @@ export interface SunData {
   readonly sunset: ZonedDateTimeString;
 }
 
-export const MOON_PHASES = [
-  'new',
-  'waxing_crescent',
-  'first_quarter',
-  'waxing_gibbous',
-  'full',
-  'waning_gibbous',
-  'last_quarter',
-  'waning_crescent',
-] as const;
+export const MOON_PHASES = ['new', 'waxing_crescent', 'first_quarter', 'waxing_gibbous', 'full', 'waning_gibbous', 'last_quarter', 'waning_crescent'] as const;
 
 export type MoonPhase = (typeof MOON_PHASES)[number];
 
@@ -264,13 +244,7 @@ export const RECOMMENDATION_SEVERITIES = ['info', 'attention', 'warning', 'dange
 
 export type RecommendationSeverity = (typeof RECOMMENDATION_SEVERITIES)[number];
 
-export const RECOMMENDATION_INPUT_DIMENSIONS = [
-  'current_weather',
-  'uv',
-  'us_aqi',
-  'precipitation',
-  'hourly_forecast',
-] as const;
+export const RECOMMENDATION_INPUT_DIMENSIONS = ['current_weather', 'uv', 'us_aqi', 'precipitation', 'hourly_forecast'] as const;
 
 export type RecommendationInputDimension = (typeof RECOMMENDATION_INPUT_DIMENSIONS)[number];
 

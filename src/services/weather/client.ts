@@ -1,25 +1,12 @@
-import type {
-  AirQualityCategory,
-  AirQualityReference,
-  PollutantConcentrations,
-  UVCategory,
-  UVReference,
-} from '@/types/weather';
+/**
+ * Gọi HTTP lấy dự báo/môi trường và chuẩn hóa dữ liệu AQI, UV.
+ * Phối hợp URL, parser và kiểm tra lỗi trước khi trả dữ liệu cho service.
+ */
+import type { AirQualityCategory, AirQualityReference, PollutantConcentrations, UVCategory, UVReference } from '@/types/weather';
+import { type OpenMeteoAirQualityResponseDto, parseOpenMeteoAirQualityResponse, parseOpenMeteoForecastResponse, parseOpenMeteoLiveForecastResponse } from '@/services/weather/responses';
 import {
-  type OpenMeteoAirQualityResponseDto,
-  parseOpenMeteoAirQualityResponse,
-  parseOpenMeteoForecastResponse,
-  parseOpenMeteoLiveForecastResponse,
-} from '@/services/weather/responses';
-import {
-  OpenMeteoResponseError,
-  OpenMeteoHttpError,
-  buildOpenMeteoAirQualityUrl,
-  buildOpenMeteoCurrentAirQualityUrl,
-  buildOpenMeteoCurrentWeatherForecastUrl,
-  buildOpenMeteoForecastUrl,
-  buildOpenMeteoLiveWeatherForecastUrl,
-  type OpenMeteoRequestCoordinates,
+  OpenMeteoResponseError, OpenMeteoHttpError, buildOpenMeteoAirQualityUrl, buildOpenMeteoCurrentAirQualityUrl, buildOpenMeteoCurrentWeatherForecastUrl, buildOpenMeteoForecastUrl,
+  buildOpenMeteoLiveWeatherForecastUrl, type OpenMeteoRequestCoordinates,
 } from '@/services/weather/request';
 
 // air-quality-adapter
@@ -31,27 +18,19 @@ export interface OpenMeteoEnvironmentalSnapshot {
   readonly uv?: UVReference;
 }
 
-const pollutantUnitKeys = [
-  'pm2_5',
-  'pm10',
-  'carbon_monoxide',
-  'nitrogen_dioxide',
-  'sulphur_dioxide',
-  'ozone',
-] as const;
+const pollutantUnitKeys = ['pm2_5', 'pm10', 'carbon_monoxide', 'nitrogen_dioxide', 'sulphur_dioxide', 'ozone'] as const;
 
+// Kiểm tra đơn vị nồng độ chất ô nhiễm.
 function assertPollutantUnits(response: OpenMeteoAirQualityResponseDto) {
   for (const key of pollutantUnitKeys) {
     const unit = response.current_units?.[key];
     if (unit !== undefined && unit !== 'μg/m³') {
-      throw new OpenMeteoResponseError(
-        `Expected μg/m³ but received ${unit}.`,
-        `current_units.${key}`,
-      );
+      throw new OpenMeteoResponseError(`Expected μg/m³ but received ${unit}.`, `current_units.${key}`);
     }
   }
 }
 
+// Đọc số đo không âm nếu có.
 function optionalMeasurement(path: string, value: number | null | undefined) {
   if (value === null || value === undefined) return undefined;
   if (!Number.isFinite(value) || value < 0) {
@@ -60,6 +39,7 @@ function optionalMeasurement(path: string, value: number | null | undefined) {
   return value;
 }
 
+// Phân loại chất lượng không khí US AQI.
 function usAqiCategory(index: number): AirQualityCategory {
   if (index <= 50) return 'good';
   if (index <= 100) return 'moderate';
@@ -69,6 +49,7 @@ function usAqiCategory(index: number): AirQualityCategory {
   return 'hazardous';
 }
 
+// Phân loại mức tia UV.
 export function uvIndexCategory(index: number): UVCategory {
   if (index < 3) return 'low';
   if (index < 6) return 'moderate';
@@ -77,35 +58,23 @@ export function uvIndexCategory(index: number): UVCategory {
   return 'extreme';
 }
 
-function mapPollutants(
-  response: OpenMeteoAirQualityResponseDto,
-): PollutantConcentrations | undefined {
+// Chuẩn hóa nồng độ các chất ô nhiễm.
+function mapPollutants(response: OpenMeteoAirQualityResponseDto): PollutantConcentrations | undefined {
   const current = response.current;
   const pollutants: PollutantConcentrations = {
     pm25MicrogramsPerCubicMeter: optionalMeasurement('current.pm2_5', current.pm2_5),
     pm10MicrogramsPerCubicMeter: optionalMeasurement('current.pm10', current.pm10),
-    coMicrogramsPerCubicMeter: optionalMeasurement(
-      'current.carbon_monoxide',
-      current.carbon_monoxide,
-    ),
-    no2MicrogramsPerCubicMeter: optionalMeasurement(
-      'current.nitrogen_dioxide',
-      current.nitrogen_dioxide,
-    ),
-    so2MicrogramsPerCubicMeter: optionalMeasurement(
-      'current.sulphur_dioxide',
-      current.sulphur_dioxide,
-    ),
+    coMicrogramsPerCubicMeter: optionalMeasurement('current.carbon_monoxide', current.carbon_monoxide),
+    no2MicrogramsPerCubicMeter: optionalMeasurement('current.nitrogen_dioxide', current.nitrogen_dioxide),
+    so2MicrogramsPerCubicMeter: optionalMeasurement('current.sulphur_dioxide', current.sulphur_dioxide),
     o3MicrogramsPerCubicMeter: optionalMeasurement('current.ozone', current.ozone),
   };
 
   return Object.values(pollutants).every((value) => value === undefined) ? undefined : pollutants;
 }
 
-export function adaptOpenMeteoAirQuality(
-  response: OpenMeteoAirQualityResponseDto,
-  scale: OpenMeteoAqiScale,
-): OpenMeteoEnvironmentalSnapshot {
+// Chuẩn hóa AQI và UV từ phản hồi.
+export function adaptOpenMeteoAirQuality(response: OpenMeteoAirQualityResponseDto, scale: OpenMeteoAqiScale): OpenMeteoEnvironmentalSnapshot {
   assertPollutantUnits(response);
   const rawIndex = response.current[scale];
   const index = optionalMeasurement(`current.${scale}`, rawIndex);
@@ -124,10 +93,7 @@ export function adaptOpenMeteoAirQuality(
   const uv =
     uvIndex === undefined ? undefined : { index: uvIndex, category: uvIndexCategory(uvIndex) };
 
-  return {
-    ...(airQuality === undefined ? {} : { airQuality }),
-    ...(uv === undefined ? {} : { uv }),
-  };
+  return { ...(airQuality === undefined ? {} : { airQuality }), ...(uv === undefined ? {} : { uv }) };
 }
 
 // client
@@ -143,11 +109,8 @@ export type OpenMeteoFetch = (
   init?: { readonly signal?: AbortSignal },
 ) => Promise<OpenMeteoFetchResponse>;
 
-async function fetchJson(
-  url: string,
-  signal: AbortSignal | undefined,
-  fetchImplementation: OpenMeteoFetch,
-) {
+// Gọi HTTP và đọc phản hồi JSON.
+async function fetchJson(url: string, signal: AbortSignal | undefined, fetchImplementation: OpenMeteoFetch) {
   const response = await fetchImplementation(url, { signal });
 
   if (!response.ok) {
@@ -161,84 +124,62 @@ async function fetchJson(
   }
 }
 
+// Tải và kiểm tra dữ liệu dự báo.
 export async function fetchOpenMeteoForecast(
-  coordinates: OpenMeteoRequestCoordinates,
-  options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
+  coordinates: OpenMeteoRequestCoordinates, options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
 ) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  const payload = await fetchJson(
-    buildOpenMeteoForecastUrl(coordinates),
-    options.signal,
-    fetchImplementation,
-  );
+  const payload = await fetchJson(buildOpenMeteoForecastUrl(coordinates), options.signal, fetchImplementation);
 
   return parseOpenMeteoForecastResponse(payload);
 }
 
+// Tải dữ liệu chất lượng không khí.
 export async function fetchOpenMeteoAirQuality(
-  coordinates: OpenMeteoRequestCoordinates,
-  options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
+  coordinates: OpenMeteoRequestCoordinates, options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
 ) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  const payload = await fetchJson(
-    buildOpenMeteoAirQualityUrl(coordinates),
-    options.signal,
-    fetchImplementation,
-  );
+  const payload = await fetchJson(buildOpenMeteoAirQualityUrl(coordinates), options.signal, fetchImplementation);
 
   return parseOpenMeteoAirQualityResponse(payload);
 }
 
+// Tải dự báo phục vụ thời tiết hiện tại.
 export async function fetchOpenMeteoCurrentWeatherForecast(
-  coordinates: OpenMeteoRequestCoordinates,
-  options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
+  coordinates: OpenMeteoRequestCoordinates, options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
 ) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  const payload = await fetchJson(
-    buildOpenMeteoCurrentWeatherForecastUrl(coordinates),
-    options.signal,
-    fetchImplementation,
-  );
+  const payload = await fetchJson(buildOpenMeteoCurrentWeatherForecastUrl(coordinates), options.signal, fetchImplementation);
 
   return parseOpenMeteoForecastResponse(payload);
 }
 
+// Tải dữ liệu hiện tại, giờ và ngày.
 export async function fetchOpenMeteoLiveWeatherForecast(
-  coordinates: OpenMeteoRequestCoordinates,
-  options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
+  coordinates: OpenMeteoRequestCoordinates, options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
 ) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  const payload = await fetchJson(
-    buildOpenMeteoLiveWeatherForecastUrl(coordinates),
-    options.signal,
-    fetchImplementation,
-  );
+  const payload = await fetchJson(buildOpenMeteoLiveWeatherForecastUrl(coordinates), options.signal, fetchImplementation);
 
   return parseOpenMeteoLiveForecastResponse(payload);
 }
 
+// Tải chất lượng không khí hiện tại.
 export async function fetchOpenMeteoCurrentAirQuality(
-  coordinates: OpenMeteoRequestCoordinates,
-  options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
+  coordinates: OpenMeteoRequestCoordinates, options: { readonly signal?: AbortSignal; readonly fetchImplementation?: OpenMeteoFetch } = {},
 ) {
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  const payload = await fetchJson(
-    buildOpenMeteoCurrentAirQualityUrl(coordinates),
-    options.signal,
-    fetchImplementation,
-  );
+  const payload = await fetchJson(buildOpenMeteoCurrentAirQualityUrl(coordinates), options.signal, fetchImplementation);
 
   return parseOpenMeteoAirQualityResponse(payload);
 }
 
 // hourly-air-quality
 
-export async function fetchHourlyAirQuality(
-  latitude: number,
-  longitude: number,
-  signal?: AbortSignal,
-): Promise<Record<string, number>> {
+// Tải AQI theo từng giờ dự báo.
+export async function fetchHourlyAirQuality(latitude: number, longitude: number, signal?: AbortSignal): Promise<Record<string, number>> {
   const controller = new AbortController();
+  // Hủy yêu cầu dữ liệu đang chạy.
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   signal?.addEventListener('abort', abort, { once: true });

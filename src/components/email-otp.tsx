@@ -1,25 +1,20 @@
+/**
+ * Giao diện nhập mã OTP email: đếm thời gian, nhập mã và gửi lại mã.
+ * Thành phần nhận các hàm xử lý từ bên ngoài để thực hiện xác thực.
+ */
 import { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { homeVisualTokens, radii, typography, spacing } from '@/theme';
+import { Text, TextInput, View } from 'react-native';
+import { homeVisualTokens } from '@/theme';
 import { NeoBadge, NeoButton, SlideIn } from '@/components/controls';
-import {
-  createPasswordRecovery,
-  emailOtpErrorMessage,
-  normalizeOtpEmail,
-  OTP_RESEND_DELAY_MS,
-  requestEmailOtp,
-  verifyEmailOtp,
-  type EmailOtpPurpose,
-} from '@/services/account';
+import { createPasswordRecovery, emailOtpErrorMessage, normalizeOtpEmail, OTP_RESEND_DELAY_MS, requestEmailOtp, verifyEmailOtp, type EmailOtpPurpose } from '@/services/account';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { otpCodeInputStyles, emailOtpFormStyles } from '@/css/components/email-otp.styles';
 
 // otp-code-input
 
 // One native input preserves paste, autofill, backspace and screen-reader behavior.
-export function OtpCodeInput({
-  value,
-  onChange,
-  disabled,
-}: {
+// Hiển thị sáu ô nhập mã OTP.
+export function OtpCodeInput({ value, onChange, disabled }: {
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
@@ -37,11 +32,7 @@ export function OtpCodeInput({
         {Array.from({ length: count }, (_, index) => (
           <View
             key={index}
-            style={[
-              otpCodeInputStyles.cell,
-              focused && index === Math.min(value.length, count - 1) && otpCodeInputStyles.active,
-              disabled && otpCodeInputStyles.disabled,
-            ]}
+            style={[otpCodeInputStyles.cell, focused && index === Math.min(value.length, count - 1) && otpCodeInputStyles.active, disabled && otpCodeInputStyles.disabled]}
           >
             <Text style={otpCodeInputStyles.digit}>{value[index] ?? '·'}</Text>
           </View>
@@ -67,43 +58,10 @@ export function OtpCodeInput({
   );
 }
 
-const otpCodeInputStyles = StyleSheet.create({
-  container: { position: 'relative', minHeight: 56 },
-  cells: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  cell: {
-    flex: 1,
-    minHeight: 56,
-    borderWidth: 2,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: radii.control,
-    backgroundColor: homeVisualTokens.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  active: { backgroundColor: homeVisualTokens.sunflower, borderWidth: 3 },
-  disabled: { backgroundColor: homeVisualTokens.unavailableSurface },
-  digit: { color: homeVisualTokens.ink, fontFamily: typography.heading, fontSize: 24 },
-  input: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0,
-    color: 'transparent',
-    backgroundColor: 'transparent',
-    fontSize: 16,
-  },
-});
-
 // email-otp-form
 
-export function EmailOtpForm({
-  initialEmail,
-  purpose,
-  initiallySent = false,
-  onCancel,
-}: {
+// Hiển thị các bước xác thực email.
+export function EmailOtpForm({ initialEmail, purpose, initiallySent = false, onCancel }: {
   initialEmail: string;
   purpose: EmailOtpPurpose;
   initiallySent?: boolean;
@@ -132,6 +90,7 @@ export function EmailOtpForm({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [resendAt]);
+  // Gửi hoặc gửi lại mã OTP.
   const send = async () => {
     if (lock.current || Date.now() < resendAt) return;
     lock.current = true;
@@ -155,6 +114,7 @@ export function EmailOtpForm({
       setPending(false);
     }
   };
+  // Kiểm tra mã xác thực đã nhập.
   const verify = async () => {
     if (lock.current) return;
     lock.current = true;
@@ -174,6 +134,7 @@ export function EmailOtpForm({
       setPending(false);
     }
   };
+  // Lưu mật khẩu mới sau xác thực.
   const savePassword = async () => {
     if (lock.current || !recovery) return;
     lock.current = true;
@@ -310,42 +271,3 @@ export function EmailOtpForm({
     </SlideIn>
   );
 }
-
-const emailOtpFormStyles = StyleSheet.create({
-  form: {
-    gap: spacing.md,
-    borderWidth: 3,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: radii.control,
-    padding: spacing.md,
-    backgroundColor: homeVisualTokens.field,
-  },
-  title: {
-    fontFamily: typography.heading,
-    fontSize: 20,
-    lineHeight: 28,
-    color: homeVisualTokens.ink,
-  },
-  body: { fontFamily: typography.body, fontSize: 13, lineHeight: 21, color: homeVisualTokens.ink },
-  input: {
-    minHeight: 52,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: homeVisualTokens.ink,
-    color: homeVisualTokens.ink,
-    padding: spacing.sm,
-    backgroundColor: homeVisualTokens.paper,
-    fontFamily: typography.body,
-    fontSize: 16,
-  },
-  code: { fontSize: 20, letterSpacing: 3 },
-  error: {
-    backgroundColor: homeVisualTokens.sunflower,
-    padding: spacing.sm,
-    borderRadius: radii.control,
-    color: homeVisualTokens.ink,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 21,
-  },
-});

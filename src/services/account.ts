@@ -1,3 +1,7 @@
+/**
+ * Các thao tác dữ liệu tài khoản: xác thực, hồ sơ và ảnh đại diện.
+ * Gọi Supabase và trả kết quả hoặc lỗi cho hook/giao diện.
+ */
 import { requireSupabaseClient, createRecoverySupabaseClient } from '@/services/supabase';
 import { parseLifestylePreferences, type LifestylePreferences } from '@/utils/recommendations';
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -39,14 +43,14 @@ export interface ProfileAvatarAsset {
   } | null;
 }
 
+// Lấy phần mở rộng của tên file ảnh.
 function extensionFromPath(path: string | null | undefined) {
   const cleanPath = path?.split(/[?#]/, 1)[0];
   return cleanPath?.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
 }
 
-export function resolveProfileAvatarMimeType(
-  asset: ProfileAvatarAsset,
-): SupportedProfileAvatarMimeType {
+// Xác định định dạng ảnh đại diện.
+export function resolveProfileAvatarMimeType(asset: ProfileAvatarAsset): SupportedProfileAvatarMimeType {
   // Cropping can transcode the selected library item, so the resulting local
   // URI is more authoritative than metadata from the original asset.
   const outputExtension = extensionFromPath(asset.uri);
@@ -74,24 +78,24 @@ export function resolveProfileAvatarMimeType(
   return inferredMimeType;
 }
 
+// Chặn ảnh vượt giới hạn dung lượng.
 export function assertProfileAvatarSize(size: number | null | undefined) {
   if (size !== undefined && size !== null && size > PROFILE_AVATAR_MAX_BYTES) {
     throw new Error('profile_avatar_too_large');
   }
 }
 
-export function buildProfileAvatarPath(
-  userId: string,
-  mimeType: SupportedProfileAvatarMimeType,
-  uniquePart = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-) {
+// Tạo đường dẫn ảnh theo tài khoản.
+export function buildProfileAvatarPath(userId: string, mimeType: SupportedProfileAvatarMimeType, uniquePart = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`) {
   return `${userId}/${uniquePart}.${mimeTypeExtensions[mimeType]}`;
 }
 
+// Kiểm tra ảnh thuộc thư mục người dùng.
 function isOwnedAvatarPath(userId: string, path: string | null | undefined) {
   return path?.startsWith(`${userId}/`) === true;
 }
 
+// Xóa ảnh thuộc tài khoản đang xử lý.
 async function removeOwnedAvatar(userId: string, path: string | null | undefined) {
   if (!isOwnedAvatarPath(userId, path) || path === undefined || path === null) {
     return;
@@ -100,6 +104,7 @@ async function removeOwnedAvatar(userId: string, path: string | null | undefined
   await requireSupabaseClient().storage.from(PROFILE_AVATAR_BUCKET).remove([path]);
 }
 
+// Đọc dữ liệu file ảnh trên thiết bị.
 async function readProfileAvatarBytes(asset: ProfileAvatarAsset) {
   if (asset.file !== undefined && asset.file !== null) {
     assertProfileAvatarSize(asset.file.size);
@@ -125,6 +130,7 @@ async function readProfileAvatarBytes(asset: ProfileAvatarAsset) {
   return response.arrayBuffer();
 }
 
+// Tạo đường dẫn tạm để xem ảnh riêng tư.
 export async function createProfileAvatarSignedUrl(path: string) {
   const { data, error } = await requireSupabaseClient()
     .storage.from(PROFILE_AVATAR_BUCKET)
@@ -137,11 +143,8 @@ export async function createProfileAvatarSignedUrl(path: string) {
   return data.signedUrl;
 }
 
-export async function uploadProfileAvatar(
-  userId: string,
-  previousPath: string | null | undefined,
-  asset: ProfileAvatarAsset,
-) {
+// Tải ảnh mới và cập nhật hồ sơ.
+export async function uploadProfileAvatar(userId: string, previousPath: string | null | undefined, asset: ProfileAvatarAsset) {
   assertProfileAvatarSize(asset.fileSize);
   const mimeType = resolveProfileAvatarMimeType(asset);
   const bytes = await readProfileAvatarBytes(asset);
@@ -155,11 +158,7 @@ export async function uploadProfileAvatar(
   const path = buildProfileAvatarPath(userId, mimeType);
   const { error: uploadError } = await client.storage
     .from(PROFILE_AVATAR_BUCKET)
-    .upload(path, bytes, {
-      cacheControl: '3600',
-      contentType: mimeType,
-      upsert: false,
-    });
+    .upload(path, bytes, { cacheControl: '3600', contentType: mimeType, upsert: false });
 
   if (uploadError !== null) {
     throw uploadError;
@@ -184,6 +183,7 @@ export async function uploadProfileAvatar(
   return profile;
 }
 
+// Gỡ ảnh khỏi hồ sơ và kho lưu trữ.
 export async function removeProfileAvatar(userId: string, currentPath: string | null | undefined) {
   const { data: profile, error } = await requireSupabaseClient()
     .from('profiles')
@@ -206,12 +206,14 @@ export type EmailOtpPurpose = 'signup' | 'recovery';
 
 export const OTP_RESEND_DELAY_MS = 60_000;
 
+// Chuẩn hóa và kiểm tra địa chỉ email.
 export function normalizeOtpEmail(value: string): string {
   const email = value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('invalid_email');
   return email;
 }
 
+// Yêu cầu gửi lại mã đăng ký.
 export async function requestEmailOtp(emailInput: string, purpose: EmailOtpPurpose): Promise<void> {
   const email = normalizeOtpEmail(emailInput);
   const auth = requireSupabaseClient().auth;
@@ -220,19 +222,17 @@ export async function requestEmailOtp(emailInput: string, purpose: EmailOtpPurpo
   if (error) throw error;
 }
 
+// Xác minh mã OTP của email.
 export async function verifyEmailOtp(emailInput: string, input: string): Promise<void> {
   const email = normalizeOtpEmail(emailInput);
   const token = input.trim();
   if (!/^\d{6}$/.test(token)) throw new Error('invalid_otp');
-  const { data, error } = await requireSupabaseClient().auth.verifyOtp({
-    email,
-    token,
-    type: 'email',
-  });
+  const { data, error } = await requireSupabaseClient().auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw error;
   if (!data.session) throw new Error('otp_session_missing');
 }
 
+// Đổi lỗi OTP thành thông báo dễ hiểu.
 export function emailOtpErrorMessage(error: unknown): string {
   const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
   const message = error instanceof Error ? error.message.toLowerCase() : '';
@@ -254,24 +254,23 @@ export function emailOtpErrorMessage(error: unknown): string {
   return 'Chưa thể hoàn tất xác thực. Kiểm tra email, mã và thử lại.';
 }
 
+// Tạo luồng khôi phục mật khẩu riêng.
 export function createPasswordRecovery() {
   const auth = createRecoverySupabaseClient().auth;
   let verified = false;
   let disposed = false;
   return {
+    // Gửi mã khôi phục mật khẩu.
     async send(email: string) {
       const { error } = await auth.resetPasswordForEmail(normalizeOtpEmail(email));
       if (error) throw error;
     },
+    // Xác minh mã khôi phục mật khẩu.
     async verify(email: string, input: string) {
       verified = false;
       const token = input.trim();
       if (!/^\d{6}$/.test(token)) throw new Error('invalid_otp');
-      const { data, error } = await auth.verifyOtp({
-        email: normalizeOtpEmail(email),
-        token,
-        type: 'recovery',
-      });
+      const { data, error } = await auth.verifyOtp({ email: normalizeOtpEmail(email), token, type: 'recovery' });
       if (error) throw error;
       if (!data.session) throw new Error('otp_session_missing');
       if (disposed) {
@@ -280,6 +279,7 @@ export function createPasswordRecovery() {
       }
       verified = true;
     },
+    // Cập nhật mật khẩu sau khi xác minh.
     async updatePassword(password: string, confirmation: string) {
       if (!verified) throw new Error('otp_session_missing');
       if (password.length < 6) throw new Error('weak_password');
@@ -290,6 +290,7 @@ export function createPasswordRecovery() {
       // The password has already changed; cleanup failure must not report otherwise.
       await auth.signOut({ scope: 'local' }).catch(() => undefined);
     },
+    // Dọn phiên khôi phục mật khẩu.
     dispose() {
       disposed = true;
       verified = false;
@@ -300,14 +301,12 @@ export function createPasswordRecovery() {
 
 // lifestyle-preferences
 
+// Lưu sở thích vào tài khoản.
 export async function saveLifestylePreferences(preferences?: LifestylePreferences): Promise<void> {
   const validated = preferences === undefined ? undefined : parseLifestylePreferences(preferences);
   if (preferences !== undefined && !validated) throw new Error('Invalid lifestyle preferences');
   const { error } = await requireSupabaseClient().auth.updateUser({
-    data: {
-      lifestyle_onboarding_pending: false,
-      ...(validated ? { lifestyle_preferences: validated } : {}),
-    },
+    data: { lifestyle_onboarding_pending: false, ...(validated ? { lifestyle_preferences: validated } : {}) },
   });
   if (error) throw error;
 }
@@ -320,6 +319,7 @@ export const profileKeys = {
   detail: (userId: string) => [...profileKeys.all, userId] as const,
 };
 
+// Cấu hình truy vấn hồ sơ người dùng.
 export function profileQueryOptions(userId: string | undefined) {
   return queryOptions({
     queryKey: userId === undefined ? profileKeys.all : profileKeys.detail(userId),
@@ -345,10 +345,12 @@ export function profileQueryOptions(userId: string | undefined) {
   });
 }
 
+// Lấy hồ sơ của tài khoản.
 export function useProfile(userId: string | undefined) {
   return useQuery(profileQueryOptions(userId));
 }
 
+// Lấy đường dẫn tạm của ảnh đại diện.
 export function useProfileAvatarUrl(path: string | null | undefined) {
   return useQuery({
     queryKey:
@@ -364,10 +366,8 @@ export function useProfileAvatarUrl(path: string | null | undefined) {
   });
 }
 
-export function useUploadProfileAvatar(
-  userId: string | undefined,
-  currentPath: string | null | undefined,
-) {
+// Tải ảnh lên và làm mới hồ sơ.
+export function useUploadProfileAvatar(userId: string | undefined, currentPath: string | null | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -385,10 +385,8 @@ export function useUploadProfileAvatar(
   });
 }
 
-export function useRemoveProfileAvatar(
-  userId: string | undefined,
-  currentPath: string | null | undefined,
-) {
+// Xóa ảnh và làm mới hồ sơ.
+export function useRemoveProfileAvatar(userId: string | undefined, currentPath: string | null | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({

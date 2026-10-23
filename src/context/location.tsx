@@ -1,31 +1,11 @@
+/**
+ * Quản lý quyền GPS, vị trí được chọn, tìm kiếm và địa điểm đã lưu.
+ * Màn hình dùng context này để biết có thể tải thời tiết cho vị trí nào.
+ */
 import { queryOptions, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  searchExpoGeocodedLocations,
-  searchOpenMeteoLocations,
-  deleteSavedLocation,
-  listSavedLocations,
-  saveLocation,
-  expoLocationService,
-  type SavedLocation,
-  LocationSearchError,
-} from '@/services/location';
-import {
-  type ManualLocationSelection,
-  selectDevicePosition,
-  stateFromLocationPermission,
-  type LocationCapabilityState,
-  createManualSelectedLocation,
-  type ManualLocationCandidate,
-} from '@/utils/validation';
-import {
-  createContext,
-  type PropsWithChildren,
-  use,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { searchExpoGeocodedLocations, searchOpenMeteoLocations, deleteSavedLocation, listSavedLocations, saveLocation, expoLocationService, type SavedLocation, LocationSearchError } from '@/services/location';
+import { type ManualLocationSelection, selectDevicePosition, stateFromLocationPermission, type LocationCapabilityState, createManualSelectedLocation, type ManualLocationCandidate } from '@/utils/validation';
+import { createContext, type PropsWithChildren, use, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard } from 'react-native';
 import { useAuth } from '@/context/auth';
 
@@ -37,6 +17,7 @@ export const locationSearchKeys = {
     [...locationSearchKeys.all, query.trim().toLocaleLowerCase('vi')] as const,
 };
 
+// Cấu hình truy vấn tìm địa điểm.
 export function locationSearchQueryOptions(query: string) {
   const normalizedQuery = query.trim();
 
@@ -60,6 +41,7 @@ export function locationSearchQueryOptions(query: string) {
   });
 }
 
+// Tìm địa điểm theo nội dung nhập.
 export function useLocationSearch(query: string) {
   return useQuery(locationSearchQueryOptions(query));
 }
@@ -69,6 +51,7 @@ export const savedLocationKeys = {
   list: (userId: string) => [...savedLocationKeys.all, userId] as const,
 };
 
+// Lấy các địa điểm của tài khoản.
 export function useSavedLocations(userId: string | undefined) {
   return useQuery({
     queryKey: userId === undefined ? savedLocationKeys.all : savedLocationKeys.list(userId),
@@ -78,6 +61,7 @@ export function useSavedLocations(userId: string | undefined) {
   });
 }
 
+// Lưu địa điểm và cập nhật danh sách.
 export function useSaveLocation(userId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -96,6 +80,7 @@ export function useSaveLocation(userId: string | undefined) {
   });
 }
 
+// Xóa địa điểm và cập nhật danh sách.
 export function useDeleteSavedLocation(userId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -126,10 +111,12 @@ interface LocationCapabilityContextValue {
 
 const LocationCapabilityContext = createContext<LocationCapabilityContextValue | null>(null);
 
+// Quản lý quyền và vị trí được chọn.
 export function LocationCapabilityProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<LocationCapabilityState>({ status: 'idle' });
   const activeOperation = useRef(0);
 
+  // Lấy vị trí và bỏ qua yêu cầu đã cũ.
   const acquireForOperation = useCallback(async (operationId: number) => {
     if (activeOperation.current !== operationId) {
       return;
@@ -154,11 +141,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
       const placeName = await expoLocationService.resolvePlaceName(result.position.coordinates);
       if (activeOperation.current === operationId && placeName !== undefined) {
         const namedPosition = { ...result.position, placeName };
-        setState({
-          ...readyState,
-          position: namedPosition,
-          selectedLocation: selectDevicePosition(namedPosition),
-        });
+        setState({ ...readyState, position: namedPosition, selectedLocation: selectDevicePosition(namedPosition) });
       }
       return;
     }
@@ -171,6 +154,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     setState({ status: 'acquisition_error', code: result.code, message: result.message });
   }, []);
 
+  // Cập nhật quyền vị trí từ hệ điều hành.
   const refreshPermission = useCallback(async () => {
     const operationId = activeOperation.current + 1;
     activeOperation.current = operationId;
@@ -197,6 +181,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     setState(nextState);
   }, [acquireForOperation]);
 
+  // Xin quyền rồi lấy vị trí thiết bị.
   const requestPermission = useCallback(async () => {
     const operationId = activeOperation.current + 1;
     activeOperation.current = operationId;
@@ -223,6 +208,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     setState(nextState);
   }, [acquireForOperation]);
 
+  // Thử lấy lại vị trí thiết bị.
   const retry = useCallback(async () => {
     if (
       state.status === 'permission_required' ||
@@ -246,6 +232,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
     await refreshPermission();
   }, [acquireForOperation, refreshPermission, requestPermission, state]);
 
+  // Áp dụng địa điểm được chọn thủ công.
   const selectManualLocation = useCallback((selection: ManualLocationSelection) => {
     activeOperation.current += 1;
     setState({ status: 'ready', selectedLocation: createManualSelectedLocation(selection) });
@@ -268,6 +255,7 @@ export function LocationCapabilityProvider({ children }: PropsWithChildren) {
   );
 }
 
+// Lấy trạng thái và thao tác vị trí.
 export function useLocationCapability() {
   const value = use(LocationCapabilityContext);
 
@@ -280,6 +268,7 @@ export function useLocationCapability() {
 
 // use-locations-model
 
+// Đổi kết quả tìm kiếm thành lựa chọn.
 export function candidateSelection(candidate: ManualLocationCandidate): ManualLocationSelection {
   return {
     label: (
@@ -289,13 +278,12 @@ export function candidateSelection(candidate: ManualLocationCandidate): ManualLo
   };
 }
 
+// Đổi địa điểm đã lưu thành lựa chọn.
 export function savedSelection(location: SavedLocation): ManualLocationSelection {
-  return {
-    label: location.label,
-    coordinates: { latitude: location.latitude, longitude: location.longitude },
-  };
+  return { label: location.label, coordinates: { latitude: location.latitude, longitude: location.longitude } };
 }
 
+// Kiểm tra hai địa điểm có trùng nhau.
 export function isSameLocation(location: SavedLocation, candidate: ManualLocationCandidate) {
   return (
     Math.abs(location.latitude - candidate.coordinates.latitude) < 0.00001 &&
@@ -303,12 +291,10 @@ export function isSameLocation(location: SavedLocation, candidate: ManualLocatio
   );
 }
 
+// Chọn lời giải thích lỗi tìm địa điểm.
 function locationSearchErrorCopy(error: unknown) {
   if (!(error instanceof LocationSearchError)) {
-    return {
-      title: 'KHÔNG THỂ TÌM ĐỊA ĐIỂM',
-      message: 'Đã có lỗi ngoài dự kiến. Hãy thử lại sau ít phút.',
-    };
+    return { title: 'KHÔNG THỂ TÌM ĐỊA ĐIỂM', message: 'Đã có lỗi ngoài dự kiến. Hãy thử lại sau ít phút.' };
   }
   switch (error.code) {
     case 'timeout':
@@ -317,10 +303,7 @@ function locationSearchErrorCopy(error: unknown) {
         message: 'Dịch vụ chưa phản hồi kịp. Kết nối có thể chậm; hãy nhấn TÌM LẠI.',
       };
     case 'rate_limit':
-      return {
-        title: 'TẠM THỜI QUÁ TẢI',
-        message: 'Dịch vụ đang nhận nhiều yêu cầu. Chờ một lát rồi thử lại.',
-      };
+      return { title: 'TẠM THỜI QUÁ TẢI', message: 'Dịch vụ đang nhận nhiều yêu cầu. Chờ một lát rồi thử lại.' };
     case 'provider':
     case 'invalid_response':
       return {
@@ -335,6 +318,7 @@ function locationSearchErrorCopy(error: unknown) {
   }
 }
 
+// Phối hợp tìm, chọn và lưu địa điểm.
 export function useLocationsModel(onClose: () => void, onRequireAuth: () => void) {
   const { state: authState } = useAuth();
   const { selectManualLocation } = useLocationCapability();
@@ -352,6 +336,7 @@ export function useLocationsModel(onClose: () => void, onRequireAuth: () => void
     normalizedDraftQuery.length >= 2 &&
     normalizedDraftQuery.toLocaleLowerCase('vi') === submittedQuery.trim().toLocaleLowerCase('vi');
   const searchErrorCopy = locationSearchErrorCopy(searchQuery.error);
+  // Thực hiện tìm kiếm địa điểm.
   const runSearch = () => {
     Keyboard.dismiss();
     setNotice(undefined);
@@ -366,10 +351,12 @@ export function useLocationsModel(onClose: () => void, onRequireAuth: () => void
     }
     setSubmittedQuery(query);
   };
+  // Áp dụng địa điểm vừa chọn.
   const useSelection = (selection: ManualLocationSelection) => {
     selectManualLocation(selection);
     onClose();
   };
+  // Lưu địa điểm từ kết quả tìm kiếm.
   const saveCandidate = async (candidate: ManualLocationCandidate) => {
     if (userId === undefined) {
       onRequireAuth();
@@ -383,6 +370,7 @@ export function useLocationsModel(onClose: () => void, onRequireAuth: () => void
       setNotice('Không thể lưu địa điểm. Hãy kiểm tra mạng và thử lại.');
     }
   };
+  // Yêu cầu xác nhận xóa địa điểm.
   const confirmDelete = (location: SavedLocation) => {
     Alert.alert('Xóa địa điểm?', `${location.label} sẽ bị xóa khỏi tài khoản của bạn.`, [
       { text: 'Hủy', style: 'cancel' },

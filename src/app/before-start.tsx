@@ -1,12 +1,17 @@
+/**
+ * Màn hình thiết lập sở thích ban đầu sau khi tạo tài khoản.
+ * Các lựa chọn giúp điều chỉnh ngữ cảnh gợi ý sinh hoạt.
+ */
 import { NeoBadge } from '@/components/controls';
 import { useRef } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/auth';
 import { LifestyleSetup } from '@/components/lifestyle-setup';
 import { parseLifestylePreferences } from '@/utils/recommendations';
-import { homeVisualTokens, spacing, typography } from '@/theme';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { styles } from '@/css/screens/before-start.styles';
 
 // before-start
 
@@ -14,6 +19,7 @@ export { BeforeStartScreen as default };
 
 // before-start-screen
 
+// Hiển thị bước thiết lập sở thích.
 export function BeforeStartScreen() {
   const { state } = useAuth();
   const router = useRouter();
@@ -45,28 +51,3 @@ export function BeforeStartScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: homeVisualTokens.paper },
-  header: {
-    padding: spacing.md,
-    backgroundColor: homeVisualTokens.field,
-    borderBottomWidth: 3,
-    borderColor: homeVisualTokens.ink,
-    gap: spacing.sm,
-  },
-  title: {
-    color: homeVisualTokens.ink,
-    fontFamily: typography.heading,
-    fontSize: 21,
-    lineHeight: 29,
-  },
-  body: { color: homeVisualTokens.ink, fontFamily: typography.body, fontSize: 13, lineHeight: 21 },
-  content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-    width: '100%',
-    maxWidth: 720,
-    alignSelf: 'center',
-  },
-});

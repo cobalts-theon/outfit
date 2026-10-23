@@ -1,16 +1,16 @@
+/**
+ * Form chọn hoạt động, thời gian rảnh và ngữ cảnh sinh hoạt.
+ * Giữ bản nháp để người dùng chỉnh sửa trước khi lưu sở thích.
+ */
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { NeoButton, SlideIn, TimeDropdown, formatClock } from '@/components/controls';
 import { saveLifestylePreferences } from '@/services/account';
-import {
-  activityOptions,
-  periodOptions,
-  type Activity,
-  type LifestylePreferences,
-} from '@/utils/recommendations';
+import { activityOptions, periodOptions, type Activity, type LifestylePreferences } from '@/utils/recommendations';
 import { recommendationIconAssets } from '@/components/home-advice';
-import { homeVisualTokens, radii, spacing, typography } from '@/theme';
+// Ctrl/Cmd + click để mở file chỉnh giao diện.
+import { styles } from '@/css/components/lifestyle-setup.styles';
 
 // lifestyle-setup
 
@@ -39,14 +39,8 @@ const transportOptions = [
   { key: 'none', label: 'Ít di chuyển', icon: 'shelter' },
 ] as const;
 
-function Pick({
-  label,
-  icon,
-  checked,
-  onPress,
-  disabled,
-  single = false,
-}: {
+// Hiển thị một lựa chọn trong form.
+function Pick({ label, icon, checked, onPress, disabled, single = false }: {
   label: string;
   icon: Icon;
   checked: boolean;
@@ -79,12 +73,8 @@ function Pick({
   );
 }
 
-export function LifestyleSetup({
-  initial,
-  onboarding,
-  onClose,
-  onStepChange,
-}: {
+// Hiển thị form sở thích sinh hoạt.
+export function LifestyleSetup({ initial, onboarding, onClose, onStepChange }: {
   initial?: LifestylePreferences;
   onboarding: boolean;
   onClose: (saved?: boolean) => void;
@@ -98,11 +88,13 @@ export function LifestyleSetup({
   const [end, setEnd] = useState<number | undefined>(initial?.availability?.end);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  // Chuyển bước trong form thiết lập.
   const goTo = (next: number) => {
     setError('');
     setStep(next);
     onStepChange?.();
   };
+  // Kiểm tra các lựa chọn trước khi lưu.
   const validation = (section: number) => {
     if (section === 0 && !activities.length) return 'Chọn ít nhất một nhu cầu phù hợp với bạn.';
     if (section === 1 && (!transport || !exposure))
@@ -115,6 +107,7 @@ export function LifestyleSetup({
       return 'Chọn giờ bắt đầu và kết thúc khác nhau.';
     return '';
   };
+  // Lưu sở thích sinh hoạt đã chọn.
   const save = async (skip = false) => {
     const invalid = skip ? '' : [0, 1, 2].map(validation).find(Boolean);
     if (invalid) {
@@ -155,11 +148,7 @@ export function LifestyleSetup({
             {[0, 1, 2].map((index) => (
               <View
                 key={index}
-                style={[
-                  styles.progressSegment,
-                  index < step && styles.progressDone,
-                  index === step && styles.progressActive,
-                ]}
+                style={[styles.progressSegment, index < step && styles.progressDone, index === step && styles.progressActive]}
               />
             ))}
           </View>
@@ -301,107 +290,3 @@ export function LifestyleSetup({
     </SlideIn>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.md, paddingBottom: spacing.sm },
-  intro: { gap: spacing.sm },
-  group: { gap: spacing.sm },
-  heading: {
-    fontFamily: typography.heading,
-    fontSize: 18,
-    lineHeight: 26,
-    color: homeVisualTokens.ink,
-  },
-  body: { fontFamily: typography.body, fontSize: 13, lineHeight: 21, color: homeVisualTokens.ink },
-  progressHeading: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  progress: { fontFamily: typography.heading, fontSize: 11, color: homeVisualTokens.ink },
-  progressName: { fontFamily: typography.body, fontSize: 12, color: homeVisualTokens.ink },
-  progressTrack: { flexDirection: 'row', gap: spacing.xs },
-  progressSegment: {
-    flex: 1,
-    height: 10,
-    backgroundColor: homeVisualTokens.paleBlueField,
-    borderWidth: 2,
-    borderColor: homeVisualTokens.ink,
-    borderRadius: radii.control,
-  },
-  progressActive: { backgroundColor: homeVisualTokens.infoSurface },
-  progressDone: { backgroundColor: homeVisualTokens.mint },
-  defer: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  deferText: {
-    color: homeVisualTokens.ink,
-    fontFamily: typography.body,
-    fontSize: 13,
-    textDecorationLine: 'underline',
-  },
-  pick: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderWidth: 3,
-    borderRadius: radii.control,
-    borderColor: homeVisualTokens.ink,
-    backgroundColor: homeVisualTokens.field,
-  },
-  selected: { backgroundColor: homeVisualTokens.field, boxShadow: '3px 3px 0px #1D3557' },
-  pressed: { transform: [{ translateX: 2 }] },
-  iconFrame: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.control,
-    backgroundColor: homeVisualTokens.paper,
-  },
-  iconSelected: { backgroundColor: homeVisualTokens.sunflower },
-  icon: { width: 28, height: 28 },
-  checkFrame: {
-    width: 26,
-    height: 26,
-    borderWidth: 2,
-    borderRadius: radii.control,
-    borderColor: homeVisualTokens.ink,
-    backgroundColor: homeVisualTokens.paper,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkSelected: { backgroundColor: homeVisualTokens.mint },
-  check: {
-    fontFamily: typography.heading,
-    fontSize: 17,
-    lineHeight: 21,
-    color: homeVisualTokens.ink,
-  },
-  pickText: {
-    flex: 1,
-    fontFamily: typography.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: homeVisualTokens.ink,
-  },
-  timeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  summary: {
-    fontFamily: typography.body,
-    fontSize: 14,
-    color: homeVisualTokens.ink,
-    lineHeight: 22,
-    padding: spacing.sm,
-    backgroundColor: homeVisualTokens.sunflower,
-    borderRadius: radii.control,
-  },
-  error: {
-    padding: spacing.sm,
-    backgroundColor: homeVisualTokens.sunflower,
-    color: homeVisualTokens.ink,
-    fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 21,
-  },
-});

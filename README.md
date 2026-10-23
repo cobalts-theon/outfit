@@ -31,24 +31,29 @@ không đưa vào code hoặc biến môi trường công khai của app.
 
 ## Cấu trúc dự án
 
-`src` có **50 file TypeScript**, tính cả 6 route, file dành riêng cho web và kiểu
-schema database. Test, thư viện cài đặt và file được Expo sinh nằm ngoài số này.
+`src` có **81 file TypeScript**, tính cả 6 route, file dành riêng cho web và kiểu
+schema database: **58 file ứng dụng + 23 file `.styles.ts`**. Test, thư viện và
+file được Expo sinh nằm ngoài số này.
 
 ```text
 weather/
 ├── src/
 │   ├── app/                 # 6 file: route, layout; trang before-start nằm tại đây
-│   ├── screens/             # 4 file: Home, Forecast, Plans, Welcome
-│   ├── components/          # 14 file: các nhóm UI, không chia thêm thư mục con
-│   ├── context/             # 4 file: app, auth, location, notifications
+│   ├── screens/             # 4 màn hình: Home, Forecast, Plans, Welcome
+│   ├── components/          # 17 nhóm UI, không chứa file style
+│   ├── context/             # 4 context: app, auth, location, notifications
+│   ├── css/                 # 23 file style riêng
+│   │   ├── components/      # 17 file style của các nhóm UI
+│   │   ├── screens/         # 5 file style màn hình (có before-start)
+│   │   └── context/         # app.styles.ts: chờ tải và điều hướng
 │   ├── hooks/               # 3 file: account, home, plans
 │   ├── services/            # 6 file: account, live-weather, location,
 │   │                        #         notifications, plans, supabase
-│   │   └── weather/         # 4 file: request, responses, adapters, client
-│   ├── utils/               # 5 file: forecast, planning, recommendation-rules,
-│   │                        #         recommendations, validation
+│   │   └── weather/         # 5 file: request, responses, adapters, current-adapter, client
+│   ├── utils/               # 8 file: dự báo, đánh giá hoạt động/đi bộ, kiểm tra dữ liệu,
+│   │                        #         bộ tổng hợp và các nhóm quy tắc khuyến nghị
 │   ├── types/               # 2 file: weather, database
-│   ├── constants/           # 1 file: demo-weather
+│   ├── constants/           # 2 file: demo-weather, weather-fixtures
 │   └── theme.ts             # 1 file: màu sắc, font và khoảng cách
 ├── tests/                   # Test và mock native dành riêng cho Node/Jest
 ├── assets/                  # Hình/icon đang dùng và giấy phép
@@ -63,7 +68,12 @@ weather/
 Mỗi file UI chứa các component liên quan, vẫn giữ tên hàm riêng. Ví dụ
 `components/account.tsx` gồm sheet, form đăng nhập, hồ sơ và ảnh đại diện;
 `components/home-weather.tsx` gồm phần hiển thị thời tiết, chỉ số và icon.
-Các phần trong file có chú thích phân cách để tìm nhanh bằng tên component.
+Mỗi hàm/component có comment `//` tiếng Việt ngắn để biết vai trò; các nhóm
+style cũng có nhãn giải thích để tìm đúng phần cần sửa.
+Style nằm riêng trong `src/css/`, chia theo `components`, `screens`, `context`;
+file `.styles.ts` giữ cùng tên phần giao diện. Giữ Ctrl/Cmd và click tên style
+hoặc đường import để mở đúng file; nhấn F12 cũng đi tới định nghĩa.
+[Bản đồ sửa giao diện và chức năng](docs/SUA-GIAO-DIEN.md) có link cho từng phần.
 
 | Muốn sửa | Bắt đầu ở |
 | --- | --- |
@@ -73,15 +83,19 @@ Các phần trong file có chú thích phân cách để tìm nhanh bằng tên 
 | Đăng nhập/hồ sơ | `components/account.tsx`, `hooks/account.ts` |
 | Tìm/chọn địa điểm | `components/locations.tsx`, `context/location.tsx` |
 | Lập kế hoạch | `screens/plans-screen.tsx`, `hooks/plans.tsx` |
-| Quy tắc gợi ý | `utils/recommendation-rules.ts`, `utils/recommendations.ts` |
+| Bộ tổng hợp gợi ý | `utils/recommendation-engine.ts` |
+| Quy tắc môi trường / tiện nghi | `utils/recommendation-rules.ts`, `utils/comfort-rules.ts` |
+| Hành động theo ngữ cảnh | `utils/recommendations.ts` |
 | Gọi API thời tiết | `services/live-weather.ts`, `services/weather/` |
 | Dữ liệu tài khoản | `services/account.ts`, `services/supabase.ts` |
 | Màu sắc/font | `theme.ts` |
 
-Giữ các nhóm code liên quan trong cùng file, ngắt dòng theo độ rộng mục tiêu
-100 ký tự; không nén nhiều thao tác lên một dòng để giảm số dòng. Chuỗi giao diện,
-URL và HTML nhúng được giữ nguyên nội dung. File `types/database.ts` được sinh
-tự động, giữ nguyên bản gốc.
+Giữ các nhóm code liên quan trong cùng file. Import và destructuring ưu tiên một
+dòng; danh sách dài chia theo nhóm, không bắt buộc mỗi tên một dòng. Cho phép
+khoảng 180 ký tự cho danh sách/tham số, 220 cho import; object ngắn có thể gom
+trong khoảng 120 ký tự. Không gộp nhiều thao tác khác nhau vào một dòng. Giữ
+nguyên chuỗi giao diện, URL và HTML nhúng; không định dạng lại `types/database.ts`
+vì đây là file được sinh tự động.
 
 ## Quy tắc bảo trì
 
@@ -112,6 +126,11 @@ trên Android/iOS: chữ lớn, quyền vị trí, lỗi mạng và điều hư�
 
 ## Tài liệu dự án
 
+- [Tìm đúng file sửa giao diện/chức năng](docs/SUA-GIAO-DIEN.md).
+- [Ôn bảo vệ và thứ tự đọc code](docs/ON-BAO-VE.md). Mỗi file trong `src` có
+  chú thích tiếng Việt đầu file giải thích vai trò. Bắt đầu từ `app/_layout.tsx`,
+  rồi theo `screens/home-screen.tsx` → `hooks/home.ts` → `services/live-weather.ts`
+  → `utils/recommendation-engine.ts`. Phần chọn giờ nằm ở `utils/planning.ts`.
 - [Sản phẩm](docs/PRODUCT.md) · [Kiến trúc](docs/ARCHITECTURE.md)
 - [Tiến trình và việc còn lại](docs/PROGRESS.md) · [Quyết định](docs/DECISIONS.md)
 - [Thiết kế](docs/DESIGN.md) · [Dữ liệu thời tiết](docs/WEATHER.md)

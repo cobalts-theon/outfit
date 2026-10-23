@@ -1,340 +1,11 @@
+/**
+ * Các hàm đánh giá thời tiết trong toàn bộ thời gian một hoạt động.
+ * Kiểm tra dữ liệu, tính rủi ro/điểm và chọn các khung giờ để người dùng cân nhắc.
+ */
 import type { WeatherAlert } from '@/types/weather';
 
-// walking-planner
-
-/** Pure, platform-independent policy evaluation; reusable by server workers. */
-export interface WalkingPolicy {
-  version: string;
-  maxAqi: number;
-  maxUv: number;
-  maxRainProbability: number;
-  maxWind: number;
-  maxGust: number;
-  minFeelsLike: number;
-  maxFeelsLike: number;
-}
-
-// Conservative product preferences for light walking, not medical safety limits.
-export const DEFAULT_WALKING_POLICY: WalkingPolicy = {
-  version: 'walking-v1',
-  maxAqi: 100,
-  maxUv: 6,
-  maxRainProbability: 0.4,
-  maxWind: 8,
-  maxGust: 12,
-  minFeelsLike: 15,
-  maxFeelsLike: 33,
-};
-
-export interface PlanningHour {
-  at: string;
-  feelsLike?: number;
-  uv?: number;
-  aqi?: number;
-  rainProbability?: number;
-  wind?: number;
-  gust?: number;
-  daylight: boolean;
-  hazardous: boolean;
-}
-
-export interface WalkingWindow {
-  start: string;
-  end: string;
-  score: number;
-  reasons: string[];
-  preparation: string;
-  policyVersion: string;
-}
-
-export interface WalkingEvaluation {
-  status: 'ready' | 'limited' | 'unavailable' | 'no_match';
-  windows: WalkingWindow[];
-  message: string;
-  reason?: 'elapsed' | 'duration' | 'no_forecast' | 'coverage' | 'conditions' | 'stale';
-}
-
-export function parseWalkingPolicy(value: unknown): WalkingPolicy | undefined {
-  if (value === null || typeof value !== 'object') return undefined;
-  const p = value as Record<string, unknown>;
-  if (typeof p.version !== 'string' || !/^[a-zA-Z0-9._-]{1,64}$/.test(p.version)) return undefined;
-  const ranges: Record<string, [number, number]> = {
-    maxAqi: [1, 100],
-    maxUv: [1, 6],
-    maxRainProbability: [0, 0.4],
-    maxWind: [1, 8],
-    maxGust: [1, 12],
-    minFeelsLike: [15, 25],
-    maxFeelsLike: [25, 33],
-  };
-  for (const [key, [min, max]] of Object.entries(ranges)) {
-    const n = p[key];
-    if (typeof n !== 'number' || !Number.isFinite(n) || n < min || n > max) return undefined;
-  }
-  if ((p.minFeelsLike as number) >= (p.maxFeelsLike as number)) return undefined;
-  return Object.fromEntries(
-    ['version', ...Object.keys(ranges)].map((k) => [k, p[k]]),
-  ) as unknown as WalkingPolicy;
-}
-
-const formatters = new Map<string, Intl.DateTimeFormat>();
-
-function formatter(timeZone: string, clock: boolean) {
-  const key = `${timeZone}:${clock}`;
-  let value = formatters.get(key);
-  if (!value) {
-    value = new Intl.DateTimeFormat(
-      clock ? 'en-GB' : 'en-CA',
-      clock
-        ? { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }
-        : { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' },
-    );
-    if (formatters.size >= 16) formatters.clear();
-    formatters.set(key, value);
-  }
-  return value;
-}
-
-export function localDate(at: string | number, timeZone: string): string {
-  const parts = formatter(timeZone, false).formatToParts(new Date(at));
-  const part = (name: string) => parts.find((p) => p.type === name)?.value;
-  return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
-export function localHour(at: string, timeZone: string): number {
-  const parts = formatter(timeZone, true).formatToParts(new Date(at));
-  return (
-    Number(parts.find((p) => p.type === 'hour')?.value) +
-    Number(parts.find((p) => p.type === 'minute')?.value) / 60
-  );
-}
-
-export function formatPlanTime(at: string, timeZone: string): string {
-  return formatter(timeZone, true).format(new Date(at));
-}
-
-export function parseClock(value: string): number | undefined {
-  const match = /^(\d{1,2}):([0-5]\d)$/.exec(value.trim());
-  if (!match) return undefined;
-  const hour = Number(match[1]),
-    minute = Number(match[2]);
-  return hour < 24 || (hour === 24 && minute === 0) ? hour + minute / 60 : undefined;
-}
-
-export function clockLabel(hour: number): string {
-  const minutes = Math.round(hour * 60);
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-}
-
-export function evaluateWalkingWindows(input: {
-  hours: readonly PlanningHour[];
-  date: string;
-  startHour: number;
-  endHour: number;
-  durationMinutes: number;
-  timeZone: string;
-  fetchedAt: number;
-  now?: number;
-  policy?: WalkingPolicy;
-}): WalkingEvaluation {
-  const now = input.now ?? Date.now();
-  const p = input.policy ?? DEFAULT_WALKING_POLICY;
-  const empty = (
-    status: WalkingEvaluation['status'],
-    reason: WalkingEvaluation['reason'],
-    message: string,
-  ): WalkingEvaluation => ({ status, reason, message, windows: [] });
-  if (
-    !Number.isFinite(now) ||
-    ![30, 60, 90].includes(input.durationMinutes) ||
-    !Number.isFinite(input.startHour) ||
-    !Number.isFinite(input.endHour) ||
-    input.startHour < 0 ||
-    input.endHour > 24 ||
-    input.startHour >= input.endHour
-  ) {
-    return empty(
-      'unavailable',
-      'duration',
-      'Giờ kết thúc cần sau giờ bắt đầu trong cùng ngày. Ví dụ: 17:30–19:00.',
-    );
-  }
-  if ((input.endHour - input.startHour) * 60 < input.durationMinutes - 0.001) {
-    return empty(
-      'no_match',
-      'duration',
-      `Bạn có ${Math.round((input.endHour - input.startHour) * 60)} phút rảnh nhưng đã chọn đi bộ ${input.durationMinutes} phút. Hãy giảm thời lượng hoặc nới giờ kết thúc.`,
-    );
-  }
-  let today: string;
-  try {
-    today = localDate(now, input.timeZone);
-  } catch {
-    return empty('unavailable', 'no_forecast', 'Múi giờ chưa hợp lệ. Hãy chọn lại địa điểm.');
-  }
-  if (
-    input.date < today ||
-    (input.date === today &&
-      localHour(new Date(now).toISOString(), input.timeZone) + input.durationMinutes / 60 >=
-        input.endHour)
-  ) {
-    return empty(
-      'no_match',
-      'elapsed',
-      'Khung giờ này đã qua hoặc không còn đủ thời gian để bắt đầu. Chọn giờ muộn hơn hoặc chuyển sang ngày mai.',
-    );
-  }
-  const ordered = input.hours
-    .filter((h) => Number.isFinite(Date.parse(h.at)))
-    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  if (!ordered.length)
-    return empty(
-      'limited',
-      'no_forecast',
-      'Chưa tải được dự báo theo giờ cho địa điểm này. Hãy cập nhật dự báo; các gợi ý có đủ dữ liệu sẽ hiện lại.',
-    );
-  if (
-    !parseWalkingPolicy(p) ||
-    !Number.isFinite(input.fetchedAt) ||
-    input.fetchedAt <= 0 ||
-    input.fetchedAt > now + 60_000 ||
-    now - input.fetchedAt > 30 * 60_000
-  ) {
-    return empty(
-      'unavailable',
-      'stale',
-      'Dự báo chưa được cập nhật đủ gần thời điểm hiện tại. Cập nhật để tìm giờ mới.',
-    );
-  }
-  const windows: WalkingWindow[] = [];
-  const missing = new Set<string>();
-  const blocked = new Set<string>();
-  let considered = 0;
-  const fields = {
-    feelsLike: 'nhiệt độ cảm nhận',
-    uv: 'UV',
-    aqi: 'AQI',
-    rainProbability: 'khả năng mưa',
-    wind: 'gió',
-    gust: 'gió giật',
-  } as const;
-  for (const [index, first] of ordered.entries()) {
-    const base = Date.parse(first.at);
-    // Test quarter-hour starts against hourly evidence; do not invent interpolated readings.
-    // Include the exact user start as well (e.g. 17:10), even off the quarter-hour grid.
-    const offsets = new Set([0, 15, 30, 45]);
-    const localBase = localHour(first.at, input.timeZone);
-    const userOffset = Math.round((input.startHour - localBase) * 60);
-    if (userOffset >= 0 && userOffset < 60) offsets.add(userOffset);
-    for (const minutes of offsets) {
-      const start = base + minutes * 60_000;
-      const startIso = new Date(start).toISOString();
-      const hour = localHour(startIso, input.timeZone);
-      if (
-        start <= now ||
-        localDate(startIso, input.timeZone) !== input.date ||
-        hour + 0.00001 < input.startHour ||
-        hour + input.durationMinutes / 60 > input.endHour + 0.00001
-      )
-        continue;
-      considered++;
-      const end = start + input.durationMinutes * 60_000;
-      const count = Math.ceil((end - base) / 3_600_000) + 1;
-      const slice = ordered.slice(index, index + count);
-      if (
-        slice.length !== count ||
-        slice.some((h, i) => Date.parse(h.at) !== base + i * 3_600_000)
-      ) {
-        missing.add('các mốc dự báo liên tục đến cuối hoạt động');
-        continue;
-      }
-      let complete = true;
-      for (const h of slice)
-        for (const [key, label] of Object.entries(fields)) {
-          const n = h[key as keyof typeof fields];
-          if (
-            typeof n !== 'number' ||
-            !Number.isFinite(n) ||
-            (key !== 'feelsLike' && n < 0) ||
-            (key === 'rainProbability' && n > 1)
-          ) {
-            missing.add(label);
-            complete = false;
-          }
-        }
-      if (!complete) continue;
-      const reasons = new Set<string>();
-      for (const h of slice) {
-        if (h.hazardous) reasons.add('thời tiết bất lợi');
-        if (h.aqi! > p.maxAqi) reasons.add('không khí kém');
-        if (h.uv! >= p.maxUv) reasons.add('UV cao');
-        if (h.rainProbability! >= p.maxRainProbability) reasons.add('khả năng mưa cao');
-        if (h.wind! >= p.maxWind || h.gust! >= p.maxGust) reasons.add('gió mạnh');
-        if (h.feelsLike! < p.minFeelsLike || h.feelsLike! > p.maxFeelsLike)
-          reasons.add('nhiệt độ cảm nhận chưa phù hợp');
-      }
-      if (reasons.size) {
-        reasons.forEach((r) => blocked.add(r));
-        continue;
-      }
-      const max = (key: keyof typeof fields) => Math.max(...slice.map((h) => h[key]!));
-      const feels = max('feelsLike');
-      const night = slice.some((h) => !h.daylight);
-      windows.push({
-        start: startIso,
-        end: new Date(end).toISOString(),
-        score:
-          max('aqi') / p.maxAqi +
-          max('uv') / p.maxUv +
-          max('rainProbability') +
-          max('wind') / p.maxWind +
-          Math.abs(feels - 24) / 10,
-        reasons: [
-          `Cảm nhận cao nhất ${Math.round(feels)}°C`,
-          `US AQI tối đa ${Math.round(max('aqi'))}`,
-          `UV tối đa ${max('uv').toFixed(1)}`,
-          `Khả năng mưa tối đa ${Math.round(max('rainProbability') * 100)}%`,
-        ],
-        preparation: night
-          ? 'Có thời gian sau khi trời tối: chỉ đi nếu đường đủ sáng, dễ quan sát và phù hợp; mang nước, kiểm tra lại trước khi đi.'
-          : max('uv') >= 3
-            ? 'Ưu tiên bóng râm, che nắng và mang nước; kiểm tra lại trước khi đi.'
-            : 'Mang nước, chọn đường đi phù hợp và kiểm tra lại trước khi đi.',
-        policyVersion: p.version,
-      });
-    }
-  }
-  windows.sort((a, b) => a.score - b.score || a.start.localeCompare(b.start));
-  const alternatives: WalkingWindow[] = [];
-  for (const w of windows) {
-    if (alternatives.every((a) => w.end <= a.start || w.start >= a.end)) alternatives.push(w);
-    if (alternatives.length === 3) break;
-  }
-  if (alternatives.length)
-    return {
-      status: missing.size ? 'limited' : 'ready',
-      windows: alternatives,
-      message:
-        'Những khoảng sau đáp ứng điều kiện dự báo cho đi bộ nhẹ trong giờ bạn rảnh. Kiểm tra lại trước khi đi.',
-    };
-  if (!considered)
-    return empty(
-      'limited',
-      'coverage',
-      'Dự báo hiện có chưa bao phủ giờ bạn chọn. Thử một khung giờ khác trong ngày hoặc cập nhật dự báo.',
-    );
-  if (missing.size)
-    return empty(
-      'limited',
-      'coverage',
-      `Chưa thể so sánh toàn bộ khung giờ vì thiếu ${[...missing].join(', ')}. Các gợi ý sinh hoạt ở trên vẫn dùng những chỉ số đã có.`,
-    );
-  return empty(
-    'no_match',
-    'conditions',
-    `Chưa có giờ phù hợp để đi bộ vì ${[...blocked].join(', ')}. Bạn vẫn có thể tham khảo gợi ý sinh hoạt và đổi giờ rảnh.`,
-  );
-}
+import { PlanningHour, localDate, localHour, parseClock, clockLabel } from '@/utils/walking-planner';
+export * from '@/utils/walking-planner';
 
 // activity-advisor
 
@@ -360,14 +31,17 @@ export type ActivityAssessment = {
   checklist: KitItem[];
 };
 
+// Lấy tên hiển thị của hoạt động.
 export const activityLabel = (id: string) =>
   ACTIVITIES.find((a) => a.id === id)?.label ?? (id === 'shopping' ? 'Ra ngoài' : 'Hoạt động');
 
 // Policy variants retain the exposure used when saving an hour, without changing old rows.
+// Ghi phương tiện và mức tiếp xúc vào mã.
 export function activityPolicyVersion(transport = 'none', exposure = 'short') {
   return `activity-v2:${transport}:${exposure}`;
 }
 
+// Đọc ngữ cảnh từ mã chính sách đã lưu.
 export function activityPolicyContext(version: string): {
   transport?: 'walk' | 'bike' | 'motorbike' | 'covered' | 'none';
   exposure?: 'short' | 'long';
@@ -381,13 +55,16 @@ export function activityPolicyContext(version: string): {
     : {};
 }
 
+// Kiểm tra giá trị là số hữu hạn.
 const finite = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
+// Kiểm tra thời lượng từ 1 đến 1440 phút.
 export function validActivityDuration(value: number) {
   return Number.isInteger(value) && value >= 1 && value <= 1440;
 }
 
+// Kiểm tra và chuẩn hóa ngày nhập.
 export function parsePlanningDate(value: string): string | undefined {
   const text = value.trim();
   const parts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
@@ -399,10 +76,12 @@ export function parsePlanningDate(value: string): string | undefined {
     : undefined;
 }
 
+// Đổi ngày ISO sang ngày/tháng/năm.
 export function displayPlanningDate(iso: string) {
   return iso.split('-').reverse().join('/');
 }
 
+// Đánh giá thời tiết suốt thời gian hoạt động.
 export function assessActivity(input: {
   activity: Activity;
   transport?: 'walk' | 'bike' | 'motorbike' | 'covered' | 'none';
@@ -414,9 +93,9 @@ export function assessActivity(input: {
   fetchedAt: number;
   now?: number;
 }): ActivityAssessment {
-  const now = input.now ?? Date.now(),
-    start = Date.parse(input.start),
-    end = start + input.duration * 60_000;
+  const now = input.now ?? Date.now();
+  const start = Date.parse(input.start);
+  const end = start + input.duration * 60_000;
   const result: ActivityAssessment = {
     start: input.start,
     end: Number.isFinite(end) ? new Date(end).toISOString() : input.start,
@@ -427,6 +106,7 @@ export function assessActivity(input: {
     risks: [],
     checklist: [],
   };
+  // Bước 1: chỉ đánh giá giờ tương lai, thời lượng hợp lệ và dự báo còn mới.
   if (!finite(start) || start <= now || !validActivityDuration(input.duration)) {
     result.summary = 'Giờ này đã qua hoặc thời lượng chưa hợp lệ.';
     return result;
@@ -440,10 +120,9 @@ export function assessActivity(input: {
     result.summary = 'Cập nhật dự báo trước khi so sánh giờ.';
     return result;
   }
+  // Bước 2: lấy đủ từng giờ dự báo phủ toàn hoạt động; thiếu một giờ thì dừng.
   const ordered = [...input.hours].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  const first = ordered.findIndex(
-    (h) => Date.parse(h.at) <= start && Date.parse(h.at) + 3_600_000 > start,
-  );
+  const first = ordered.findIndex((h) => Date.parse(h.at) <= start && Date.parse(h.at) + 3_600_000 > start);
   if (first < 0) return result;
   const samples: PlanningHour[] = [];
   for (
@@ -469,6 +148,7 @@ export function assessActivity(input: {
     )
   )
     return result;
+  // Bước 3: mức tiếp xúc ngoài trời quyết định việc có bắt buộc đủ AQI/UV hay không.
   const exercise = ['running', 'walking'].includes(input.activity);
   const transport = exercise ? 'walk' : input.transport;
   const exposed =
@@ -480,16 +160,18 @@ export function assessActivity(input: {
     result.summary = 'Chưa có đủ AQI/UV để đánh giá thời gian ngoài trời.';
     return result;
   }
+  // Lấy số đo cao nhất trong khoảng xét.
   const max = (key: 'feelsLike' | 'rainProbability' | 'wind' | 'gust' | 'uv' | 'aqi') =>
     Math.max(...samples.map((h) => (finite(h[key]) ? h[key]! : 0)));
-  const heat = max('feelsLike'),
-    rain = max('rainProbability'),
-    wind = max('wind'),
-    gust = max('gust'),
-    uv = max('uv'),
-    aqi = max('aqi');
-  const cold = Math.min(...samples.map((h) => h.feelsLike!)),
-    night = samples.some((h) => !h.daylight);
+  // Xét giá trị bất lợi nhất trong khoảng hoạt động, không chỉ giờ bắt đầu.
+  const heat = max('feelsLike');
+  const rain = max('rainProbability');
+  const wind = max('wind');
+  const gust = max('gust');
+  const uv = max('uv');
+  const aqi = max('aqi');
+  const cold = Math.min(...samples.map((hour) => hour.feelsLike!));
+  const night = samples.some((hour) => !hour.daylight);
   const alert = input.alerts?.some(
     (a) =>
       ['warning', 'severe', 'extreme'].includes(a.severity) &&
@@ -504,12 +186,15 @@ export function assessActivity(input: {
   if (aqi > 100) result.risks.push('Chất lượng không khí kém');
   if (uv >= 6) result.risks.push('UV cao');
   if (night && exercise) result.risks.push('Cần tuyến đường đủ sáng');
-  result.status =
-    severe || (exposed && (rain >= 0.6 || heat > 35 || aqi > 150))
-      ? 'avoid'
-      : result.risks.length || missing
-        ? 'caution'
-        : 'suitable';
+  // Bước 4: kết luận trước, sau đó tính điểm để so sánh các giờ (điểm thấp tốt hơn).
+  const shouldAvoid = severe || (exposed && (rain >= 0.6 || heat > 35 || aqi > 150));
+  if (shouldAvoid) {
+    result.status = 'avoid';
+  } else if (result.risks.length > 0 || missing) {
+    result.status = 'caution';
+  } else {
+    result.status = 'suitable';
+  }
   result.score =
     (result.status === 'avoid' ? 100 : result.status === 'caution' ? 20 : 0) +
     rain * 10 +
@@ -531,16 +216,18 @@ export function assessActivity(input: {
       ? ['Thiếu một phần AQI/UV']
       : [`UV tối đa ${uv.toFixed(1)}`, `US AQI tối đa ${Math.round(aqi)}`]),
   ];
-  result.summary =
-    result.status === 'avoid'
-      ? input.activity === 'commute'
-        ? 'Dự báo tại địa điểm đã chọn có điều kiện bất lợi. Điều chỉnh giờ nếu có thể và cân nhắc phương tiện có che chắn.'
-        : 'Nên đổi giờ hoặc chuyển sang hoạt động trong nhà.'
-      : result.risks.length
-        ? result.risks.join(' · ')
-        : missing
-          ? 'Có thể cân nhắc, nhưng chưa đủ chỉ số môi trường.'
-          : 'Điều kiện tương đối dễ chịu theo dự báo hiện có.';
+  if (result.status === 'avoid') {
+    result.summary = input.activity === 'commute'
+      ? 'Dự báo tại địa điểm đã chọn có điều kiện bất lợi. Điều chỉnh giờ nếu có thể và cân nhắc phương tiện có che chắn.'
+      : 'Nên đổi giờ hoặc chuyển sang hoạt động trong nhà.';
+  } else if (result.risks.length > 0) {
+    result.summary = result.risks.join(' · ');
+  } else if (missing) {
+    result.summary = 'Có thể cân nhắc, nhưng chưa đủ chỉ số môi trường.';
+  } else {
+    result.summary = 'Điều kiện tương đối dễ chịu theo dự báo hiện có.';
+  }
+  // Thêm vật dụng cần chuẩn bị.
   const add = (id: string, label: string, icon: string) =>
     result.checklist.push({ id, label, icon });
   if (heat >= 28) add('water', 'Nước uống, nghỉ ở chỗ mát', 'heat-hydration');
@@ -561,6 +248,7 @@ export function assessActivity(input: {
   return result;
 }
 
+// Chọn tối đa ba khung giờ không trùng nhau.
 export function activityCandidates(
   input: Omit<Parameters<typeof assessActivity>[0], 'start'> & {
     date: string;
@@ -573,6 +261,7 @@ export function activityCandidates(
   },
 ) {
   if (input.from >= input.to) return [];
+  // Thử các giờ bắt đầu cách nhau 30 phút trong khoảng rảnh của người dùng.
   const candidates = input.hours
     .flatMap((h) =>
       [0, 30].map((offset) => new Date(Date.parse(h.at) + offset * 60_000).toISOString()),
@@ -592,6 +281,7 @@ export function activityCandidates(
     .filter((a) => a.status !== 'unknown' && (input.includeAvoid || a.status !== 'avoid'))
     .sort((a, b) => a.score - b.score || a.start.localeCompare(b.start));
   const result: ActivityAssessment[] = [];
+  // Chọn tối đa ba kết quả không chồng thời gian để dễ so sánh trên giao diện.
   for (const candidate of candidates) {
     if (result.every((r) => candidate.end <= r.start || candidate.start >= r.end))
       result.push(candidate);
@@ -601,6 +291,7 @@ export function activityCandidates(
 }
 
 // Commuting evaluates the chosen departure, never a ranked replacement time.
+// Đánh giá đúng giờ khởi hành đã chọn.
 export function assessDeparture(
   input: Omit<Parameters<typeof assessActivity>[0], 'start' | 'activity'> & {
     date: string;
@@ -620,12 +311,8 @@ export function assessDeparture(
   return start ? assessActivity({ ...input, activity: 'commute', start }) : undefined;
 }
 
-export function startAtClock(
-  hours: readonly PlanningHour[],
-  date: string,
-  minute: number,
-  timeZone: string,
-): string | undefined {
+// Tìm thời điểm theo ngày và giờ địa phương.
+export function startAtClock(hours: readonly PlanningHour[], date: string, minute: number, timeZone: string): string | undefined {
   const h = hours.find(
     (h) =>
       localDate(h.at, timeZone) === date &&
@@ -636,6 +323,7 @@ export function startAtClock(
 
 // plan-helpers
 
+// Chuẩn hóa cách nhập giờ và phút.
 export function normalizeClockInput(value: string): string {
   const text = value.trim();
   if (/^\d{1,2}$/.test(text)) return `${text.padStart(2, '0')}:00`;
@@ -644,17 +332,16 @@ export function normalizeClockInput(value: string): string {
   return text;
 }
 
+// Đề xuất khoảng giờ mặc định để chọn.
 export function defaultAvailability(date: string, now: number, timeZone: string) {
   const start =
     date === localDate(now, timeZone)
-      ? Math.min(
-          23.75,
-          Math.ceil((localHour(new Date(now).toISOString(), timeZone) + 0.01) * 4) / 4,
-        )
+      ? Math.min(23.75, Math.ceil((localHour(new Date(now).toISOString(), timeZone) + 0.01) * 4) / 4)
       : 7;
   return { start: clockLabel(start), end: date === localDate(now, timeZone) ? '24:00' : '22:00' };
 }
 
+// Lấy ngày kế tiếp theo lịch.
 export function nextLocalDate(date: string): string {
   const day = new Date(`${date}T12:00:00Z`);
   day.setUTCDate(day.getUTCDate() + 1);
@@ -671,15 +358,13 @@ export const PREPARATION_ITEMS = {
   bag: 'Túi đựng đồ',
 };
 
+// Đọc các vật dụng từ dữ liệu chuẩn bị.
 export function preparationItems(preparation: string) {
   return Object.entries(PREPARATION_ITEMS).filter(([, label]) => preparation.includes(label));
 }
 
-export function rescheduledEvidence(
-  assessment: ActivityAssessment,
-  checked: readonly string[],
-  now = Date.now(),
-) {
+// Chuẩn bị bằng chứng khi đổi giờ hoạt động.
+export function rescheduledEvidence(assessment: ActivityAssessment, checked: readonly string[], now = Date.now()) {
   if (Date.parse(assessment.start) <= now || !['suitable', 'caution'].includes(assessment.status)) {
     throw new Error('Giờ này chưa phù hợp. Hãy cập nhật dự báo và chọn lại.');
   }

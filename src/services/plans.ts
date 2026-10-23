@@ -1,24 +1,16 @@
+/**
+ * Đọc/ghi kế hoạch và đặt hoặc hủy nhắc lịch trên thiết bị.
+ * Có nhánh lưu cục bộ cho khách; giao diện hiện tại yêu cầu đăng nhập khi lưu giờ.
+ */
 import 'expo-sqlite/localStorage/install';
 import { requireSupabaseClient } from '@/services/supabase';
 import type { Tables, TablesInsert } from '@/types/database';
-import {
-  type ActivityAssessment,
-  rescheduledEvidence,
-  validActivityDuration,
-  activityLabel,
-  formatPlanTime,
-} from '@/utils/planning';
+import { type ActivityAssessment, rescheduledEvidence, validActivityDuration, activityLabel, formatPlanTime } from '@/utils/planning';
 import { Platform } from 'react-native';
 import { scheduleNotificationAsync } from 'expo-notifications/build/scheduleNotificationAsync';
 import { cancelScheduledNotificationAsync } from 'expo-notifications/build/cancelScheduledNotificationAsync';
-import {
-  AndroidNotificationPriority,
-  SchedulableTriggerInputTypes,
-} from 'expo-notifications/build/Notifications.types';
-import {
-  configureWeatherNotificationChannel,
-  WEATHER_NOTIFICATION_CHANNEL_ID,
-} from '@/services/notifications';
+import { AndroidNotificationPriority, SchedulableTriggerInputTypes } from 'expo-notifications/build/Notifications.types';
+import { configureWeatherNotificationChannel, WEATHER_NOTIFICATION_CHANNEL_ID } from '@/services/notifications';
 
 // activity-plans
 
@@ -37,6 +29,7 @@ export type PlanChange = {
 
 const GUEST_KEY = 'weather.guest-walking-plans.v1';
 
+// Đọc các kế hoạch cục bộ của khách.
 function guestPlans(): ActivityPlan[] {
   const raw = localStorage.getItem(GUEST_KEY);
   if (!raw) return [];
@@ -69,6 +62,7 @@ function guestPlans(): ActivityPlan[] {
   }));
 }
 
+// Lấy danh sách hoạt động đã lưu.
 export async function listActivityPlans(owner?: string): Promise<ActivityPlan[]> {
   if (!owner) return guestPlans().sort((a, b) => b.starts_at.localeCompare(a.starts_at));
   const { data, error } = await requireSupabaseClient()
@@ -81,6 +75,7 @@ export async function listActivityPlans(owner?: string): Promise<ActivityPlan[]>
   return data;
 }
 
+// Lấy hoạt động sắp diễn ra gần nhất.
 export async function nextActivityPlan(owner: string): Promise<ActivityPlan | null> {
   const { data, error } = await requireSupabaseClient()
     .from('activity_plans')
@@ -95,6 +90,7 @@ export async function nextActivityPlan(owner: string): Promise<ActivityPlan | nu
   return data;
 }
 
+// Lấy hoạt động theo mã và chủ sở hữu.
 export async function getActivityPlan(id: string, owner: string): Promise<ActivityPlan | null> {
   const { data, error } = await requireSupabaseClient()
     .from('activity_plans')
@@ -106,11 +102,8 @@ export async function getActivityPlan(id: string, owner: string): Promise<Activi
   return data;
 }
 
-export async function rescheduleActivityPlan(
-  plan: ActivityPlan,
-  assessment: ActivityAssessment,
-  owner: string,
-): Promise<ActivityPlan> {
+// Đổi giờ của hoạt động đã lưu.
+export async function rescheduleActivityPlan(plan: ActivityPlan, assessment: ActivityAssessment, owner: string): Promise<ActivityPlan> {
   if (
     plan.user_id !== owner ||
     plan.status !== 'planned' ||
@@ -133,11 +126,7 @@ export async function rescheduleActivityPlan(
     .eq('status', 'planned')
     .eq('starts_at', plan.starts_at)
     .eq('ends_at', plan.ends_at)
-    .filter(
-      'checked_items',
-      'eq',
-      `{${plan.checked_items.map((id) => JSON.stringify(id)).join(',')}}`,
-    )
+    .filter('checked_items', 'eq', `{${plan.checked_items.map((id) => JSON.stringify(id)).join(',')}}`)
     .select('*')
     .maybeSingle();
   if (error?.code === '23505') throw new Error('Bạn đã có hoạt động này tại giờ và địa điểm đó.');
@@ -146,6 +135,7 @@ export async function rescheduleActivityPlan(
   return data;
 }
 
+// Kiểm tra và lưu hoạt động mới.
 export async function saveActivityPlan(input: PlanInput, owner?: string): Promise<ActivityPlan> {
   const minutes = (Date.parse(input.ends_at) - Date.parse(input.starts_at)) / 60_000;
   if (!validActivityDuration(minutes)) throw new Error('Thời lượng phải từ 1 đến 1440 phút.');
@@ -191,11 +181,8 @@ export async function saveActivityPlan(input: PlanInput, owner?: string): Promis
   return plan;
 }
 
-export async function changeActivityPlan(
-  id: string,
-  change: PlanChange | 'delete',
-  owner?: string,
-): Promise<void> {
+// Cập nhật hoặc xóa hoạt động đã lưu.
+export async function changeActivityPlan(id: string, change: PlanChange | 'delete', owner?: string): Promise<void> {
   if (!owner) {
     const rows = guestPlans();
     if (!rows.some((p) => p.id === id)) throw new Error('Không tìm thấy kế hoạch.');
@@ -228,6 +215,7 @@ type RecordValue = {
   changedAt?: number;
 };
 
+// Đọc thông tin nhắc lịch đã lưu.
 function read(): Record<string, RecordValue> {
   try {
     const data: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
@@ -248,12 +236,14 @@ function read(): Record<string, RecordValue> {
 
 let queue = Promise.resolve();
 
+// Xếp các thao tác lưu lịch chạy lần lượt.
 function serialize(work: () => Promise<void>) {
   const next = queue.catch(() => undefined).then(work);
   queue = next;
   return next;
 }
 
+// Hủy nhắc lịch không còn sử dụng.
 export function clearPlanNotifications(keepIds: readonly string[], owner?: string) {
   return serialize(async () => {
     const records = read();
@@ -267,10 +257,8 @@ export function clearPlanNotifications(keepIds: readonly string[], owner?: strin
   });
 }
 
-export function changedPlan(
-  plan: Pick<ActivityPlan, 'baseline_risks' | 'baseline_status'>,
-  assessment: ActivityAssessment,
-) {
+// Kiểm tra dự báo có thêm rủi ro.
+export function changedPlan(plan: Pick<ActivityPlan, 'baseline_risks' | 'baseline_status'>, assessment: ActivityAssessment) {
   return (
     plan.baseline_status !== 'unknown' &&
     assessment.status !== 'unknown' &&
@@ -279,11 +267,8 @@ export function changedPlan(
   );
 }
 
-export function syncPlanNotification(
-  plan: ActivityPlan,
-  assessment?: ActivityAssessment,
-  alternative?: ActivityAssessment,
-) {
+// Đồng bộ nhắc lịch của hoạt động.
+export function syncPlanNotification(plan: ActivityPlan, assessment?: ActivityAssessment, alternative?: ActivityAssessment) {
   return serialize(async () => {
     if (
       Platform.OS === 'web' ||
