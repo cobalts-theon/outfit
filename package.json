@@ -57,6 +57,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
+    "test:mail": "node --experimental-strip-types --test tests/gmail-*.test.mjs",
     "test:watch": "jest --watch"
   },
   "private": true

@@ -993,6 +993,208 @@ URLs, while unique filenames avoid stale image replacement through caches.
 
 ---
 
+## ADR-032 — Dashboard operations and one complete walking planning flow
+
+**Date:** 2026-09-08 (records the decision accepted in the resumed session).
+
+**Decision:** Defer the separate ReactJS Web Admin in ADR-002 and operate with
+Supabase Dashboard. Extend the mobile product with light-walking plans first:
+destination, date, availability, duration, ranked alternatives, saved snapshot,
+cancellation, completion and feedback.
+
+**Reason:** Concentrate implementation on useful activity decisions and avoid
+building a second administrative UI before the rule workflow is established.
+
+**Consequences:** Versioned `walking_policies` are immutable except for active
+selection. Mobile validates permitted thresholds; policy fallback is visible.
+Use hourly US AQI, never substitute current AQI for missing forecast hours.
+Thresholds are product preferences, not medical limits or guarantees. All
+required conditions must pass before ranking. Guests retain local history;
+authenticated history is owner-scoped in Supabase. Existing generic Home rules
+remain client-side. Automatic plan monitoring and Expo remote push still require
+backend work and EAS/FCM/APNs configuration; saved plans do not promise monitoring.
+
+---
+
+## ADR-033 — Daily-life guidance first, user-entered availability
+
+**Date:** 2026-09-10.
+
+**Decision:** Replace the walking-only entry point with forecast-backed daily
+recommendations. Users enter their own same-day start/end times. Morning, noon,
+afternoon, evening and overnight advice uses the destination timezone and only
+upcoming forecast samples. Missing AQI does not suppress weather-based guidance,
+but it remains a blocker for selecting a walking interval.
+
+**Previous behavior:** Fixed morning/afternoon/day presets, walking-first UI,
+hour-aligned candidate starts and automatic exclusion of darkness. A generic
+missing-forecast message also covered elapsed or too-short availability.
+
+**New behavior:** Arbitrary-minute user start plus quarter-hour alternatives,
+non-overlapping choices, explicit reasons when no interval is available and an
+optional walking subsection. Darkness requires an explicit lit-route preparation
+instead of automatically rejecting all evening activity. Numeric walking policy
+limits are unchanged; saved reasons remain historical snapshots. No new activity
+values, database policy release or backend migration are introduced.
+
+**Reason:** The user needs actionable daily-life sentences at relevant times,
+not only a walking-time selector or preset availability periods.
+
+---
+
+## ADR-034 — Daypart actions belong in Do now
+
+**Date:** 2026-09-10.
+
+**Decision:** Supersedes ADR-033’s separate guidance-screen entry. Automatically
+select current-daypart activities inside Home’s “Nên làm ngay”; keep walking
+availability as an optional drawer tool. Preserve the existing neo brutalism.
+Reduce repeated copy to action + short evidence, expand details on demand.
+
+**Persistence:** Device-local completion keyed by destination/local date/activity
+and daypart; laundry spans the date. No cloud migration or new walking activity
+values. Completion is reversible, retained seven days, and shared by users of
+this device. High-severity safety warnings do not become completable chores.
+
+**Notifications:** Reuse permission-gated local scheduling, add a category with
+Done and handle responses both live and at cold start. Done opens the app so the
+handler reliably persists completion, then cancels related schedules. Rain uses
+forecast timing; other chores offer an explicit 15-minute reminder. Disabling
+notifications cancels both kinds. Remote push/background forecast monitoring is
+not claimed: EAS push credentials and server/token infrastructure remain absent.
+
+---
+
+## ADR-035 — Preserve the original icon-led recommendation layout
+
+**Date:** 2026-09-10.
+
+**Decision:** Supersedes ADR-034’s three compact cards. Reuse existing SVGs and
+Làm / Gợi ý / Lý do rows, removing only repeated wording. Highlight concrete
+weather chores with Done and 15-minute reminders; ordinary recommendations do
+not get these controls. Severe warnings retain safety precedence.
+
+Walking is ordinary advice inside Do now, gated by existing weather evidence
+and current local daypart, not a separate hamburger destination. Remove that
+menu entry while preserving previously saved plans and the legacy route.
+No change to notification delivery infrastructure or completion persistence.
+
+---
+
+## ADR-036 — Read-only recommendations, no chore controls
+
+**Date:** 2026-09-11.
+
+**Decision:** Supersedes ADR-035’s chore controls and multi-row presentation.
+Home retains original SVG assets and neo brutalism, presenting each action with
+its reason. Remove Done, Undo and 15-minute reminder controls, including their
+completion-based visibility. Existing manual schedules are retired at startup;
+automatic weather notifications continue without completion buttons. No change
+to walking eligibility, saved legacy plans or the menu’s removed planner entry.
+
+---
+
+## ADR-037 — Recommendations are the primary product surface
+
+**Date:** 2026-09-11.
+
+**Decision:** Replace weather-first Home hierarchy with brief context, priority
+advice, other activity decisions, forecast-backed preparation and optional
+weather evidence. Temperature hero/metrics/forecast are collapsed by default.
+Preserve SVGs, subtly rounded neo brutalism and read-only recommendations.
+
+Remove generic clock-only routine advice. Use existing environmental rule
+matches to recommend adjusting activity, while retaining strict evidence for
+positive outdoor suggestions. Future preparation uses fresh upcoming hourly
+samples within six hours; no measurements are invented. Weather remains the
+explanation layer. Product success is a supported daily-life decision, not
+reading the weather dashboard. No change to remote push infrastructure.
+
+---
+
+## ADR-038 — Concrete Jungle palette, 12px corners and entry motion
+
+**Date:** 2026-09-11.
+
+**Decision:** Adopt the user-specified ten-color Concrete Jungle palette and
+12px surface/control corners, retaining hard outlines and shadows. Shared
+secondary buttons are blue. Drawer uses horizontal entry; weather details use
+vertical entry; both respect reduced motion. Forecast uses separate hourly and
+seven-day tabs plus optional measurements instead of one long mixed list.
+Recommendation-first Home and weather-derived advice remain the product focus.
+
+---
+
+## ADR-039 — Account-owned onboarding preferences
+
+**Date:** 2026-09-12.
+
+Store small versioned lifestyle selections in user-editable Auth metadata. Use
+these only for recommendation relevance, never authorization. New app signups
+carry a pending marker; existing accounts opt in through Account. Defer is
+allowed. Personalization follows the weather engine, preserves warning/danger
+advice, and never creates favorable conditions from missing measurements.
+
+---
+
+## ADR-040 — Separate welcome slides and context-sensitive household advice
+
+**Date:** 2026-09-12. Supersedes the shared initial/editor UI in ADR-039 and
+household-task priority from earlier Home iterations.
+
+First-run setup is a separate bottom pop-up with two sliding steps. Account
+keeps a direct edit form. Both share versioned preference validation/storage.
+Wellbeing, travel and personal activities precede optional laundry; chores do
+not receive the highlighted Home treatment solely by being first in a list.
+Drying requires a dry daylight forecast, moderate humidity and wind; laundry
+advice is omitted at evening/night. Rain notifications emphasize travel
+preparation, not an assumption that everyone has washing outside.
+
+---
+
+## ADR-041 — Before-start route and exact availability
+
+**Date:** 2026-09-12. Supersedes ADR-040's welcome pop-up.
+
+New app signups open /before-start, a full page titled “Trước khi bắt đầu”.
+Three steps ask about activities, transport, daily outdoor exposure and free
+time. SVG selection rows handle activities/single-choice answers; two dropdowns
+choose start/end in 30-minute increments, including overnight intervals. Account
+keeps direct editing. Optional version-1 metadata fields preserve older profiles;
+exact availability overrides legacy dayparts when available. Transport affects
+rain preparation and prolonged exposure affects heat guidance; urgent warnings
+are unchanged. No diagnosis or additional permissions are requested.
+
+---
+
+## ADR-042 — Consistent application-wide color hierarchy
+
+**Date:** 2026-09-12. Refines ADR-038 without changing its ten-color palette.
+
+Apply shared visual roles throughout the app: neutral reading surfaces, orange
+primary actions, blue navigation/selection, green success and amber prioritized
+content. Restrict large saturated backgrounds to information that merits
+attention. Preserve 12px frames, original SVGs and hard shadows. Forecast data
+precedes supporting preparation content; notification controls precede lengthy
+explanations. Recommendation rules, permissions and stored preferences are unchanged.
+
+---
+
+## ADR-043 — Supabase-owned email OTP
+
+**Date:** 2026-09-12.
+
+Updated 2026-09-15 after scope clarification: OTP is for new-account confirmation
+and forgotten passwords only. Remove the previously proposed passwordless login.
+Recovery uses resetPasswordForEmail, verifyOtp(type=recovery), then updateUser
+on an isolated nonpersistent client; return to password login after success. Use the existing
+AuthProvider session listener and defer onboarding until verified authentication.
+Do not build an OTP table or verify codes locally. Hosted templates must expose
+Token; local template files are not a deployment. MCP currently lacks the Auth
+configuration endpoint, so hosted setup remains an explicit outstanding step.
+
+---
+
 # Decisions still open
 
 Create new ADR entries when these are resolved:
@@ -1005,3 +1207,314 @@ Create new ADR entries when these are resolved:
 - Remote rule storage, validation, versioning, and administration format
 - General-purpose icon library
 - Analytics/crash reporting
+
+## ADR-044 — Require authentication at app entry (2026-09-15)
+
+User requests mandatory registration/login to use the system. Replace guest
+access with a protected route boundary and a registration-first auth page.
+Existing sessions remain usable. Do not mark signup complete without its
+Supabase session; recovery remains isolated and returns to password login.
+
+## ADR-045 — Activity planning and feedback (2026-09-15)
+
+Expand the existing walking planner rather than add a parallel persistence
+system. Share a pure activity evaluator across results, comparisons and local
+monitoring. Store only baseline decision evidence needed to detect worsening.
+Feedback customizes optional advice, never suppresses hazards. Per-plan reminders
+are opt-in. Because no configured background push service exists, local
+foreground change monitoring is explicit in UI; do not claim continuous checks
+while closed. Server-driven monitoring remains a separate unfinished capability.
+
+## ADR-046 — Bring saved intentions back to Home
+
+Prioritize the next actual saved activity and adjustment of that same plan.
+Do not create a duplicate plan when changing time. Reuse the activity evaluator
+and destination queries; require refreshed evidence and explicit time selection.
+Keep weather hazards above plans on Home, and place secondary controls inside
+saved-plan details. Use account-scoped optimistic guards to avoid overwriting
+concurrent edits. Retain the existing explicit foreground-only monitoring scope.
+
+
+## ADR-047 — Retire feedback and clarify production module boundaries
+
+**Date:** 2026-10-19. Supersedes the feedback portions of ADR-045; retains
+ADR-046's plan lifecycle and rescheduling behavior.
+
+**Decision:** Remove helpful/dislike/inaccurate controls, feedback data access and
+feedback-based recommendation/activity ranking. Keep weather-rule priority,
+explicit onboarding preferences, all five activities, checklists, rescheduling,
+completion, cancellation, deletion and local reminders. No chatbot AI is added.
+
+**Reason:** Reduce product and code complexity while preserving the useful
+forecast-to-action and saved-plan workflows.
+
+**Consequences:** Existing feedback tables/columns, migrations and generated types
+remain for compatibility; this release performs no schema migration or data
+cleanup. Production Home/planner names replace prototype/walking names. Screens
+compose focused panels and application hooks; shared UI behavior has one owner.
+The legacy walking-policy request is removed from the live activity planner
+because its output was unused. Legacy storage keys and tested evaluator behavior
+remain compatible. Pre-existing uncommitted work is preserved.
+
+
+## ADR-048 — Simplify the source tree for a small student project
+
+**Date:** 2026-10-22. Supersedes the folder organization in ADR-015/ADR-047.
+
+**Previous:** Features nested application/domain/data/model/screens folders,
+with many small files and tests spread through the source tree.
+
+**Decision:** Use familiar screens/components/hooks/context/services/utils/types
+folders. Merge related small modules, remove unreachable retired UI, centralize
+tests, and use direct route re-exports. Preserve normalized data, query behavior,
+authentication, all live screens, account plans and notifications.
+
+**Reason:** The user requests fewer files/folders and code understandable for a
+student project. File organization should match the app's current size.
+
+**Consequences:** Imports change across the application and tests; UI markup,
+styles and persistence contracts are retained. Retired daypart UI and its unused
+evaluator/test are removed. Old screenshots and unused assets are preserved in
+verified ZIP archives under artifacts. No database, dependency or API migration.
+
+
+## ADR-049 — Group the application into 50 source files
+
+**Date:** 2026-10-22. Refines ADR-048 at the user's explicit request.
+
+**Previous:** The first cleanup retained 120 application files. The user requests
+45–50 files, readable lines and unchanged UI/logic.
+
+**Decision:** Group related components, hooks, services and utilities into exactly
+50 files under src, including routes, platform variants and database types.
+Keep component functions separate within their grouped files. Prefix colliding
+private names, preserve object shorthand keys, and update imports and tests.
+Use a target print width of 100 without changing literal text or generated types.
+
+**Consequences:** There are 14 UI files, four contexts, three hook files, ten
+service files, five utility files, two type files, one demo-data file, one theme,
+four screens and six route files. No function, rule, query option, storage key,
+API contract, UI/style definition or test assertion is intentionally changed.
+The small before-start screen lives directly in its route. Native dependencies
+are mocked in Jest setup, without changing the device application. Related
+component definitions share files rather than becoming giant render functions.
+
+
+## ADR-050 — Gmail sends OTP through an authenticated Send Email Hook
+
+**Date:** 2026-10-22. Replaces the hosted-template/SMTP delivery setup in ADR-043;
+retains Supabase-owned OTPs, password signup and isolated password recovery.
+
+**Decision:** The user explicitly requests Gmail delivery without Supabase SMTP.
+Use the Free-plan HTTP Send Email Hook and a small Edge Function. Supabase Auth
+still creates and verifies OTPs; Nodemailer sends code-only messages directly
+through the personal Gmail account. Do not build another OTP table or replace
+authentication. Mobile screens and queries remain unchanged.
+
+**Reason:** Hosted template edits were blocked on Free + default email sender,
+and the user declined configuring custom SMTP in Supabase.
+
+**Consequences:** Two server modules and pinned Deno dependencies are outside
+src (which remains 50 files). Gmail App Password and webhook HMAC key live only
+in server secrets. The gateway accepts webhook requests without JWT; the handler
+requires Standard Webhooks signature/timestamp validation. Setup probes Gmail
+before enabling the hook; unsigned callers cannot send or probe credentials.
+Supabase SMTP/template settings remain untouched. App Password is still required
+to authorize the Gmail account. Warm-instance retry coalescing is best effort;
+Gmail quotas and hook execution limits remain practical constraints.
+
+**Status:** Function v1 deployed; signed health probe passes. Hook activation and
+real inbox delivery await the user's Gmail and App Password. No test email sent.
+
+
+## ADR-051 — Authorize Gmail delivery with Google Cloud OAuth
+
+**Date:** 2026-10-22. Supersedes the SMTP/App Password transport in ADR-050.
+
+**Decision:** At the user's request, use a Google Cloud Web application OAuth
+client and offline refresh token for the personal Gmail sender. Request only
+Gmail's gmail.send scope. Send MIME messages through Gmail API HTTPS, keeping
+Supabase's signed Send Email Hook, OTP generation/verification and app UI intact.
+
+**Consequences:** Client ID, client secret, refresh token and Gmail address stay
+in private admin env/server secrets. One extra server module handles OAuth/cache
+and MIME; Nodemailer is removed. Application src remains 50 files. The user must
+complete Google consent; External Testing refresh tokens expire after 7 days.
+Setup checks token refresh before enabling the hook; actual API/inbox delivery
+still requires an OTP request. No Gmail mailbox read permission or SMTP setup.
+
+**Status:** Function v3 deployed; Google OAuth refresh and signed connection
+probe pass. Hook enabled with verified configuration readback. TypeScript and
+24 mail/setup tests pass. Real recovery OTP now passes Auth → gmail-otp → Gmail API (HTTP 200 and
+successful hook log, 21:09 UTC+7). Inbox receipt remains user-verified.
+
+
+## ADR-052 — Use six-digit email OTPs
+
+**Date:** 2026-10-22.
+
+**Decision:** At the user's request, configure hosted Auth mailer_otp_length=6,
+keep six visible input cells and limit signup/recovery verification to six digits.
+Preserve leading zeroes; never truncate Auth tokens in the email sender.
+
+**Consequences:** Future Gmail-hook setup also sets and checks OTP length 6.
+Users must request a fresh code after the change rather than shorten an older
+code. Gmail delivery and the rest of the authentication flow remain unchanged.
+
+
+## ADR-053 — Focus the app on environmental recommendations
+
+**Date:** 2026-10-22. Supersedes mandatory product-route authentication in
+ADR-044 and full plan-lifecycle presentation in earlier planning decisions.
+
+**Reason:** The user approved simplifying the product after a code-based scope
+review: environmental conditions should lead to understandable actions, without
+making the app a personal calendar or profile-management product.
+
+**Decision:** Allow public Home/Forecast/activity assessment; require login only
+for private sync/save. Keep three activity choices: walking, running and travel.
+Differentiate exposure/transport and preserve saved policy context. Show read-only
+weather-driven preparation. Reduce plans to saved future hours, reminder and
+remove/cancel. Remove avatar uploads and Moon/pressure presentation. Reuse optional
+saved availability. Put precautions before opportunities and the hour chooser.
+
+**Consequences:** Existing user data, legacy activity IDs, schema, RLS, Gmail OTP
+and local scheduling remain compatible. No server data is deleted automatically.
+Retire the image picker dependency/plugin and obsolete avatar tests. No new source
+files or generic abstraction layer. Minute-level choices are clearly explained
+as estimates based on hourly forecast samples. No medical score is introduced.
+
+
+## ADR-054 — Ground advice in weather and respect late-night context
+
+**Date:** 2026-10-22. Refines ADR-053 and reverses its avatar retirement at the
+user's explicit request. User rejected pale controls, blue-on-blue advice and
+inferred work/school preparation at 22:00.
+
+**Decision:** Retain four explicit activities (walking/running/work-school/outing)
+and restore the original private avatar repository, signed URLs, picker, upload,
+remove controls and tests inside existing grouped files. Keep colored buttons.
+Do now rows use white/amber/orange, with no blue/green row or badge fill. The
+reading canvas is warm white; external navigation can use blue/green accents.
+
+**Advice:** Add low-priority measured clothing advice in the existing gap between
+cold and hot rules. It never fabricates air-quality, UV or a safe outdoor window.
+At 22:00–04:59 in the selected location, ordinary comfort wording fits rest and
+retains temperature/feels-like evidence. Never infer departure time from interests
+or free-time preferences. Keep environmental hazards first, regardless of time.
+Evaluate the full candidate set before Home filtering/collapsing, rather than
+truncate to three before personalization. Refresh every ten foreground minutes;
+empty, missing, failed and stale states remain explicit with retry controls.
+
+**Consequences:** No schema, RLS, Gmail delivery or OTP-length changes. Source
+stays 50 files. Avatar objects already stored remain usable. Night rules, restored
+avatar tests and contrast checks cover the corrections; native review is recorded
+in PROGRESS.md. Durable user constraints are recorded in AGENTS.md.
+
+
+## ADR-055 — Evaluate outdoor activity with editable inputs
+
+**Date:** 2026-10-22. Extends ADR-054 at the user's request.
+
+**Decision:** Keep the timing flow focused on weather/environment suitability for
+walking, running, commuting and outings. Date and duration are editable boxes;
+accept valid calendar dates and whole-minute durations from 1 through 1440.
+Use one live result beside inputs on wide screens, below on phones. Display
+measurements and preparation directly. Show adverse-weather evidence when no
+acceptable window exists; never present such a window as a recommendation to save.
+
+**Consequences:** Arbitrary dates do not extend available forecast coverage.
+Elapsed availability requests another date; selected-location timezone, freshness,
+full-interval coverage and missing-data handling remain authoritative. Replace only
+the old 30/60/90-minute database constraint; no columns, RLS, grants or existing
+rows change. TypeScript database row types remain identical. No source files added.
+
+
+## ADR-056 — Assess a commute at the user's departure
+
+**Date:** 2026-10-22. Refines the shared activity chooser in ADR-055 after the
+user identified the extra availability range as confusing for work/school.
+
+**Decision:** Work/school asks for date, departure, travel minutes and transport.
+Travel duration ends at arrival; it is not time spent at school/work. Assess the
+exact selected departure and full travel interval instead of ranking the user's
+free-time windows. Do not infer departure from profile availability. Keep the
+range-based finder for walking/running/general outings.
+
+**Consequences:** Commute results retain adverse or unknown conditions and show
+weather-driven preparation. They cannot silently replace departure with better
+weather later. Saved-commute monitoring suppresses alternate departure proposals.
+The existing location-based coverage limit stays explicit. No schema, source-file
+count, OTP, avatar or visual-identity changes.
+
+
+**ADR-056 refinement — morning departures:** At the user's request, new
+work/school departures start at 06:00 in the selected location's time zone.
+Offer quick choices 06:00, 06:30 and 07:00; the full selector starts at 06:00.
+The domain rejects earlier selections. Users still explicitly choose departure;
+weather evidence, dates and other activities' time choices remain unchanged.
+
+
+## ADR-057 — Deliver notifications through Expo Go's local channel
+
+**Date:** 2026-10-22. User clarified the runtime is Expo Go and requested visible
+phone notifications in that runtime.
+
+**Decision:** Use local notification presentation/scheduling. In Expo Go Android,
+omit the unavailable project-owned channel and use the host default. Actual app
+builds retain the configured high-priority channel, with a null creation result
+handled as unavailable. Record the delivery channel to repair old deduplication
+records. Apply this to both environmental alerts and saved plans.
+
+**Behavior:** Present test/first-enable confirmation immediately after permission.
+Do not depend on an alarm or action category for tests. If a saved activity starts
+in under 15 minutes, send its reminder once now; otherwise schedule 15 minutes
+before. Keep weather evidence rules, explicit opt-in and deduplication. Give
+visible feedback for errors and access to system notification settings.
+
+**Limits:** Expo Go Android cannot receive this app's remote server push. It can
+show local notifications under Expo Go's name. Device DND and channel settings
+remain controlled by the user. No backend/schema or EAS provisioning is required
+for this correction; server-based monitoring is still separate future work.
+
+
+## ADR-058 — Adopt the user's ten-color palette
+
+**Date:** 2026-10-22. User explicitly replaces the former orange/blue/green palette.
+
+**Decision:** Centralize all ten supplied swatches in theme.ts and remap semantic
+roles. Use cream surfaces, navy borders/shadows/secondary controls, red primary
+controls, cyan information, yellow selection, gold advice, orange warning and
+teal favorable states. Replace remaining hardcoded UI colors and native shell
+background/notification accents. Keep layouts, typography and all application logic.
+
+**Consequences:** Small text uses deeper navy where needed to retain AA contrast,
+including red-filled buttons; navy secondary controls use cream copy. Preserve
+warm Do now surfaces, avatar behavior, notification delivery and the 50-source-file
+limit. Historical color decisions are superseded only for swatch values and the
+listed semantic assignments. Weather illustration assets remain weather-specific.
+
+
+**ADR-058 button refinement:** Secondary buttons use cyan #A8DADC and dark copy
+instead of a navy fill that merged with the navy border/shadow. Apply centrally
+to all NeoButton secondary actions, including location/forecast refresh, account,
+notification settings and quick date choices. Custom GPS actions also use dark
+copy on cyan. Contrast checks cover both label/fill and secondary fill/border.
+
+
+## ADR-059 — Broaden measured comfort advice and compact its presentation
+
+**Date:** 2026-10-23. User requested daily activities beyond clothing, then asked
+to remove the repeated blocks and “Gợi ý sinh hoạt” labels.
+
+**Decision:** Add informational advice for moderate warmth, conditional indoor
+comfort and outside humidity extremes. These are comfort heuristics, not clinical
+thresholds; indoor readings are unknown. Avoid duplicated hydration advice at the
+existing severe-heat threshold. Use selected-location time for nighttime/rest
+wording. Preserve stale/missing evidence gates and hazard priority.
+
+**Presentation:** One Do now panel, no badges on ordinary info rows. Keep badges
+for actual attention/warning/danger. Show three preview rows including optional
+activities, plus all warnings. Secondary icons/type are compact and show actions;
+expand for remaining advice and detailed environmental evidence. Reuse existing
+icon assets and files; no file-count increase or notification-threshold changes.

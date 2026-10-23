@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Supabase provides shared backend capabilities for the Mobile App and Web Admin.
+Supabase provides the mobile backend; Supabase Dashboard is the current operations UI (ADR-032).
 
 Primary backend concerns:
 
@@ -629,3 +629,113 @@ Recommended:
 8. Push device registration/delivery infrastructure.
 
 Do not build the full database before the first working weather vertical slice.
+
+
+## 21. Walking policies and activity plans — 2026-09-08
+
+The resumed implementation adds `walking_policies` and `activity_plans`.
+Policies contain a version, active flag, bounded numeric walking preferences,
+rationale and creation time. A partial unique index permits at most one active
+release. An update trigger rejects edits other than active selection. Anonymous
+and authenticated clients can select only the active policy and cannot write it.
+
+Plans retain owner, walking activity, coordinates, place label, timezone,
+start/end, policy reference, explanation strings, preparation, status and
+optional helpful/not-suitable feedback. Durations are constrained to 30/60/90
+minutes; a unique owner/start/coordinates constraint prevents duplicates.
+Owner/start and policy indexes support list and reference lookups.
+
+RLS restricts all plan operations to `(select auth.uid()) = user_id` with both
+USING and WITH CHECK for updates. Authenticated clients have SELECT/INSERT/DELETE
+and column-level UPDATE only for status/feedback. Guests have no table access;
+their plans remain local. Migration SQL and generated client types are in the
+repository. Remote migration history was verified on 2026-09-08. No new remote
+DDL was applied during the resume verification.
+
+Security advisor found no table/RLS findings; the project-wide leaked-password
+protection setting is disabled. It was not changed by this feature.
+See https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+
+## Lifestyle preference metadata
+
+No schema migration: small, user-editable preferences are stored via Supabase
+Auth updateUser in user_metadata.lifestyle_preferences: version 1, activities
+(wellness/commute/exercise/laundry/clothing) and periods (morning/noon/afternoon/evening).
+Client validation rejects unsupported versions, empty selections and unknown keys.
+The signup marker lifestyle_onboarding_pending opens setup after authentication;
+save/defer clears it. Existing accounts without this marker are not interrupted.
+Metadata is used only for personalization, never authorization or RLS. Auth
+updates the current user, preserving unrelated metadata. Offline saves surface
+an error and retain the draft; no success is reported until Auth accepts it.
+
+Optional lifestyle_preferences fields: availability {start,end} stores minute-of-day
+integers 0–1439 with distinct endpoints (end < start means overnight); transport
+is walk/bike/motorbike/covered/none; exposure is short/long. Legacy version-1
+activity/daypart values still parse. Exact availability takes precedence over
+periods when evaluating Home's current location time.
+
+## Email OTP authentication
+
+Recovery also uses Supabase Auth with a separate nonpersistent client; no passwordless login is offered.
+No schema change. Supabase Auth owns OTP generation/expiry/replay prevention and
+sessions. The client uses auth.signInWithOtp(shouldCreateUser=false),
+auth.resend(type=signup) and auth.verifyOtp(type=email). No direct auth.users
+writes or OTP persistence. Hosted setup status is documented in EMAIL_OTP.md.
+
+## Expanded activity planning (2026-09-15)
+
+Migration 20260915040840 expands activity_plans.activity to walking/running/
+commute/outing/shopping; uniqueness now includes activity. Removed the walking
+policy FK because activity-v1 evaluates other activities; existing policy
+strings/history remain intact. Added reminder_enabled, checked_items,
+baseline_risks and baseline_status. Only compact decision evidence is saved,
+not raw weather payloads. Added indexed per-owner upcoming reminder lookup.
+recommendation_feedback uses (user_id,target_key) primary key, controlled
+responses, optional busy period/minute and updated timestamp. Authenticated
+CRUD is restricted by auth.uid() in both USING and WITH CHECK; anon has no grant.
+Verified cross-owner reads and owner reassignment are blocked, with all test
+writes rolled back. Advisor reported only the existing Auth leaked-password
+protection setting warning; no new database security finding.
+
+Feedback UI now writes only helpful/dislike/inaccurate. No schema or destructive
+data migration: legacy busy rows remain compatible with old clients but the
+current recommendation personalization ignores them. Owner RLS is unchanged.
+
+## Owned plan rescheduling — 2026-09-15
+
+Migration 20260915141808_allow_owned_plan_rescheduling grants authenticated UPDATE
+only for starts_at, ends_at, policy_version, preparation, reasons, checked_items,
+reminder_enabled, baseline_risks and baseline_status. Previous UPDATE grants
+covered only status/feedback, so existing checklist/reminder changes were failing.
+Owner RLS USING/WITH CHECK remains unchanged; identity/location ownership fields
+receive no new UPDATE grants. Adds a (user_id, starts_at) partial index for planned
+rows, including those without reminders. Generated types were compared and are
+unchanged. A rolled-back authenticated SQL transaction verified rescheduling,
+checklist/reminder updates, stale-start rejection and cross-account isolation.
+No test plans were persisted. Security advisor has no new findings; existing
+leaked-password protection warning is unchanged.
+
+
+## Presentation simplification — 2026-10-22
+
+ADR-053 changes only client presentation and owner-gated access; schema/RLS are
+unchanged. Private profile-image objects remain stored, with no new upload UI.
+Existing completed/cancelled plans and checklist fields remain intact but are not
+shown as task/history management. New saved hours use the existing policy_version
+string for transport/exposure policy variants; no new columns or service keys.
+
+
+ADR-054 restores the original private-avatar UI/repository against the unchanged
+profile-images bucket and owner policies. Stored objects were never deleted.
+Work/school uses commute; general outings use outing; legacy shopping stays
+readable. No migration or grant change is required for these existing IDs.
+
+
+## Custom activity duration — 2026-10-22
+
+Migration `20261022154748_allow_custom_activity_duration.sql` replaces
+`activity_plans_check` with validated `activity_plans_duration_minutes_check`.
+The interval must be positive, at most 24 hours, and an exact whole minute.
+Existing 30/60/90-minute plans remain valid. Client save validation matches this
+range. Column types, generated TypeScript row shapes, owner RLS and indexes are
+unchanged. Applied to the linked project and verified in pg_constraint.

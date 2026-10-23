@@ -802,3 +802,48 @@ interface CurrentWeather {
 ```
 
 This domain model is the UI contract, not raw API JSON.
+
+
+## Walking forecast input — 2026-09-08
+
+Walking planning reuses normalized hourly weather and separately requests three
+days of `us_aqi` from Open-Meteo Air Quality with Unix timestamps. The provider
+boundary validates units and chronological timestamps, omits missing/negative
+AQI and joins by absolute ISO timestamp. Raw provider arrays never reach UI.
+The evaluator requires feels-like temperature, UV, rain probability, wind,
+gusts and AQI at every needed hour, including the end forecast. Missing fields
+or stale data prevent a recommendation for that window. Official alerts remain
+an unsupported upstream capability; the walking feature does not invent them.
+
+
+## Time-aware guidance and custom availability — 2026-09-10
+
+Daypart advice uses normalized future hourly samples in the destination timezone.
+The displayed interval is restricted to user availability and the supplied sample
+range. It never substitutes current AQI for hourly AQI. Missing fields are named;
+weather-specific advice can remain useful without establishing walking eligibility.
+
+Walking intervals include the exact requested start minute and quarter-hour
+alternatives. All bounding hourly samples are checked conservatively, including
+the endpoint; sub-hour interpolation is not presented as measured data. Expired
+availability and too-short duration have separate messages from missing coverage.
+Nighttime samples no longer automatically fail eligibility; a proposed interval
+containing darkness explicitly requires adequate route lighting and visibility.
+
+Saved-plan preparation and rescheduling use the saved destination's normalized
+hourly forecast and hourly AQI. Missing/stale evidence remains unknown rather
+than favorable. Rescheduling requires a successful weather refresh and a fresh
+evaluation across the original duration; AQI failures prevent exercise options.
+The original start is excluded before ranking alternative non-overlapping windows.
+Free hours are user-selected, initialized only from actual saved preferences.
+
+
+## Weather-first daily wording — 2026-10-22 (ADR-054)
+
+Keep measurement evidence mandatory. Ordinary temperature values between existing
+cold/hot clothing branches support low-priority adjustable-clothing guidance,
+without inferring AQI/UV quality or a dry outdoor window. From 22:00–04:59 in the
+selected location, wording refers to rest/comfort and keeps those measurements.
+A clock alone does not create advice; actual hazards outrank ordinary comfort.
+Interests and free-time metadata never create work/school departure schedules.
+Tomorrow-specific recommendations require tomorrow's forecast or an explicit plan.

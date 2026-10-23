@@ -1,5 +1,3 @@
-import { HomePrototypeScreen } from '@/features/home/screens/home-prototype-screen';
+// index
 
-export default function HomeScreen() {
-  return <HomePrototypeScreen />;
-}
+export { HomeScreen as default } from '@/screens/home-screen';

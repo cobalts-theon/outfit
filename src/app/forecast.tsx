@@ -1,5 +1,3 @@
-import { ForecastScreen } from '@/features/forecast/screens/forecast-screen';
+// forecast
 
-export default function ForecastRoute() {
-  return <ForecastScreen />;
-}
+export { ForecastScreen as default } from '@/screens/forecast-screen';

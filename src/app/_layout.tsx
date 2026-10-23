@@ -1,10 +1,9 @@
 import type { ErrorBoundaryProps } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useAppBootstrap, AppProviders, RootNavigator } from '@/context/app';
+import { AppErrorFallback } from '@/components/app-shell';
 
-import { useAppBootstrap } from '@/application/bootstrap/use-app-bootstrap';
-import { AppProviders } from '@/application/providers/app-providers';
-import { AppErrorFallback } from '@/components/ui/app-error-fallback';
-import { RootNavigator } from '@/navigation/root-navigator';
+// _layout
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (

@@ -10,7 +10,7 @@ The system should be:
 - secure by default;
 - easy to extend with new weather indicators/rules;
 - testable at domain boundaries;
-- capable of supporting both Mobile App and Web Admin.
+- operated through Supabase Dashboard, with the mobile app as the user surface.
 
 ---
 
@@ -51,7 +51,7 @@ The system should be:
                                   │
                                   ▼
                          ┌─────────────────┐
-                         │ ReactJS Admin   │
+                         │ Supabase Studio │
                          │ manage rules    │
                          └─────────────────┘
 ```
@@ -77,60 +77,26 @@ Exact package choices should be documented in `DECISIONS.md` when installed.
 
 ## 4. Mobile source organization
 
-Preferred direction:
+The application has 50 TypeScript source files in 11 directories including src
+(ADR-049). This includes Expo routes, the web-specific artwork implementation
+and generated database types. Tests remain outside src.
 
-```text
-src/
-├── app/                    # Expo Router route modules only
-├── application/
-│   ├── providers/
-│   └── bootstrap/
-│
-├── navigation/
-│
-├── components/
-│   ├── ui/
-│   └── weather/
-│
-├── features/
-│   ├── weather/
-│   ├── forecast/
-│   ├── air-quality/
-│   ├── recommendations/
-│   ├── alerts/
-│   ├── locations/
-│   └── settings/
-│
-├── services/
-│   ├── query/
-│   ├── weather/
-│   │   ├── providers/
-│   │   ├── adapters/
-│   │   └── weather-service.ts
-│   └── supabase/
-│
-├── stores/
-├── theme/
-├── types/
-└── utils/
-```
+Screens compose named components from 14 grouped UI files. Each group retains
+its original component functions and styles; grouping does not flatten the UI
+into one render function. The before-start route owns its small screen directly.
 
-Because Expo Router treats files under `src/app` as routes, bootstrap,
-provider, service, and feature modules must live outside that directory.
+Context owns app startup, authentication, location and notifications. The three
+hook modules coordinate account, Home and Plans. Services group account data,
+location, plans, notifications and live weather, while four weather files keep
+requests, response parsing, adapters and transport understandable. Five utility
+modules retain validation, planning, presentation and recommendation rules.
+The README contains the exact folder counts and a guide to editing each part.
 
-Feature folders may contain:
-
-```text
-feature/
-├── components/
-├── hooks/
-├── screens/
-├── types/
-├── utils/
-└── api/
-```
-
-Avoid forcing every feature to have every subfolder.
+Related declarations share files; colliding local names use descriptive prefixes.
+Imports and native/web module resolution follow the new names. Generated database
+types, persistence keys, query keys, API requests, UI and business rules retain
+their original contents or behavior. Tests mock SQLite installation and WebView
+because grouped modules now import those native dependencies in Node.
 
 ---
 
@@ -170,7 +136,7 @@ The implementation can change without requiring screen rewrites.
 ### 5.1 Live current + hourly + daily weather application boundary
 
 Phase 3B.2 introduced the application-owned orchestration/query layer under
-`src/features/weather/application/`; Phases 3B.3 and 4 extend the same boundary
+`src/services/live-weather.ts` and `src/services/live-weather.ts`; Phases 3B.3 and 4 extend the same boundary
 with normalized hourly and daily forecast data:
 
 ```text
@@ -391,29 +357,24 @@ Only persist weather data when there is a concrete product/analytics/history req
 
 ---
 
-## 11. Web Admin boundary
+## 11. Dashboard operations and activity plans
 
-The Admin system should manipulate controlled application configuration, primarily recommendation rules.
+Supabase Dashboard is the operational surface; no separate Web Admin is in scope.
+The live multi-activity planner uses the pure `assessActivity` evaluator with
+normalized hourly weather and timestamp-keyed US AQI. It requires full hourly
+coverage, checks freshness, uses destination-local time, and does not rank unsafe
+or unknown windows. The legacy walking evaluator/policy parser remains separately
+tested; the current planner does not fetch the unused `walking_policies` release.
 
-It should not share UI code with the mobile app unless there is a deliberate cross-platform library decision.
+`useActivityPlanner` owns location, forecast and account-plan queries/mutations.
+`usePlansScreen` owns selection, comparisons, save validation and reminder opt-in.
+Saved-plan rescheduling refreshes evidence and updates the same owned row with
+concurrency guards. Checklist and reminder preferences remain per plan.
 
-Potential Admin modules:
-
-```text
-Rules
-├── list
-├── create
-├── edit
-├── enable/disable
-└── preview
-
-Content
-├── recommendation text
-└── localization later
-
-Audit
-└── change metadata/history later
-```
+Product routes require authentication. Existing guest storage and its original
+storage key remain compatible; authenticated failures never fall back to it.
+No feedback UI or feedback queries remain. Historical feedback columns/tables
+and generated database types are retained without schema changes.
 
 ---
 
@@ -548,3 +509,145 @@ Any durable change to:
 - notification infrastructure;
 
 must be recorded in `DECISIONS.md`.
+
+### Do now recommendations
+
+`src/utils/recommendations.ts` composes normalized rule output with
+current destination-local daypart wording; clock-only routine advice is omitted. Home omits weather-derived advice
+when its data is stale. `DailyActionPanel` renders the existing SVGs, action
+heading and reason, highlighting the first priority recommendation.
+`ConditionsSummary` provides brief context; `UpcomingGuidance` presents activity
+preparation derived from fresh future forecast samples. Home collapses the
+large weather display, metrics and forecast until explicitly expanded.
+It does not read completion storage or expose task/reminder controls.
+Automatic notification events carry no task IDs. Provider startup retires old
+manual reminders and actionable weather schedules; normal weather sync replaces
+the latter without task buttons. Legacy storage is left intact but does not
+control recommendation visibility. Remote push infrastructure remains separate.
+
+## Onboarding personalization
+
+Auth signup marks initial setup pending. Home observes authenticated metadata
+and opens a separate LifestyleOnboarding modal. Account retains an inline edit
+form; shared selection fields have a two-step mode only inside the welcome modal.
+The auth data repository validates and saves preferences through updateUser;
+USER_UPDATED refreshes the existing AuthProvider state. No parallel preference
+cache or database table is introduced. A pure personalization step runs after
+weather-derived daily actions and uses the selected location’s current daypart.
+Unconfigured, guest and missing/invalid preference states retain generic advice.
+
+Current onboarding navigation: Home observes the new-account marker, closes
+Account and pushes /before-start once per user per Home session. The dedicated
+route guards authentication and returns Home after save/defer. LifestyleSetup
+shares fields with Account; only the route uses its three-step presentation.
+The previous LifestyleOnboarding modal has been removed.
+
+## Email OTP account flow
+
+AccountSheet opens EmailOtpForm after password signup requiring confirmation,
+on an unconfirmed-email password-login error, or through the forgotten-password action.
+The data repository owns calls to Supabase Auth. The existing AuthProvider
+subscription accepts the resulting session and Home starts initial setup only
+after sign-in. Recovery uses a separate nonpersistent client, verifies a recovery
+code, then updates the password; it never publishes its session to AuthProvider.
+The user returns to password login after success. Email/code/password drafts are component state, never persisted or logged.
+
+## Authentication route boundary
+
+RootNavigator uses Stack.Protected: auth is available while signed out; index,
+forecast, plans and before-start require signed_in. Session restoration renders
+a loading view before routes, preventing a Home flash. Notification navigation
+waits for authentication. Auth renders WelcomeScreen first; choosing Register or Login opens AccountSheet
+in page presentation with a back action to welcome, reusing signup, email
+confirmation and password recovery. RLS
+remains the server boundary; the route guard controls access to app screens.
+
+## Activity advisor and plan monitor
+
+activity-advisor is a pure evaluator over normalized PlanningHour values. It
+checks continuous hourly coverage for the whole duration, data freshness,
+activity-specific preferences, official alert overlap and missing AQI/UV.
+Scores never promote hazardous/unknown periods into ranked suggestions.
+PlansScreen reuses location/forecast queries and account plan persistence.
+PlanMonitor runs under Auth/Notification providers, fetches each saved plan's
+coordinates through QueryClient, evaluates current risk against saved baseline,
+and serializes local notification scheduling/cancellation. It refreshes every
+five foreground minutes/on app return; it is not a background service.
+Recommendation priority comes from weather rules and explicit lifestyle
+preferences. Activity choices retain the order declared by `ACTIVITIES`.
+Feedback-based suppression/ranking and inaccurate-report cache invalidation have
+been removed; manual forecast refresh remains available.
+
+## Upcoming plans and rescheduling — 2026-09-15
+
+Upcoming/detail queries live under the account activity-plans query prefix, so
+save/change/reschedule invalidates Home and detail together. Upcoming queries
+select the nearest future planned row directly, without the history limit, and
+refresh every 30 seconds. Home hides elapsed rows immediately using its clock.
+useSavedPlanForecast reuses normalized weather/AQI queries at saved coordinates.
+Details render fresh preparation, with saved preparation as an explicit fallback.
+Rescheduling refetches weather/AQI before reevaluating the chosen start. The
+repository updates the same row with owner/status/original interval/checklist
+filters; stale or conflicting writes do not create a replacement. Retained
+checks intersect the new checklist. Existing reminder settings are not overwritten.
+Local scheduling cancels the previous trigger before replacing it; a new start
+less than 15 minutes away cancels the obsolete reminder without scheduling a
+past trigger. Persisted scheduling state supports retries without duplicate
+alerts. Notification planId and Home navigation open the owned plan at page top.
+
+## Presentation boundaries — 2026-10-19
+
+HomeScreen composes UI; useHomeModel owns live weather, daily actions and local
+notification synchronization. home-presentation contains reusable view types and
+labels, while home/fixtures contains visual scenarios and the disclosed fallback.
+AccountSheet delegates requests to useAccountModel and renders AccountAuthForm or
+AccountProfile. LocationsSheet delegates to useLocationsModel and composes search
+results and saved-location panels. Shared time selection and reduced-motion
+handling live under components/ui. Network/provider validation and public routes
+remain unchanged.
+
+
+## Environmental recommendation scope — 2026-10-22 (ADR-053)
+
+This section supersedes earlier account-required routes and full plan-lifecycle
+presentation. Home, Forecast and Plans are public; before-start remains protected.
+Root keeps the session restoration loading state, and private queries/mutations
+require an authenticated owner. Guest assessment never reads legacy guest plans
+or silently saves to local guest storage. Login is requested inline when saving.
+
+Plans are presented as saved future hours with evidence, local reminder opt-in
+and a reversible cancel action. Completion, deletion/history, rescheduling and
+checkbox preparation are removed from the UI. Existing database rows, grants,
+RLS and repository compatibility remain unchanged. Three visible activity types
+retain legacy outing/shopping IDs for old data. New policy variants encode the
+selected transport/exposure as activity-v2:<transport>:<exposure> in the existing
+policy_version, so monitors reevaluate using the saved exposure rather than later
+profile changes; old versions retain conservative legacy defaults.
+
+Profile images and picker hooks are retired; stored assets remain untouched.
+Onboarding availability is optional and initializes the hour chooser after auth
+restoration. Home separates precautions from optional opportunities and keeps all
+warning/danger recommendations visible. Fixture data never generates live advice.
+Forecast presents daylight/visibility evidence, omitting Moon phase and pressure.
+
+
+## Weather context and avatar restoration — ADR-054
+
+Restore avatar helpers/hooks/UI inside services/account.ts, hooks/account.ts and
+components/account.tsx; no additional production source modules. Four explicit
+activity IDs reuse the existing schema. Work/school travel remains distinct from
+outing, with evaluation limited to the selected location rather than an entire
+route. Home requests the full recommendation set before daypart/personalization
+filtering, so hidden opportunities cannot remove unrelated precautions. Ordinary
+clothing advice uses measured temperatures; nighttime wording never invents a
+work/school schedule. Weather queries refresh every ten foreground minutes.
+
+
+### Expo Go local delivery (ADR-057)
+
+The notification service chooses the project channel for actual builds and the
+host default for Expo Go Android. Recommendation and saved-plan persistence record
+that choice, repairing previously scheduled messages when it changes. Permission
+checks precede immediate tests. Saved-plan reminders use a future date or one
+immediate presentation if already within the 15-minute reminder period. This does
+not introduce a server sender or background weather-fetching loop.
